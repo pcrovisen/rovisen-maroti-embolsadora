@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32825.248
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModbusServer", "ModbusServer\ModbusServer.csproj", "{A3D5656D-7DCC-42E5-BBB2-773EC1564513}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpHMIClient", "TcpHMIClient\TcpHMIClient.csproj", "{9B7F177B-3549-4492-8F7B-507B7C7BBADA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A3D5656D-7DCC-42E5-BBB2-773EC1564513}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3D5656D-7DCC-42E5-BBB2-773EC1564513}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3D5656D-7DCC-42E5-BBB2-773EC1564513}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3D5656D-7DCC-42E5-BBB2-773EC1564513}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B7F177B-3549-4492-8F7B-507B7C7BBADA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B7F177B-3549-4492-8F7B-507B7C7BBADA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B7F177B-3549-4492-8F7B-507B7C7BBADA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B7F177B-3549-4492-8F7B-507B7C7BBADA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FCA19711-87B1-490F-ABF5-C53B55570FFF}
+	EndGlobalSection
+EndGlobal
