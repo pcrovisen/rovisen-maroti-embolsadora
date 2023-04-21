@@ -22,9 +22,10 @@ namespace ModbusServer.StateMachine
             WaitingCarInB2,
             WaitingCarEmpty,
         }
+        bool errorSend;
         public CarMachine() : base(States.UnknownPosition)
         {
-
+            errorSend = false;
         }
 
         public override void Step()
@@ -77,11 +78,16 @@ namespace ModbusServer.StateMachine
                     if (FatekPLC.ReadBit(FatekPLC.Signals.BCD2EntryError))
                     {
                         var qrString = FatekPLC.GetQr(FatekPLC.Memory.CARQRa);
-                        _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.error_entrega_a_carro, code: qrString);
+                        if (!errorSend)
+                        {
+                            _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.error_entrega_a_embolsadora_2, code: qrString);
+                            errorSend = true;
+                        }
                         Status.Instance.ErrorMessages.CarError = "El carro no pudo entregar el pallet. Volver a posicionar el pallet sobre el carro y pasar el carro a modo LOCAL y alejarlo de la máquina unos centimetros.Finalmente poner el carro en REMOTO.";
                     }
                     else
                     {
+                        errorSend = false;
                         Status.Instance.ErrorMessages.CarError = "";
                     }
                     if (FatekPLC.ReadBit(FatekPLC.Signals.SendUpdate2))
