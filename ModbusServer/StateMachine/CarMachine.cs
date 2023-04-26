@@ -93,14 +93,21 @@ namespace ModbusServer.StateMachine
                     if (FatekPLC.ReadBit(FatekPLC.Signals.SendUpdate2))
                     {
                         Status.Instance.ErrorMessages.CarError = "";
-                        var qrString = FatekPLC.GetQr(FatekPLC.Memory.CARQRa);
+                        var pallet = FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
                         Log.Info("Car going to B1");
-                        _ = SqlDatabase.NotifyPalletIn(qrString, 2);
+                        _ = SqlDatabase.NotifyPalletIn(pallet.Qr, 2);
+                        Log.InfoFormat("Pallet {0} enter Bocedi2 with ID {1}", pallet.Qr, pallet.Id);
                         Status.UpdateFIFO2();
                         Status.SetCarPallet(false);
                         FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate2);
                         NextState(States.WaitingCarInB1);
                         Status.SetCarPosition(Car.Position.GoingToB1);
+                    }
+                    if (FatekPLC.ReadBit(FatekPLC.Signals.CarInB1))
+                    {
+                        Log.Info("Car waiting for pallet");
+                        NextState(States.WaitingCarWithPallet);
+                        Status.SetCarPosition(Car.Position.InB1);
                     }
                     break;
             }

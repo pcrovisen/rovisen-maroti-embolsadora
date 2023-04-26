@@ -34,7 +34,6 @@ namespace ModbusServer.StateMachine
 
         readonly QrReadMachine qrReadCode;
 
-        public bool needDB = true;
         bool bocedi1Working;
         bool bocedi2Working;
         Task<SqlDatabase.PackagerPreference> sqlRequest;
@@ -126,7 +125,7 @@ namespace ModbusServer.StateMachine
                     Status.Instance.ErrorMessages.EntryError = "";
                     if (sqlRequest.IsCompleted)
                     {
-                        if(sqlRequest.Result != null)
+                        if (sqlRequest.Result != null)
                         {
                             if (sqlRequest.Result.Packager == 0)
                             {
@@ -149,13 +148,7 @@ namespace ModbusServer.StateMachine
                                 Log.InfoFormat("Get null, asking db for code {0}", qrReadCode.Result);
                                 sqlRequest = SqlDatabase.AskForPackager(qrReadCode.Result);
                             }
-                            
                         }
-                    }
-                    if (!needDB)
-                    {
-                        NextState(States.SendingID);
-                        needDB = true;
                     }
                     break;
                 case States.SendingID:
@@ -174,8 +167,7 @@ namespace ModbusServer.StateMachine
                         {
                             Log.Info("Waiting for car");
                             NextState(States.WaitForCar);
-                        }
-                           
+                        }                     
                     }
                     break;
                 case States.WaitForBocedi1:
@@ -193,15 +185,15 @@ namespace ModbusServer.StateMachine
                         {
                             currentIdEmb1 = 1;
                         }
+                        FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate);
                         NextState(States.UpdateFIFO1);
                         Status.UpdateFIFO1();
                     }
                     break;
                 case States.UpdateFIFO1:
-                    FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate);
-                    Log.InfoFormat("Pallet {0} enter Bocedi1", qrReadCode.Result);
                     if (!FatekPLC.ReadBit(FatekPLC.Signals.SendUpdate))
                     {
+                        Log.InfoFormat("Pallet {0} enter Bocedi1 with ID {1}", qrReadCode.Result, currentIdEmb1);
                         Log.Info("Waiting new pallet");
                         NextState(States.Waiting);
                         _ = SqlDatabase.NotifyPalletIn(qrReadCode.Result, 1);
@@ -255,7 +247,7 @@ namespace ModbusServer.StateMachine
                     }
                     if (qrReadCode.Failed)
                     {
-                        Log.Warn("No se pudo encontrar QR");
+                        Log.Warn("QR code not found");
                         _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.qr_no_detectado);
                         qrReadCode.Reset();
                         break;
