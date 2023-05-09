@@ -43,12 +43,12 @@ namespace ModbusServer.StateMachine
                     if (!QrReader.IsConnected)
                     {
                         Log.Error("Qr reader not connected");
-                        Result = "S16CBA3";
-                        NextState(States.Completed);
+                        NextState(States.Failed);
                         break;
                     }
                     reader = QrReader.Read();
                     NextState(States.Reading);
+                    Log.Info("Start reading QR");
                     break;
                 case States.Reading:
                     if (reader.IsCompleted)
