@@ -36,7 +36,7 @@ namespace ModbusServer
             }
             catch(Exception ex)
             {
-                Log.Fatal($"Error in main process. Error: {ex.Message}. From: {ex.Source}");
+                Log.Fatal($"Error in main process. Error: {ex.Message}. From: {ex.StackTrace}");
                 System.Environment.Exit(-1);
             }
         }
