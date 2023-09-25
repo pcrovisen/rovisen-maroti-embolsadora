@@ -92,12 +92,20 @@ namespace ModbusServer.StateMachine
                     }
                     if (FatekPLC.ReadBit(FatekPLC.Signals.SendUpdate2))
                     {
+                        Log.Info("Car going to B1");
                         Status.Instance.ErrorMessages.CarError = "";
                         var pallet = FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
-                        Log.Info("Car going to B1");
-                        _ = SqlDatabase.NotifyPalletIn(pallet.Qr, 2);
-                        Log.InfoFormat("Pallet {0} enter Bocedi2 with ID {1}", pallet.Qr, pallet.Id);
-                        Status.UpdateFIFO2();
+                        if (pallet != null)
+                        {
+                            _ = SqlDatabase.NotifyPalletIn(pallet.Qr, 2);
+                            Log.InfoFormat("Pallet {0} enter Bocedi2 with ID {1}", pallet.Qr, pallet.Id);
+                            Status.UpdateFIFO2();
+                        }
+                        else
+                        {
+                            Log.Warn("Get null from car machine.");
+                        }
+
                         Status.SetCarPallet(false);
                         FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate2);
                         NextState(States.WaitingCarInB1);

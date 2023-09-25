@@ -142,11 +142,12 @@ namespace ModbusServer.StateMachine
                         }
                         else
                         {
-                            Status.Instance.ErrorMessages.EntryError = "La base de datos responde ID inválido. Si continua en este estado, sacar el pallet con una grua.";
+                            Status.Instance.ErrorMessages.EntryError = "La base de datos responde ID inválido. Remover el pallet o cambiar el código QR.";
                             if (StateTime.ElapsedMilliseconds > 1000)
                             {
-                                Log.InfoFormat("Get null, asking db for code {0}", qrReadCode.Result);
-                                sqlRequest = SqlDatabase.AskForPackager(qrReadCode.Result);
+                                Log.InfoFormat("Get NULL from the database to the qrcode {0}. Reading QR again", qrReadCode.Result);
+                                NextState(States.ReadingQR);
+                                qrReadCode.Reset();
                             }
                         }
                     }
