@@ -12,7 +12,7 @@ namespace ModbusServer.StateMachine
 {
     internal class QrReaderConnection : Machine
     {
-        static ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States
         {
             Init,
@@ -23,10 +23,12 @@ namespace ModbusServer.StateMachine
 
         Task<bool> qrConnection;
         int retries;
+        readonly QrReader qrReader;
 
-        public QrReaderConnection() : base(States.Init)
+        public QrReaderConnection(QrReader qrReader) : base(States.Init, qrReader.Ip)
         {
-            this.State = States.Init;
+            this.qrReader = qrReader;
+            State = States.Init;
             retries = 0;
         }
 
@@ -35,7 +37,7 @@ namespace ModbusServer.StateMachine
             switch (State)
             {
                 case States.Init:
-                    qrConnection = QrReader.Connect();
+                    qrConnection = qrReader.Connect();
                     NextState(States.Disconnected);
                     break;
                 case States.Disconnected:
@@ -57,10 +59,10 @@ namespace ModbusServer.StateMachine
                     break;
                 case States.Connected:
                     retries = 0;
-                    if (!QrReader.IsConnected)
+                    if (!qrReader.IsConnected)
                     {
                         Status.Instance.Connections.QrReader = false;
-                        qrConnection = QrReader.Connect();
+                        qrConnection = qrReader.Connect();
                         Log.Info("QR reader disconnected");
                         NextState(States.Disconnected);
                     }

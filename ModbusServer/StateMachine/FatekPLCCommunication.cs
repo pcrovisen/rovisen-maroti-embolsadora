@@ -25,7 +25,8 @@ namespace ModbusServer.StateMachine
         public DeletePalletEmb2 delletePalletEmb2;
         readonly PalletLabel1 palletLabelBocedi1;
         readonly PalletLabel2 palletLabelBocedi2;
-        readonly CarMachine CarMachine;
+        readonly CarMachine carMachine;
+        readonly ElevatorAccess elevatorMachine;
 
         public FatekPLCCommunication() : base(States.Init)
         {
@@ -34,7 +35,8 @@ namespace ModbusServer.StateMachine
             delletePalletEmb2 = new DeletePalletEmb2();
             palletLabelBocedi1 = new PalletLabel1();
             palletLabelBocedi2 = new PalletLabel2();
-            CarMachine = new CarMachine();
+            carMachine = new CarMachine();
+            elevatorMachine = new ElevatorAccess();
         }
 
         public override void Step()
@@ -81,7 +83,8 @@ namespace ModbusServer.StateMachine
                     delletePalletEmb2.Step();
                     palletLabelBocedi1.Step();
                     palletLabelBocedi2.Step();
-                    CarMachine.Step();
+                    carMachine.Step();
+                    elevatorMachine.Step();
                     if (!FatekPLC.ReadBit(FatekPLC.Signals.Ready))
                     {
                         NextState(States.Init);

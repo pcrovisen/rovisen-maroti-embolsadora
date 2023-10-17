@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -32,7 +33,9 @@ namespace ModbusServer.StateMachine
             Paused,
         }
 
+        readonly QrReader qrReader;
         readonly QrReadMachine qrReadCode;
+        readonly QrReaderConnection qrReaderConnection;
 
         bool bocedi1Working;
         bool bocedi2Working;
@@ -42,13 +45,17 @@ namespace ModbusServer.StateMachine
 
         public PalletEntry() : base(States.Waiting)
         {
-            this.qrReadCode = new QrReadMachine();
+            qrReader = new QrReader(ConfigurationManager.AppSettings["ipQrReader"]);
+            qrReadCode = new QrReadMachine(qrReader);
+            qrReaderConnection = new QrReaderConnection(qrReader);
             bocedi1Working = false;
             bocedi2Working = false;
         }
 
         public override void Step()
         {
+            qrReaderConnection.Step();
+
             NotifyBocediStates();
             if (FatekPLC.ReadBit(FatekPLC.Signals.WaitingPallet) && 
                 (States)State != States.Waiting &&

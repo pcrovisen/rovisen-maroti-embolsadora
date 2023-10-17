@@ -227,6 +227,35 @@ namespace ModbusServer.Devices
             }
         }
 
+        public static async Task<bool> GetAuthElevator(string code)
+        {
+            return await Instance._GetAuthElevator(code);
+        }
+
+        private async Task<bool> _GetAuthElevator(string code)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateElevatorCommnad(code), connection).ExecuteReader())
+                    {
+                        await sqlDataReader.ReadAsync();
+                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
+                        return sqlDataReader.GetBoolean(0);
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
+                    Status.Instance.Connections.WencoDB = false;
+                    return false;
+                }
+            }
+        }
+
         private string CreatePackageCommand(string code)
         {
             return ("\r\n DECLARE @out_preferencia_embolsadora INT;\r\n" +
@@ -295,6 +324,15 @@ namespace ModbusServer.Devices
                     ",@out_continuar_sin_respuesta_db = @out_continuar_sin_respuesta_db OUTPUT\r\n" +
                     ",@out_receta_por_defecto = @out_receta_por_defecto OUTPUT;\r\n\r\n" +
                     "select @out_continuar_sin_lectura_codigo, out_continuar_sin_respuesta_db, out_receta_por_defecto;\r\n");
+        }
+
+        private string CreateElevatorCommnad(string code)
+        {
+            return ("\r\n DECLARE @out_autorizado BIT;\r\n" +
+                    "EXECUTE [maroti].[sp_solicitar_ingreso_por_elevador]\r\n" +
+                    "@in_codigo = '" + code + "'\r\n" +
+                    ",@out_autorizado = @out_autorizado OUTPUT;\r\n\r\n" +
+                    "select @out_autorizado;\r\n");
         }
     }
 }

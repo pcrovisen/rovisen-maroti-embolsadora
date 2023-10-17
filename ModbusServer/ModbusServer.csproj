@@ -142,6 +142,7 @@
     <Compile Include="StateMachine\CarCommunication.cs" />
     <Compile Include="StateMachine\CarMachine.cs" />
     <Compile Include="StateMachine\CarConnection.cs" />
+    <Compile Include="StateMachine\ElevatorAccess.cs" />
     <Compile Include="StateMachine\NetworkPrinterConnection.cs" />
     <Compile Include="StateMachine\OmronConnection.cs" />
     <Compile Include="StateMachine\PalletLabel2.cs" />

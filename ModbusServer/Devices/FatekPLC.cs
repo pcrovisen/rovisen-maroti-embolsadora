@@ -111,6 +111,8 @@ namespace ModbusServer.Devices
             PalletLeave2,
             ErrorQr,
             Waiting,
+            ElevatorAuth,
+            ElevatorFailedQr,
             ReadQR = 21,
             Label1,
             Label2,
@@ -143,6 +145,7 @@ namespace ModbusServer.Devices
             BCD1OK,
             BCD2OK,
             Pause,
+            ElevatorRequest,
         }
 
         public static void Init()
