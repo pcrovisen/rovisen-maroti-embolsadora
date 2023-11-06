@@ -56,6 +56,7 @@ namespace ModbusServer.StateMachine
                         }
                         else
                         {
+                            FatekPLC.SetBit(FatekPLC.Signals.ElevatorFailedQr);
                             sqlRequest = SqlDatabase.GetAuthElevator(qrReadMachine.Result);
                             NextState(States.WaitingAuth);
                         }
@@ -66,6 +67,7 @@ namespace ModbusServer.StateMachine
                     {
                         if (sqlRequest.Result)
                         {
+                            FatekPLC.SetBit(FatekPLC.Signals.ElevatorAuth);
                             NextState(States.WaitingLeave);
                         }
                         else
@@ -77,6 +79,7 @@ namespace ModbusServer.StateMachine
                 case States.WaitingLeave:
                     if (!FatekPLC.ReadBit(FatekPLC.Signals.ElevatorRequest))
                     {
+                        FatekPLC.ResetBit(FatekPLC.Signals.ElevatorAuth);
                         NextState(States.WaitingRequest);
                     }
                     break;
