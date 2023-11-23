@@ -55,7 +55,7 @@ namespace ModbusServer.StateMachine
                 case States.Reading:
                     if (reader.IsCompleted)
                     {
-                        if(reader.Result != string.Empty && IsValid(reader.Result))
+                        if(reader.Result != string.Empty)
                         {
                             Result = reader.Result;
                             Log.Info($"Qr reader read {Result}");

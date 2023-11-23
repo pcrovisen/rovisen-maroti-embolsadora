@@ -1,8 +1,10 @@
-﻿using ModbusServer.Devices;
+﻿using log4net;
+using ModbusServer.Devices;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,6 +12,7 @@ namespace ModbusServer.StateMachine
 {
     internal class ElevatorAccess : Machine
     {
+        static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States
         {
             WaitingRequest,
@@ -39,27 +42,36 @@ namespace ModbusServer.StateMachine
             switch(State)
             {
                 case States.WaitingRequest:
+                    FatekPLC.ResetBit(FatekPLC.Signals.ElevatorFailedQr);
                     if (FatekPLC.ReadBit(FatekPLC.Signals.ElevatorRequest))
                     {
+                        Log.Info("Elevator reading request");
                         NextState(States.ReadingQr);
                         qrReadMachine.Reset();
                     }
                     break;
                 case States.ReadingQr:
                     qrReadMachine.Step();
+                    if (!FatekPLC.ReadBit(FatekPLC.Signals.ElevatorRequest))
+                    {
+                        NextState(States.WaitingRequest);
+                        Log.Info("Pallet removed");
+                        break;
+                    }
+                    if (qrReadMachine.Failed)
+                    {
+                        Log.Info("Qr failed");
+                        FatekPLC.SetBit(FatekPLC.Signals.ElevatorFailedQr);
+                        qrReadMachine.Reset();
+                    }
                     if (qrReadMachine.Completed)
                     {
-                        if (qrReadMachine.Failed)
-                        {
-                            FatekPLC.SetBit(FatekPLC.Signals.ElevatorFailedQr);
-                            qrReadMachine.Reset();
-                        }
-                        else
-                        {
-                            FatekPLC.SetBit(FatekPLC.Signals.ElevatorFailedQr);
-                            sqlRequest = SqlDatabase.GetAuthElevator(qrReadMachine.Result);
-                            NextState(States.WaitingAuth);
-                        }
+                        Log.Info("Qr completed");
+                        Log.InfoFormat("Qr readed: {0}", qrReadMachine.Result);
+                        FatekPLC.ResetBit(FatekPLC.Signals.ElevatorFailedQr);
+                        sqlRequest = SqlDatabase.GetAuthElevator(qrReadMachine.Result);
+                        NextState(States.WaitingAuth);
+                        Log.Info("Asking DB");
                     }
                     break;
                 case States.WaitingAuth:
@@ -67,11 +79,13 @@ namespace ModbusServer.StateMachine
                     {
                         if (sqlRequest.Result)
                         {
+                            Log.Info("DB authorize");
                             FatekPLC.SetBit(FatekPLC.Signals.ElevatorAuth);
                             NextState(States.WaitingLeave);
                         }
                         else
                         {
+                            Log.Info("DB not authorize");
                             NextState(States.Delay);
                         }
                     }
@@ -79,6 +93,7 @@ namespace ModbusServer.StateMachine
                 case States.WaitingLeave:
                     if (!FatekPLC.ReadBit(FatekPLC.Signals.ElevatorRequest))
                     {
+                        Log.Info("Pallet elevated");
                         FatekPLC.ResetBit(FatekPLC.Signals.ElevatorAuth);
                         NextState(States.WaitingRequest);
                     }

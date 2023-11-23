@@ -146,6 +146,8 @@ namespace ModbusServer.Devices
             BCD2OK,
             Pause,
             ElevatorRequest,
+            LabelNull1,
+            LabelNull2,
         }
 
         public static void Init()
@@ -273,20 +275,22 @@ namespace ModbusServer.Devices
         {
             string firstHalf;
             string secondHalf;
-            if (qrString[0] == 'S')
+
+            /*
+            if (IsQrValid(qrString))
             {
                 string hexID = qrString.Substring(1);
                 int len = hexID.Length;
                 firstHalf = hexID.Substring(len - 4);
                 secondHalf = hexID.Substring(0, len - 4);
             }
-            else
-            {
-                var stringId = VisualID.GetQrId(qrString);
-                int len = stringId.Length;
-                firstHalf = stringId.Substring(len - 4);
-                secondHalf = stringId.Substring(0, len - 4);
-            }
+            else */
+            //{
+            var stringId = VisualID.GetQrId(qrString);
+            int len = stringId.Length;
+            firstHalf = stringId.Substring(len - 4);
+            secondHalf = stringId.Substring(0, len - 4);
+            //}
 
             int value1 = Convert.ToInt32(firstHalf, 16);
             int value2 = Convert.ToInt32(secondHalf, 16);
@@ -301,6 +305,20 @@ namespace ModbusServer.Devices
             var labelAndId = pallet.Labeling ? 8 + Convert.ToInt16(pallet.Id) : Convert.ToInt16(pallet.Id);
             var injRecipeId = string.Format("{0}{1}{2}", injector.ToString("X"), Convert.ToInt16(pallet.Recipe).ToString("X"), labelAndId.ToString("X"));
             SetMemory(idIndex, Convert.ToInt16(injRecipeId, 16));
+        }
+
+        public static bool IsQrValid(string qrCode)
+        {
+            string hexa = qrCode.Substring(1);
+            try
+            {
+                int a = Convert.ToInt16(hexa, 16);
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
         }
     }
 }

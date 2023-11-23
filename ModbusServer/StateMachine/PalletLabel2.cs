@@ -21,6 +21,7 @@ namespace ModbusServer.StateMachine
             Labeling,
             WaitLeaving,
             WaitAck,
+            WaitLeaveNull,
         }
 
         OmronPLC plc;
@@ -76,6 +77,12 @@ namespace ModbusServer.StateMachine
                             Log.Info("ID not corresponding with the machine in bocedi2");
                             NextState(States.WaitingCorrection);
                         }
+                        if (FatekPLC.ReadBit(FatekPLC.Signals.LabelNull2))
+                        {
+                            Log.Warn("Pallet in labeling, but queue is empty");
+                            printerMachine.Reset("", false);
+                            NextState(States.WaitLeaveNull);
+                        }
                         break;
                     case States.WaitingCorrection:
                         Status.Instance.ErrorMessages.BDC2Error = "Se encontró una inconsistencia entre el ID de la cola y el ID entregado por la máquina. Corregir esto y luego presionar Start.";
@@ -125,7 +132,15 @@ namespace ModbusServer.StateMachine
                             Log.Info("Waiting pallet to label2");
                         }
                         break;
-                    
+                    case States.WaitLeaveNull:
+                        Status.Instance.ErrorMessages.BDC2Error = "Hay un pallet en el etiquetado, pero las colas estan vacías. El pallet no será etiquetado.";
+                        printerMachine.Step();
+                        if (!FatekPLC.ReadBit(FatekPLC.Signals.LabelNull2))
+                        {
+                            NextState(States.WaitingPallet);
+                            Log.Info("Waiting pallet to label2");
+                        }
+                        break;
                 }
             }
         }
