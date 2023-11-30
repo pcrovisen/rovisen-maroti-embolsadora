@@ -17,6 +17,7 @@ namespace ModbusServer.StateMachine
             Init,
             Starting,
             WaitingMemory,
+            WaitingInit,
             Working,
         }
 
@@ -27,6 +28,8 @@ namespace ModbusServer.StateMachine
         readonly PalletLabel2 palletLabelBocedi2;
         readonly CarMachine carMachine;
         readonly ElevatorAccess elevatorMachine;
+
+        Task initQueues;
 
         public FatekPLCCommunication() : base(States.Init)
         {
@@ -66,10 +69,22 @@ namespace ModbusServer.StateMachine
                     FatekPLC.SetBit(FatekPLC.Signals.ReceivingFIFOs);
                     if (FatekPLC.ReadBit(FatekPLC.Signals.Ready))
                     {
-                        NextState(States.Working);
+                        NextState(States.WaitingInit);
                         Log.Info("Master PLC connected");
                         palletEntry.Reset();
-                        Status.InitQueues();
+                        initQueues =  Status.InitQueues();
+                    }
+                    break;
+                case States.WaitingInit:
+                    if (initQueues.IsFaulted)
+                    {
+                        Log.Error("Could not init queues");
+                        initQueues = Status.InitQueues();
+                    }
+                    if (initQueues.IsCompleted)
+                    {
+                        NextState(States.Working);
+                        Log.Info("Queues initialized");
                     }
                     break;
                 case States.Working:

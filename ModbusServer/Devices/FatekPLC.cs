@@ -4,6 +4,7 @@ using System;
 using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace ModbusServer.Devices
 {
@@ -237,12 +238,17 @@ namespace ModbusServer.Devices
             }
         }
 
-        public static Pallet GetPalletInfo(Memory qrIndex, Memory idIndex)
+        public static async Task<Pallet> GetPalletInfo(Memory qrIndex, Memory idIndex)
         {
-            var qrString = GetQr(qrIndex);
+            var qrString = await GetQr(qrIndex);
+
+            if(qrString == null)
+            {
+                throw new Exception("Could not get the QR from the id");
+            }
 
             var plcId = ReadMemory(idIndex).ToString("X");
-            if (qrString != "S00000000" && plcId != "0")
+            if (qrString != "" && plcId != "0")
             {
                 var labelAndId = Convert.ToInt16(plcId.Substring(plcId.Length - 1), 16);
                 var labeling = labelAndId > 8;
@@ -257,21 +263,25 @@ namespace ModbusServer.Devices
             }
         }
 
-        public static string GetQr(Memory qrIndex)
+        public static async Task<string> GetQr(Memory qrIndex)
         {
-            var qrString =
-                    "S" +
+            var idString =
                     ReadMemory(qrIndex + 1).ToString("X") +
                     ReadMemory(qrIndex).ToString("X4");
 
-            var posibleQrString = VisualID.GetQrString(qrString);
-            if (posibleQrString != "")
-                qrString = posibleQrString;
+            int id = Convert.ToInt32(idString, 16);
 
-            return qrString;
+            if(id != 0)
+            {
+                return await VisualID.GetQrString(id);
+            }
+            else
+            {
+                return "";
+            }
         }
 
-        public static void SetQr(Memory qrIndex, string qrString)
+        public static async Task<bool> SetQr(Memory qrIndex, string qrString)
         {
             string firstHalf;
             string secondHalf;
@@ -286,25 +296,47 @@ namespace ModbusServer.Devices
             }
             else */
             //{
-            var stringId = VisualID.GetQrId(qrString);
+            var id = await VisualID.GetQrId(qrString);
+            if(id < 0)
+            {
+                return false;
+            }
+            var stringId = id.ToString("X");
             int len = stringId.Length;
-            firstHalf = stringId.Substring(len - 4);
-            secondHalf = stringId.Substring(0, len - 4);
+
+            if(len > 4)
+            {
+                firstHalf = stringId.Substring(len - 4);
+                secondHalf = stringId.Substring(0, len - 4);
+            }
+            else
+            {
+                firstHalf = stringId;
+                secondHalf = "0";
+            }
+            
             //}
 
             int value1 = Convert.ToInt32(firstHalf, 16);
             int value2 = Convert.ToInt32(secondHalf, 16);
             SetMemory(qrIndex, (short)value1);
             SetMemory(qrIndex + 1, (short)value2);
+
+            return true;
         }
 
-        public static void SetQrAndId(Memory qrIndex, Memory idIndex, Pallet pallet)
+        public static async Task<bool> SetQrAndId(Memory qrIndex, Memory idIndex, Pallet pallet)
         {
-            SetQr(qrIndex, pallet.Qr);
-            var injector = VisualID.GetId(pallet.Injector);
-            var labelAndId = pallet.Labeling ? 8 + Convert.ToInt16(pallet.Id) : Convert.ToInt16(pallet.Id);
-            var injRecipeId = string.Format("{0}{1}{2}", injector.ToString("X"), Convert.ToInt16(pallet.Recipe).ToString("X"), labelAndId.ToString("X"));
-            SetMemory(idIndex, Convert.ToInt16(injRecipeId, 16));
+            if(await SetQr(qrIndex, pallet.Qr))
+            {
+                var injector = VisualID.GetId(pallet.Injector);
+                var labelAndId = pallet.Labeling ? 8 + Convert.ToInt16(pallet.Id) : Convert.ToInt16(pallet.Id);
+                var injRecipeId = string.Format("{0}{1}{2}", injector.ToString("X"), Convert.ToInt16(pallet.Recipe).ToString("X"), labelAndId.ToString("X"));
+                SetMemory(idIndex, Convert.ToInt16(injRecipeId, 16));
+                return true;
+            }
+
+            return false;
         }
 
         public static bool IsQrValid(string qrCode)

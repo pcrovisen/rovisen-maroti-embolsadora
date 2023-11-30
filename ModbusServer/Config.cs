@@ -40,7 +40,7 @@ namespace ModbusServer
             }
             else
             {
-                Instance = new Config { QrRetries = 5, ContinueIfNoQr = false, ContinueIfNoDB = false, DefaultRecipe = 1 };
+                Instance = new Config { QrRetries = 1, ContinueIfNoQr = false, ContinueIfNoDB = false, DefaultRecipe = 1 };
                 Save();
             }
         }

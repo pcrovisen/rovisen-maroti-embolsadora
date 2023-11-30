@@ -62,6 +62,7 @@ namespace ModbusServer.StateMachine
                     {
                         Log.Info("Qr failed");
                         FatekPLC.SetBit(FatekPLC.Signals.ElevatorFailedQr);
+                        _ = SqlDatabase.GetAuthElevator(null, "No se pudo leer el código QR del pallet.");
                         qrReadMachine.Reset();
                     }
                     if (qrReadMachine.Completed)

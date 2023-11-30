@@ -48,29 +48,29 @@ namespace ModbusServer
             Instance.StateMachine.Updated = false;
         }
 
-        public static void InitQueues()
+        public static async Task InitQueues()
         {
-            Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
-            Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+            await Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
+            await Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
         }
 
-        internal static void UpdateFIFO1()
+        internal static async Task UpdateFIFO1()
         {
-            Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
+            await Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
         }
 
-        internal static void UpdateFIFO2()
+        internal static async Task UpdateFIFO2()
         {
-            Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+            await Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
         }
 
-        internal static void SetCarPallet(bool hasPallet)
+        internal static async Task SetCarPallet(bool hasPallet)
         {
             Instance.Car.Updated = true;
             Instance.Car.HasPallet = hasPallet;
             if (Instance.Car.HasPallet)
             {
-                Instance.Car.Pallet = FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
+                Instance.Car.Pallet = await FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
             }
             else
             {
@@ -83,22 +83,25 @@ namespace ModbusServer
             Instance.Car.CarPosition = position;
         }
 
-        internal static void SetEntryPallet(bool withId = false)
+        internal static async Task<bool> SetEntryPallet(bool withId = false)
         {
             if(!withId)
             {
                 Instance.EntryPallet = new Pallet()
                 {
                     Id = "",
-                    Qr = FatekPLC.GetQr(FatekPLC.Memory.QR1),
+                    Qr = await FatekPLC.GetQr(FatekPLC.Memory.QR1),
                     Injector = "",
                     Recipe = "",
                     Labeling = false,
                 };
+
+                return Instance.EntryPallet.Qr != "";
             }
             else
             {
-                Instance.EntryPallet = FatekPLC.GetPalletInfo(FatekPLC.Memory.QR1, FatekPLC.Memory.ID);
+                Instance.EntryPallet = await FatekPLC.GetPalletInfo(FatekPLC.Memory.QR1, FatekPLC.Memory.ID);
+                return true;
             }
             
         }
@@ -122,7 +125,7 @@ namespace ModbusServer
             Updated = false;
         }
 
-        public void UpdateQueue(int lenght, FatekPLC.Memory startFIFO, FatekPLC.Memory startId)
+        public async Task UpdateQueue(int lenght, FatekPLC.Memory startFIFO, FatekPLC.Memory startId)
         {
             if (Queue == null) 
             {
@@ -134,16 +137,16 @@ namespace ModbusServer
 
             for (ushort i = 0; i < lenght; i++)
             {
-                Queue.Add(FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
+                Queue.Add(await FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
             }
 
             // Label Pallet
             FatekPLC.Memory aux = startFIFO + 20;
-            LabelPallet = FatekPLC.GetPalletInfo(aux, aux + 2);
+            LabelPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
            
             // Exit Pallet
             aux += 3;
-            ExitPallet = FatekPLC.GetPalletInfo(aux, aux + 2);
+            ExitPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
         }
     }
 

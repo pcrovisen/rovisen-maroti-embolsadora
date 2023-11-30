@@ -17,8 +17,10 @@ namespace ModbusServer.StateMachine
         enum States
         {
             WaitingPallet,
+            WaitUpdate,
             WaitingCorrection,
             Labeling,
+            WaitUpdate2,
             WaitLeaving,
             WaitAck,
             WaitLeaveNull,
@@ -31,6 +33,7 @@ namespace ModbusServer.StateMachine
         PrinterMachine printerMachine;
         string currentCode;
         Task<bool> palletLeaveTask;
+        Task writeTask;
         public PalletLabel2() : base(States.WaitingPallet)
         {
             plc = new OmronPLC(TransportType.Tcp);
@@ -54,12 +57,9 @@ namespace ModbusServer.StateMachine
                         if (FatekPLC.ReadBit(FatekPLC.Signals.Label2))
                         {
                             FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave2);
-                            Status.UpdateFIFO2();
-                            currentCode = Status.Instance.Packager2.LabelPallet.Qr;
-                            Log.InfoFormat("Start labeling pallet {0} in bocedi2", currentCode);
-                            FatekPLC.SetBit(FatekPLC.Signals.Labeling2);
-                            printerMachine.Reset(currentCode, Status.Instance.Packager2.LabelPallet.Labeling);
-                            NextState(States.Labeling);
+                            writeTask = Status.UpdateFIFO2();
+                            NextState(States.WaitUpdate);
+                            
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.PLCLabeling2))
                         {
@@ -84,6 +84,22 @@ namespace ModbusServer.StateMachine
                             NextState(States.WaitLeaveNull);
                         }
                         break;
+                    case States.WaitUpdate:
+                        if (writeTask.IsFaulted)
+                        {
+                            Log.Error("Could not write fifo 2");
+                            writeTask = Status.UpdateFIFO2();
+                        }
+                        if (writeTask.IsCompleted)
+                        {
+                            Log.Info("Fifo 2 updated");
+                            currentCode = Status.Instance.Packager2.LabelPallet.Qr;
+                            Log.InfoFormat("Start labeling pallet {0} in bocedi2", currentCode);
+                            FatekPLC.SetBit(FatekPLC.Signals.Labeling2);
+                            printerMachine.Reset(currentCode, Status.Instance.Packager2.LabelPallet.Labeling);
+                            NextState(States.Labeling);
+                        }
+                        break;
                     case States.WaitingCorrection:
                         Status.Instance.ErrorMessages.BDC2Error = "Se encontró una inconsistencia entre el ID de la cola y el ID entregado por la máquina. Corregir esto y luego presionar Start.";
                         if (!FatekPLC.ReadBit(FatekPLC.Signals.WaitCorrection2))
@@ -100,8 +116,20 @@ namespace ModbusServer.StateMachine
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.Leave2))
                         {
+                            writeTask = Status.UpdateFIFO2();
+                            NextState(States.WaitUpdate2);
+                        }
+                        break;
+                    case States.WaitUpdate2:
+                        if (writeTask.IsFaulted)
+                        {
+                            Log.Error("Could not update fifo 1");
+                            writeTask = Status.UpdateFIFO2();
+                        }
+                        if (writeTask.IsCompleted)
+                        {
+                            Log.Info("Fifo 2 updated");
                             FatekPLC.ResetBit(FatekPLC.Signals.Labeling2);
-                            Status.UpdateFIFO2();
                             Log.InfoFormat("Notify pallet out worldjet2 with code {0}", currentCode);
                             palletLeaveTask = SqlDatabase.NotifyPalletOut(currentCode);
                             NextState(States.WaitAck);

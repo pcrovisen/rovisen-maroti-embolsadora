@@ -60,16 +60,23 @@
             this.tabPalletB1 = new System.Windows.Forms.Label();
             this.tabCarB2 = new System.Windows.Forms.Panel();
             this.tabPalletB2 = new System.Windows.Forms.Label();
+            this.carToB1 = new TcpHMIClient.FLabel();
+            this.carToB2 = new TcpHMIClient.FLabel();
             this.label30 = new System.Windows.Forms.Label();
+            this.fCarUnkown = new TcpHMIClient.FLabel();
             this.palletEntryTab = new System.Windows.Forms.TabPage();
             this.groupBox10 = new System.Windows.Forms.GroupBox();
             this.entryErrors = new System.Windows.Forms.Label();
             this.groupBox9 = new System.Windows.Forms.GroupBox();
+            this.fCameraQrGood = new TcpHMIClient.FLabel();
+            this.fCameraQrBad = new TcpHMIClient.FLabel();
             this.entryBCD2 = new System.Windows.Forms.Label();
             this.entryBCD1 = new System.Windows.Forms.Label();
             this.entryPalletLabel = new System.Windows.Forms.Label();
             this.panelCarInB1 = new System.Windows.Forms.Panel();
             this.palletInCarPos1 = new System.Windows.Forms.Label();
+            this.fLToCarArrow = new TcpHMIClient.FLabel();
+            this.fLToBCDArrow = new TcpHMIClient.FLabel();
             this.emb1Tab = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.bcd1Errors = new System.Windows.Forms.Label();
@@ -84,6 +91,7 @@
             this.exitPallet1 = new System.Windows.Forms.Label();
             this.labelingEmb1 = new System.Windows.Forms.Label();
             this.enterEmb1 = new System.Windows.Forms.Label();
+            this.fLabelEnter2 = new TcpHMIClient.FLabel();
             this.emb1st5 = new System.Windows.Forms.Label();
             this.emb1st4 = new System.Windows.Forms.Label();
             this.emb1st3 = new System.Windows.Forms.Label();
@@ -93,14 +101,6 @@
             this.process = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.state = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ClientWorker = new System.ComponentModel.BackgroundWorker();
-            this.carToB1 = new TcpHMIClient.FLabel();
-            this.carToB2 = new TcpHMIClient.FLabel();
-            this.fCarUnkown = new TcpHMIClient.FLabel();
-            this.fCameraQrGood = new TcpHMIClient.FLabel();
-            this.fCameraQrBad = new TcpHMIClient.FLabel();
-            this.fLToCarArrow = new TcpHMIClient.FLabel();
-            this.fLToBCDArrow = new TcpHMIClient.FLabel();
-            this.fLabelEnter2 = new TcpHMIClient.FLabel();
             this.tabControl1.SuspendLayout();
             this.emb2Tab.SuspendLayout();
             this.groupBox8.SuspendLayout();
@@ -505,6 +505,26 @@
             this.tabPalletB2.Text = " ";
             this.tabPalletB2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // carToB1
+            // 
+            this.carToB1.BackColor = System.Drawing.Color.Transparent;
+            this.carToB1.Location = new System.Drawing.Point(640, 218);
+            this.carToB1.Name = "carToB1";
+            this.carToB1.OffImage = null;
+            this.carToB1.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
+            this.carToB1.Size = new System.Drawing.Size(50, 50);
+            this.carToB1.TabIndex = 24;
+            // 
+            // carToB2
+            // 
+            this.carToB2.BackColor = System.Drawing.Color.Transparent;
+            this.carToB2.Location = new System.Drawing.Point(403, 218);
+            this.carToB2.Name = "carToB2";
+            this.carToB2.OffImage = null;
+            this.carToB2.OnImage = global::TcpHMIClient.Properties.Resources.icons8_left_arrow_94;
+            this.carToB2.Size = new System.Drawing.Size(50, 50);
+            this.carToB2.TabIndex = 23;
+            // 
             // label30
             // 
             this.label30.AutoSize = true;
@@ -514,6 +534,16 @@
             this.label30.Size = new System.Drawing.Size(107, 20);
             this.label30.TabIndex = 22;
             this.label30.Text = "Desconocido";
+            // 
+            // fCarUnkown
+            // 
+            this.fCarUnkown.BackColor = System.Drawing.Color.Transparent;
+            this.fCarUnkown.Location = new System.Drawing.Point(466, 364);
+            this.fCarUnkown.Name = "fCarUnkown";
+            this.fCarUnkown.OffImage = global::TcpHMIClient.Properties.Resources.icons8_white_circle_96;
+            this.fCarUnkown.OnImage = global::TcpHMIClient.Properties.Resources.icons8_green_circle_96;
+            this.fCarUnkown.Size = new System.Drawing.Size(25, 25);
+            this.fCarUnkown.TabIndex = 21;
             // 
             // palletEntryTab
             // 
@@ -571,6 +601,26 @@
             this.groupBox9.TabStop = false;
             this.groupBox9.Text = "Ingreso de pallets";
             // 
+            // fCameraQrGood
+            // 
+            this.fCameraQrGood.BackColor = System.Drawing.Color.Transparent;
+            this.fCameraQrGood.Location = new System.Drawing.Point(505, 98);
+            this.fCameraQrGood.Name = "fCameraQrGood";
+            this.fCameraQrGood.OffImage = null;
+            this.fCameraQrGood.OnImage = global::TcpHMIClient.Properties.Resources.icons8_camera_64;
+            this.fCameraQrGood.Size = new System.Drawing.Size(50, 50);
+            this.fCameraQrGood.TabIndex = 39;
+            // 
+            // fCameraQrBad
+            // 
+            this.fCameraQrBad.BackColor = System.Drawing.Color.Transparent;
+            this.fCameraQrBad.Location = new System.Drawing.Point(505, 98);
+            this.fCameraQrBad.Name = "fCameraQrBad";
+            this.fCameraQrBad.OffImage = null;
+            this.fCameraQrBad.OnImage = global::TcpHMIClient.Properties.Resources.icons8_camera_64_red;
+            this.fCameraQrBad.Size = new System.Drawing.Size(50, 50);
+            this.fCameraQrBad.TabIndex = 38;
+            // 
             // entryBCD2
             // 
             this.entryBCD2.BackColor = System.Drawing.Color.Peru;
@@ -626,6 +676,26 @@
             this.palletInCarPos1.TabIndex = 22;
             this.palletInCarPos1.Text = " ";
             this.palletInCarPos1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // fLToCarArrow
+            // 
+            this.fLToCarArrow.BackColor = System.Drawing.Color.Transparent;
+            this.fLToCarArrow.Location = new System.Drawing.Point(345, 253);
+            this.fLToCarArrow.Name = "fLToCarArrow";
+            this.fLToCarArrow.OffImage = null;
+            this.fLToCarArrow.OnImage = ((System.Drawing.Bitmap)(resources.GetObject("fLToCarArrow.OnImage")));
+            this.fLToCarArrow.Size = new System.Drawing.Size(50, 50);
+            this.fLToCarArrow.TabIndex = 31;
+            // 
+            // fLToBCDArrow
+            // 
+            this.fLToBCDArrow.BackColor = System.Drawing.Color.Transparent;
+            this.fLToBCDArrow.Location = new System.Drawing.Point(667, 253);
+            this.fLToBCDArrow.Name = "fLToBCDArrow";
+            this.fLToBCDArrow.OffImage = null;
+            this.fLToBCDArrow.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
+            this.fLToBCDArrow.Size = new System.Drawing.Size(50, 50);
+            this.fLToBCDArrow.TabIndex = 30;
             // 
             // emb1Tab
             // 
@@ -796,6 +866,16 @@
             this.enterEmb1.TabIndex = 21;
             this.enterEmb1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // fLabelEnter2
+            // 
+            this.fLabelEnter2.BackColor = System.Drawing.Color.Transparent;
+            this.fLabelEnter2.Location = new System.Drawing.Point(222, 243);
+            this.fLabelEnter2.Name = "fLabelEnter2";
+            this.fLabelEnter2.OffImage = null;
+            this.fLabelEnter2.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
+            this.fLabelEnter2.Size = new System.Drawing.Size(31, 31);
+            this.fLabelEnter2.TabIndex = 19;
+            // 
             // emb1st5
             // 
             this.emb1st5.BackColor = System.Drawing.Color.Peru;
@@ -890,86 +970,6 @@
             this.ClientWorker.WorkerSupportsCancellation = true;
             this.ClientWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.CommunicateWithServer);
             this.ClientWorker.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.UpdateHMI);
-            // 
-            // carToB1
-            // 
-            this.carToB1.BackColor = System.Drawing.Color.Transparent;
-            this.carToB1.Location = new System.Drawing.Point(640, 218);
-            this.carToB1.Name = "carToB1";
-            this.carToB1.OffImage = null;
-            this.carToB1.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
-            this.carToB1.Size = new System.Drawing.Size(50, 50);
-            this.carToB1.TabIndex = 24;
-            // 
-            // carToB2
-            // 
-            this.carToB2.BackColor = System.Drawing.Color.Transparent;
-            this.carToB2.Location = new System.Drawing.Point(403, 218);
-            this.carToB2.Name = "carToB2";
-            this.carToB2.OffImage = null;
-            this.carToB2.OnImage = global::TcpHMIClient.Properties.Resources.icons8_left_arrow_94;
-            this.carToB2.Size = new System.Drawing.Size(50, 50);
-            this.carToB2.TabIndex = 23;
-            // 
-            // fCarUnkown
-            // 
-            this.fCarUnkown.BackColor = System.Drawing.Color.Transparent;
-            this.fCarUnkown.Location = new System.Drawing.Point(466, 364);
-            this.fCarUnkown.Name = "fCarUnkown";
-            this.fCarUnkown.OffImage = global::TcpHMIClient.Properties.Resources.icons8_white_circle_96;
-            this.fCarUnkown.OnImage = global::TcpHMIClient.Properties.Resources.icons8_green_circle_96;
-            this.fCarUnkown.Size = new System.Drawing.Size(25, 25);
-            this.fCarUnkown.TabIndex = 21;
-            // 
-            // fCameraQrGood
-            // 
-            this.fCameraQrGood.BackColor = System.Drawing.Color.Transparent;
-            this.fCameraQrGood.Location = new System.Drawing.Point(505, 98);
-            this.fCameraQrGood.Name = "fCameraQrGood";
-            this.fCameraQrGood.OffImage = null;
-            this.fCameraQrGood.OnImage = global::TcpHMIClient.Properties.Resources.icons8_camera_64;
-            this.fCameraQrGood.Size = new System.Drawing.Size(50, 50);
-            this.fCameraQrGood.TabIndex = 39;
-            // 
-            // fCameraQrBad
-            // 
-            this.fCameraQrBad.BackColor = System.Drawing.Color.Transparent;
-            this.fCameraQrBad.Location = new System.Drawing.Point(505, 98);
-            this.fCameraQrBad.Name = "fCameraQrBad";
-            this.fCameraQrBad.OffImage = null;
-            this.fCameraQrBad.OnImage = global::TcpHMIClient.Properties.Resources.icons8_camera_64_red;
-            this.fCameraQrBad.Size = new System.Drawing.Size(50, 50);
-            this.fCameraQrBad.TabIndex = 38;
-            // 
-            // fLToCarArrow
-            // 
-            this.fLToCarArrow.BackColor = System.Drawing.Color.Transparent;
-            this.fLToCarArrow.Location = new System.Drawing.Point(345, 253);
-            this.fLToCarArrow.Name = "fLToCarArrow";
-            this.fLToCarArrow.OffImage = null;
-            this.fLToCarArrow.OnImage = ((System.Drawing.Bitmap)(resources.GetObject("fLToCarArrow.OnImage")));
-            this.fLToCarArrow.Size = new System.Drawing.Size(50, 50);
-            this.fLToCarArrow.TabIndex = 31;
-            // 
-            // fLToBCDArrow
-            // 
-            this.fLToBCDArrow.BackColor = System.Drawing.Color.Transparent;
-            this.fLToBCDArrow.Location = new System.Drawing.Point(667, 253);
-            this.fLToBCDArrow.Name = "fLToBCDArrow";
-            this.fLToBCDArrow.OffImage = null;
-            this.fLToBCDArrow.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
-            this.fLToBCDArrow.Size = new System.Drawing.Size(50, 50);
-            this.fLToBCDArrow.TabIndex = 30;
-            // 
-            // fLabelEnter2
-            // 
-            this.fLabelEnter2.BackColor = System.Drawing.Color.Transparent;
-            this.fLabelEnter2.Location = new System.Drawing.Point(222, 243);
-            this.fLabelEnter2.Name = "fLabelEnter2";
-            this.fLabelEnter2.OffImage = null;
-            this.fLabelEnter2.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
-            this.fLabelEnter2.Size = new System.Drawing.Size(31, 31);
-            this.fLabelEnter2.TabIndex = 19;
             // 
             // HMIForm
             // 

@@ -32,17 +32,22 @@ namespace TcpHMIClient
         {
             Waiting,
             ReadingQR,
+            WaitingSetQr,
+            WaitingSetEntryPallet,
             WaitingAvailability,
             DefaultBehavior,
             AskingDB,
             SendingID,
             WaitForBocedi1,
             WaitEnterBocedi,
+            WaitUpdateFIFO1,
             UpdateFIFO1,
             WaitForCar,
             WaitEnterCar,
+            WaitUpdateCar,
             UpdateCar,
             ReadingQrInError,
+            Paused,
         }
 
         public enum SignalsNames
