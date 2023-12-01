@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Security.AntiXss;
 using static Topshelf.Runtime.Windows.NativeMethods;
@@ -24,6 +25,9 @@ namespace ModbusServer
         public Connections Connections { get; set; }
         public StateMachineStatus StateMachine { get; set; }
         public ErrorMessages ErrorMessages { get; set; }
+
+        static SemaphoreSlim semph1 = new SemaphoreSlim(1, 1);
+        static SemaphoreSlim semph2 = new SemaphoreSlim(1, 1);
 
 
         public static void Init()
@@ -56,12 +60,30 @@ namespace ModbusServer
 
         internal static async Task UpdateFIFO1()
         {
-            await Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
+            await semph1.WaitAsync();
+            try
+            {
+                await Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
+            }
+            finally
+            {
+                semph1.Release();
+            }
+            
         }
 
         internal static async Task UpdateFIFO2()
         {
-            await Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+            await semph2.WaitAsync();
+            try
+            {
+                await Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+            }
+            finally
+            {
+                semph2.Release();
+            }
+            
         }
 
         internal static async Task SetCarPallet(bool hasPallet)
