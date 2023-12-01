@@ -138,7 +138,7 @@
             this.tabControl1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(1081, 647);
+            this.tabControl1.Size = new System.Drawing.Size(859, 562);
             this.tabControl1.TabIndex = 2;
             // 
             // emb2Tab
@@ -150,7 +150,7 @@
             this.emb2Tab.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.emb2Tab.Name = "emb2Tab";
             this.emb2Tab.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.emb2Tab.Size = new System.Drawing.Size(1073, 604);
+            this.emb2Tab.Size = new System.Drawing.Size(851, 519);
             this.emb2Tab.TabIndex = 1;
             this.emb2Tab.Text = "Embolsadora 2";
             this.emb2Tab.UseVisualStyleBackColor = true;
@@ -164,11 +164,11 @@
             this.groupBox8.Controls.Add(this.emb2Status2);
             this.groupBox8.Controls.Add(this.pcIndustStatus2);
             this.groupBox8.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.groupBox8.Location = new System.Drawing.Point(702, 422);
+            this.groupBox8.Location = new System.Drawing.Point(492, 332);
             this.groupBox8.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox8.Name = "groupBox8";
             this.groupBox8.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.groupBox8.Size = new System.Drawing.Size(368, 180);
+            this.groupBox8.Size = new System.Drawing.Size(356, 185);
             this.groupBox8.TabIndex = 4;
             this.groupBox8.TabStop = false;
             this.groupBox8.Text = "Conexiones";
@@ -237,11 +237,11 @@
             // 
             this.groupBox6.Controls.Add(this.bcd2Errors);
             this.groupBox6.Dock = System.Windows.Forms.DockStyle.Left;
-            this.groupBox6.Location = new System.Drawing.Point(3, 422);
+            this.groupBox6.Location = new System.Drawing.Point(3, 332);
             this.groupBox6.Margin = new System.Windows.Forms.Padding(27, 24, 27, 24);
             this.groupBox6.Name = "groupBox6";
             this.groupBox6.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.groupBox6.Size = new System.Drawing.Size(699, 180);
+            this.groupBox6.Size = new System.Drawing.Size(489, 185);
             this.groupBox6.TabIndex = 2;
             this.groupBox6.TabStop = false;
             this.groupBox6.Text = "Alarmas";
@@ -253,7 +253,7 @@
             this.bcd2Errors.Font = new System.Drawing.Font("Consolas", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.bcd2Errors.Location = new System.Drawing.Point(6, 17);
             this.bcd2Errors.Name = "bcd2Errors";
-            this.bcd2Errors.Size = new System.Drawing.Size(687, 160);
+            this.bcd2Errors.Size = new System.Drawing.Size(464, 160);
             this.bcd2Errors.TabIndex = 23;
             this.bcd2Errors.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
@@ -275,7 +275,7 @@
             this.groupBox5.Name = "groupBox5";
             this.groupBox5.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox5.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
-            this.groupBox5.Size = new System.Drawing.Size(1067, 420);
+            this.groupBox5.Size = new System.Drawing.Size(845, 330);
             this.groupBox5.TabIndex = 1;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "Estado actual";
@@ -285,7 +285,7 @@
             this.exitPallet2.BackColor = System.Drawing.Color.Peru;
             this.exitPallet2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.exitPallet2.Font = new System.Drawing.Font("Consolas", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.exitPallet2.Location = new System.Drawing.Point(61, 14);
+            this.exitPallet2.Location = new System.Drawing.Point(39, -2);
             this.exitPallet2.Name = "exitPallet2";
             this.exitPallet2.Size = new System.Drawing.Size(100, 100);
             this.exitPallet2.TabIndex = 27;
@@ -296,7 +296,7 @@
             this.labelingEmb2.BackColor = System.Drawing.Color.Peru;
             this.labelingEmb2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.labelingEmb2.Font = new System.Drawing.Font("Consolas", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelingEmb2.Location = new System.Drawing.Point(60, 196);
+            this.labelingEmb2.Location = new System.Drawing.Point(39, 143);
             this.labelingEmb2.Name = "labelingEmb2";
             this.labelingEmb2.Size = new System.Drawing.Size(100, 100);
             this.labelingEmb2.TabIndex = 26;
@@ -308,7 +308,7 @@
             this.panelCarInB2.BackgroundImage = global::TcpHMIClient.Properties.Resources.CarrInPos1;
             this.panelCarInB2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.panelCarInB2.Controls.Add(this.palletInCarPos2);
-            this.panelCarInB2.Location = new System.Drawing.Point(919, 175);
+            this.panelCarInB2.Location = new System.Drawing.Point(719, 123);
             this.panelCarInB2.Name = "panelCarInB2";
             this.panelCarInB2.Size = new System.Drawing.Size(138, 138);
             this.panelCarInB2.TabIndex = 25;
@@ -329,7 +329,7 @@
             this.emb2st2.BackColor = System.Drawing.Color.Peru;
             this.emb2st2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.emb2st2.Font = new System.Drawing.Font("Consolas", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.emb2st2.Location = new System.Drawing.Point(641, 194);
+            this.emb2st2.Location = new System.Drawing.Point(498, 143);
             this.emb2st2.Name = "emb2st2";
             this.emb2st2.Size = new System.Drawing.Size(100, 100);
             this.emb2st2.TabIndex = 5;
@@ -341,7 +341,7 @@
             this.emb2st4.BackColor = System.Drawing.Color.Peru;
             this.emb2st4.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.emb2st4.Font = new System.Drawing.Font("Consolas", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.emb2st4.Location = new System.Drawing.Point(379, 194);
+            this.emb2st4.Location = new System.Drawing.Point(286, 143);
             this.emb2st4.Name = "emb2st4";
             this.emb2st4.Size = new System.Drawing.Size(100, 100);
             this.emb2st4.TabIndex = 4;
@@ -353,7 +353,7 @@
             this.emb2st5.BackColor = System.Drawing.Color.Peru;
             this.emb2st5.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.emb2st5.Font = new System.Drawing.Font("Consolas", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.emb2st5.Location = new System.Drawing.Point(249, 194);
+            this.emb2st5.Location = new System.Drawing.Point(181, 143);
             this.emb2st5.Name = "emb2st5";
             this.emb2st5.Size = new System.Drawing.Size(100, 100);
             this.emb2st5.TabIndex = 3;
@@ -365,7 +365,7 @@
             this.emb2st3.BackColor = System.Drawing.Color.Peru;
             this.emb2st3.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.emb2st3.Font = new System.Drawing.Font("Consolas", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.emb2st3.Location = new System.Drawing.Point(509, 194);
+            this.emb2st3.Location = new System.Drawing.Point(392, 143);
             this.emb2st3.Name = "emb2st3";
             this.emb2st3.Size = new System.Drawing.Size(100, 100);
             this.emb2st3.TabIndex = 2;
@@ -377,7 +377,7 @@
             this.emb2st1.BackColor = System.Drawing.Color.Peru;
             this.emb2st1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.emb2st1.Font = new System.Drawing.Font("Consolas", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.emb2st1.Location = new System.Drawing.Point(769, 194);
+            this.emb2st1.Location = new System.Drawing.Point(604, 143);
             this.emb2st1.Name = "emb2st1";
             this.emb2st1.Size = new System.Drawing.Size(100, 100);
             this.emb2st1.TabIndex = 0;
@@ -393,7 +393,7 @@
             this.carTab.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.carTab.Name = "carTab";
             this.carTab.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.carTab.Size = new System.Drawing.Size(1073, 604);
+            this.carTab.Size = new System.Drawing.Size(851, 519);
             this.carTab.TabIndex = 4;
             this.carTab.Text = "Carro";
             this.carTab.UseVisualStyleBackColor = true;
@@ -402,9 +402,9 @@
             // 
             this.groupBox7.Controls.Add(this.carErrors);
             this.groupBox7.Dock = System.Windows.Forms.DockStyle.Left;
-            this.groupBox7.Location = new System.Drawing.Point(3, 485);
+            this.groupBox7.Location = new System.Drawing.Point(3, 403);
             this.groupBox7.Name = "groupBox7";
-            this.groupBox7.Size = new System.Drawing.Size(1064, 117);
+            this.groupBox7.Size = new System.Drawing.Size(1064, 114);
             this.groupBox7.TabIndex = 23;
             this.groupBox7.TabStop = false;
             this.groupBox7.Text = "Alarmas";
@@ -416,7 +416,7 @@
             this.carErrors.Font = new System.Drawing.Font("Consolas", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.carErrors.Location = new System.Drawing.Point(5, 18);
             this.carErrors.Name = "carErrors";
-            this.carErrors.Size = new System.Drawing.Size(1049, 96);
+            this.carErrors.Size = new System.Drawing.Size(835, 96);
             this.carErrors.TabIndex = 25;
             this.carErrors.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
@@ -434,7 +434,7 @@
             this.groupBox4.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox4.Location = new System.Drawing.Point(3, 2);
             this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new System.Drawing.Size(1067, 483);
+            this.groupBox4.Size = new System.Drawing.Size(845, 401);
             this.groupBox4.TabIndex = 22;
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "Estado del carro";
@@ -445,7 +445,7 @@
             this.tabCarNoPos.BackgroundImage = global::TcpHMIClient.Properties.Resources.CarrInPos1;
             this.tabCarNoPos.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.tabCarNoPos.Controls.Add(this.tabPalletNoPos);
-            this.tabCarNoPos.Location = new System.Drawing.Point(464, 164);
+            this.tabCarNoPos.Location = new System.Drawing.Point(328, 120);
             this.tabCarNoPos.Name = "tabCarNoPos";
             this.tabCarNoPos.Size = new System.Drawing.Size(163, 163);
             this.tabCarNoPos.TabIndex = 26;
@@ -467,7 +467,7 @@
             this.tabCarB1.BackgroundImage = global::TcpHMIClient.Properties.Resources.CarrInPos1;
             this.tabCarB1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.tabCarB1.Controls.Add(this.tabPalletB1);
-            this.tabCarB1.Location = new System.Drawing.Point(883, 164);
+            this.tabCarB1.Location = new System.Drawing.Point(653, 120);
             this.tabCarB1.Name = "tabCarB1";
             this.tabCarB1.Size = new System.Drawing.Size(163, 163);
             this.tabCarB1.TabIndex = 26;
@@ -489,7 +489,7 @@
             this.tabCarB2.BackgroundImage = global::TcpHMIClient.Properties.Resources.CarrInPos1;
             this.tabCarB2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.tabCarB2.Controls.Add(this.tabPalletB2);
-            this.tabCarB2.Location = new System.Drawing.Point(19, 164);
+            this.tabCarB2.Location = new System.Drawing.Point(19, 120);
             this.tabCarB2.Name = "tabCarB2";
             this.tabCarB2.Size = new System.Drawing.Size(163, 163);
             this.tabCarB2.TabIndex = 25;
@@ -508,7 +508,7 @@
             // carToB1
             // 
             this.carToB1.BackColor = System.Drawing.Color.Transparent;
-            this.carToB1.Location = new System.Drawing.Point(640, 218);
+            this.carToB1.Location = new System.Drawing.Point(522, 174);
             this.carToB1.Name = "carToB1";
             this.carToB1.OffImage = null;
             this.carToB1.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
@@ -518,7 +518,7 @@
             // carToB2
             // 
             this.carToB2.BackColor = System.Drawing.Color.Transparent;
-            this.carToB2.Location = new System.Drawing.Point(403, 218);
+            this.carToB2.Location = new System.Drawing.Point(232, 174);
             this.carToB2.Name = "carToB2";
             this.carToB2.OffImage = null;
             this.carToB2.OnImage = global::TcpHMIClient.Properties.Resources.icons8_left_arrow_94;
@@ -529,7 +529,7 @@
             // 
             this.label30.AutoSize = true;
             this.label30.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label30.Location = new System.Drawing.Point(518, 369);
+            this.label30.Location = new System.Drawing.Point(380, 355);
             this.label30.Name = "label30";
             this.label30.Size = new System.Drawing.Size(107, 20);
             this.label30.TabIndex = 22;
@@ -538,7 +538,7 @@
             // fCarUnkown
             // 
             this.fCarUnkown.BackColor = System.Drawing.Color.Transparent;
-            this.fCarUnkown.Location = new System.Drawing.Point(466, 364);
+            this.fCarUnkown.Location = new System.Drawing.Point(328, 350);
             this.fCarUnkown.Name = "fCarUnkown";
             this.fCarUnkown.OffImage = global::TcpHMIClient.Properties.Resources.icons8_white_circle_96;
             this.fCarUnkown.OnImage = global::TcpHMIClient.Properties.Resources.icons8_green_circle_96;
@@ -554,7 +554,7 @@
             this.palletEntryTab.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.palletEntryTab.Name = "palletEntryTab";
             this.palletEntryTab.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.palletEntryTab.Size = new System.Drawing.Size(1073, 604);
+            this.palletEntryTab.Size = new System.Drawing.Size(851, 519);
             this.palletEntryTab.TabIndex = 3;
             this.palletEntryTab.Text = "Entrada Pallets";
             this.palletEntryTab.UseVisualStyleBackColor = true;
@@ -563,9 +563,9 @@
             // 
             this.groupBox10.Controls.Add(this.entryErrors);
             this.groupBox10.Dock = System.Windows.Forms.DockStyle.Left;
-            this.groupBox10.Location = new System.Drawing.Point(3, 514);
+            this.groupBox10.Location = new System.Drawing.Point(3, 420);
             this.groupBox10.Name = "groupBox10";
-            this.groupBox10.Size = new System.Drawing.Size(1062, 88);
+            this.groupBox10.Size = new System.Drawing.Size(1062, 97);
             this.groupBox10.TabIndex = 31;
             this.groupBox10.TabStop = false;
             this.groupBox10.Text = "Alarmas";
@@ -577,7 +577,7 @@
             this.entryErrors.Font = new System.Drawing.Font("Consolas", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.entryErrors.Location = new System.Drawing.Point(6, 18);
             this.entryErrors.Name = "entryErrors";
-            this.entryErrors.Size = new System.Drawing.Size(1050, 67);
+            this.entryErrors.Size = new System.Drawing.Size(836, 79);
             this.entryErrors.TabIndex = 24;
             this.entryErrors.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
@@ -596,7 +596,7 @@
             this.groupBox9.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox9.Location = new System.Drawing.Point(3, 2);
             this.groupBox9.Name = "groupBox9";
-            this.groupBox9.Size = new System.Drawing.Size(1067, 512);
+            this.groupBox9.Size = new System.Drawing.Size(845, 418);
             this.groupBox9.TabIndex = 30;
             this.groupBox9.TabStop = false;
             this.groupBox9.Text = "Ingreso de pallets";
@@ -604,7 +604,7 @@
             // fCameraQrGood
             // 
             this.fCameraQrGood.BackColor = System.Drawing.Color.Transparent;
-            this.fCameraQrGood.Location = new System.Drawing.Point(505, 98);
+            this.fCameraQrGood.Location = new System.Drawing.Point(401, 66);
             this.fCameraQrGood.Name = "fCameraQrGood";
             this.fCameraQrGood.OffImage = null;
             this.fCameraQrGood.OnImage = global::TcpHMIClient.Properties.Resources.icons8_camera_64;
@@ -614,7 +614,7 @@
             // fCameraQrBad
             // 
             this.fCameraQrBad.BackColor = System.Drawing.Color.Transparent;
-            this.fCameraQrBad.Location = new System.Drawing.Point(505, 98);
+            this.fCameraQrBad.Location = new System.Drawing.Point(401, 66);
             this.fCameraQrBad.Name = "fCameraQrBad";
             this.fCameraQrBad.OffImage = null;
             this.fCameraQrBad.OnImage = global::TcpHMIClient.Properties.Resources.icons8_camera_64_red;
@@ -626,7 +626,7 @@
             this.entryBCD2.BackColor = System.Drawing.Color.Peru;
             this.entryBCD2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.entryBCD2.Font = new System.Drawing.Font("Consolas", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.entryBCD2.Location = new System.Drawing.Point(954, 192);
+            this.entryBCD2.Location = new System.Drawing.Point(770, 139);
             this.entryBCD2.Name = "entryBCD2";
             this.entryBCD2.Size = new System.Drawing.Size(175, 175);
             this.entryBCD2.TabIndex = 37;
@@ -637,7 +637,7 @@
             this.entryBCD1.BackColor = System.Drawing.Color.Peru;
             this.entryBCD1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.entryBCD1.Font = new System.Drawing.Font("Consolas", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.entryBCD1.Location = new System.Drawing.Point(755, 193);
+            this.entryBCD1.Location = new System.Drawing.Point(589, 139);
             this.entryBCD1.Name = "entryBCD1";
             this.entryBCD1.Size = new System.Drawing.Size(175, 175);
             this.entryBCD1.TabIndex = 36;
@@ -648,7 +648,7 @@
             this.entryPalletLabel.BackColor = System.Drawing.Color.Peru;
             this.entryPalletLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.entryPalletLabel.Font = new System.Drawing.Font("Consolas", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.entryPalletLabel.Location = new System.Drawing.Point(446, 193);
+            this.entryPalletLabel.Location = new System.Drawing.Point(336, 139);
             this.entryPalletLabel.Name = "entryPalletLabel";
             this.entryPalletLabel.Size = new System.Drawing.Size(175, 175);
             this.entryPalletLabel.TabIndex = 35;
@@ -660,7 +660,7 @@
             this.panelCarInB1.BackgroundImage = global::TcpHMIClient.Properties.Resources.CarrInPos1;
             this.panelCarInB1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.panelCarInB1.Controls.Add(this.palletInCarPos1);
-            this.panelCarInB1.Location = new System.Drawing.Point(94, 161);
+            this.panelCarInB1.Location = new System.Drawing.Point(40, 112);
             this.panelCarInB1.Name = "panelCarInB1";
             this.panelCarInB1.Size = new System.Drawing.Size(238, 238);
             this.panelCarInB1.TabIndex = 34;
@@ -680,7 +680,7 @@
             // fLToCarArrow
             // 
             this.fLToCarArrow.BackColor = System.Drawing.Color.Transparent;
-            this.fLToCarArrow.Location = new System.Drawing.Point(345, 253);
+            this.fLToCarArrow.Location = new System.Drawing.Point(279, 207);
             this.fLToCarArrow.Name = "fLToCarArrow";
             this.fLToCarArrow.OffImage = null;
             this.fLToCarArrow.OnImage = ((System.Drawing.Bitmap)(resources.GetObject("fLToCarArrow.OnImage")));
@@ -690,7 +690,7 @@
             // fLToBCDArrow
             // 
             this.fLToBCDArrow.BackColor = System.Drawing.Color.Transparent;
-            this.fLToBCDArrow.Location = new System.Drawing.Point(667, 253);
+            this.fLToBCDArrow.Location = new System.Drawing.Point(523, 207);
             this.fLToBCDArrow.Name = "fLToBCDArrow";
             this.fLToBCDArrow.OffImage = null;
             this.fLToBCDArrow.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
@@ -706,7 +706,7 @@
             this.emb1Tab.Margin = new System.Windows.Forms.Padding(9, 8, 9, 8);
             this.emb1Tab.Name = "emb1Tab";
             this.emb1Tab.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.emb1Tab.Size = new System.Drawing.Size(1073, 604);
+            this.emb1Tab.Size = new System.Drawing.Size(851, 519);
             this.emb1Tab.TabIndex = 0;
             this.emb1Tab.Text = "Embolsadora 1";
             this.emb1Tab.UseVisualStyleBackColor = true;
@@ -715,11 +715,11 @@
             // 
             this.groupBox3.Controls.Add(this.bcd1Errors);
             this.groupBox3.Dock = System.Windows.Forms.DockStyle.Left;
-            this.groupBox3.Location = new System.Drawing.Point(385, 418);
+            this.groupBox3.Location = new System.Drawing.Point(385, 337);
             this.groupBox3.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.groupBox3.Size = new System.Drawing.Size(679, 184);
+            this.groupBox3.Size = new System.Drawing.Size(679, 180);
             this.groupBox3.TabIndex = 2;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Alarmas";
@@ -731,7 +731,7 @@
             this.bcd1Errors.Font = new System.Drawing.Font("Consolas", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.bcd1Errors.Location = new System.Drawing.Point(12, 17);
             this.bcd1Errors.Name = "bcd1Errors";
-            this.bcd1Errors.Size = new System.Drawing.Size(661, 155);
+            this.bcd1Errors.Size = new System.Drawing.Size(446, 155);
             this.bcd1Errors.TabIndex = 24;
             this.bcd1Errors.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
@@ -744,11 +744,11 @@
             this.groupBox2.Controls.Add(this.masterPLCStatus1);
             this.groupBox2.Controls.Add(this.pcIndustStatus1);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Left;
-            this.groupBox2.Location = new System.Drawing.Point(3, 418);
+            this.groupBox2.Location = new System.Drawing.Point(3, 337);
             this.groupBox2.Margin = new System.Windows.Forms.Padding(27, 24, 27, 24);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.groupBox2.Size = new System.Drawing.Size(382, 184);
+            this.groupBox2.Size = new System.Drawing.Size(382, 180);
             this.groupBox2.TabIndex = 1;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Conexiones";
@@ -831,7 +831,7 @@
             this.groupBox1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.groupBox1.Size = new System.Drawing.Size(1067, 416);
+            this.groupBox1.Size = new System.Drawing.Size(845, 335);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Estado Actual";
@@ -840,7 +840,7 @@
             // 
             this.exitPallet1.BackColor = System.Drawing.Color.Peru;
             this.exitPallet1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.exitPallet1.Location = new System.Drawing.Point(887, 17);
+            this.exitPallet1.Location = new System.Drawing.Point(691, 0);
             this.exitPallet1.Name = "exitPallet1";
             this.exitPallet1.Size = new System.Drawing.Size(100, 100);
             this.exitPallet1.TabIndex = 23;
@@ -850,7 +850,7 @@
             // 
             this.labelingEmb1.BackColor = System.Drawing.Color.Peru;
             this.labelingEmb1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.labelingEmb1.Location = new System.Drawing.Point(886, 207);
+            this.labelingEmb1.Location = new System.Drawing.Point(691, 158);
             this.labelingEmb1.Name = "labelingEmb1";
             this.labelingEmb1.Size = new System.Drawing.Size(100, 100);
             this.labelingEmb1.TabIndex = 22;
@@ -860,7 +860,7 @@
             // 
             this.enterEmb1.BackColor = System.Drawing.Color.Peru;
             this.enterEmb1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.enterEmb1.Location = new System.Drawing.Point(81, 207);
+            this.enterEmb1.Location = new System.Drawing.Point(56, 158);
             this.enterEmb1.Name = "enterEmb1";
             this.enterEmb1.Size = new System.Drawing.Size(100, 100);
             this.enterEmb1.TabIndex = 21;
@@ -869,7 +869,7 @@
             // fLabelEnter2
             // 
             this.fLabelEnter2.BackColor = System.Drawing.Color.Transparent;
-            this.fLabelEnter2.Location = new System.Drawing.Point(222, 243);
+            this.fLabelEnter2.Location = new System.Drawing.Point(174, 195);
             this.fLabelEnter2.Name = "fLabelEnter2";
             this.fLabelEnter2.OffImage = null;
             this.fLabelEnter2.OnImage = global::TcpHMIClient.Properties.Resources.icons8_right_arrow_94;
@@ -881,7 +881,7 @@
             this.emb1st5.BackColor = System.Drawing.Color.Peru;
             this.emb1st5.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.emb1st5.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F);
-            this.emb1st5.Location = new System.Drawing.Point(680, 206);
+            this.emb1st5.Location = new System.Drawing.Point(533, 158);
             this.emb1st5.Name = "emb1st5";
             this.emb1st5.Size = new System.Drawing.Size(100, 100);
             this.emb1st5.TabIndex = 4;
@@ -892,7 +892,7 @@
             // 
             this.emb1st4.BackColor = System.Drawing.Color.Peru;
             this.emb1st4.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.emb1st4.Location = new System.Drawing.Point(551, 207);
+            this.emb1st4.Location = new System.Drawing.Point(428, 158);
             this.emb1st4.Name = "emb1st4";
             this.emb1st4.Size = new System.Drawing.Size(100, 100);
             this.emb1st4.TabIndex = 3;
@@ -903,7 +903,7 @@
             // 
             this.emb1st3.BackColor = System.Drawing.Color.Peru;
             this.emb1st3.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.emb1st3.Location = new System.Drawing.Point(421, 207);
+            this.emb1st3.Location = new System.Drawing.Point(322, 158);
             this.emb1st3.Name = "emb1st3";
             this.emb1st3.Size = new System.Drawing.Size(100, 100);
             this.emb1st3.TabIndex = 2;
@@ -914,7 +914,7 @@
             // 
             this.emb1st2.BackColor = System.Drawing.Color.Peru;
             this.emb1st2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.emb1st2.Location = new System.Drawing.Point(291, 207);
+            this.emb1st2.Location = new System.Drawing.Point(216, 158);
             this.emb1st2.Name = "emb1st2";
             this.emb1st2.Size = new System.Drawing.Size(100, 100);
             this.emb1st2.TabIndex = 1;
@@ -927,7 +927,7 @@
             this.statesTab.Location = new System.Drawing.Point(4, 39);
             this.statesTab.Name = "statesTab";
             this.statesTab.Padding = new System.Windows.Forms.Padding(3);
-            this.statesTab.Size = new System.Drawing.Size(1073, 604);
+            this.statesTab.Size = new System.Drawing.Size(851, 519);
             this.statesTab.TabIndex = 6;
             this.statesTab.Text = "Estados";
             this.statesTab.UseVisualStyleBackColor = true;
@@ -945,7 +945,7 @@
             this.machineStateTable.ReadOnly = true;
             this.machineStateTable.RowHeadersWidth = 51;
             this.machineStateTable.RowTemplate.Height = 24;
-            this.machineStateTable.Size = new System.Drawing.Size(1051, 585);
+            this.machineStateTable.Size = new System.Drawing.Size(829, 500);
             this.machineStateTable.TabIndex = 0;
             // 
             // process
@@ -975,7 +975,7 @@
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            this.ClientSize = new System.Drawing.Size(1081, 647);
+            this.ClientSize = new System.Drawing.Size(859, 562);
             this.Controls.Add(this.tabControl1);
             this.DoubleBuffered = true;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
