@@ -76,15 +76,22 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingInit:
-                    if (initQueues.IsFaulted)
-                    {
-                        Log.Error("Could not init queues");
-                        initQueues = Status.InitQueues();
-                    }
                     if (initQueues.IsCompleted)
                     {
-                        NextState(States.Working);
-                        Log.Info("Queues initialized");
+                        if (initQueues.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not init queues");
+                                initQueues = Status.InitQueues();
+                                NextState(States.WaitingInit);
+                            }
+                        }
+                        else
+                        {
+                            NextState(States.Working);
+                            Log.Info("Queues initialized");
+                        }
                     }
                     break;
                 case States.Working:

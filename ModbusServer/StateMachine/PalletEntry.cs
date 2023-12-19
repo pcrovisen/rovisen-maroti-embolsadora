@@ -141,22 +141,33 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingSetEntryPallet:
-                    if (qrTask.IsFaulted)
-                    {
-                        qrTask = Status.SetEntryPallet();
-                        Log.ErrorFormat("Could not set entry pallet. Error: {0}", qrTask.Exception);
-                    }
                     if (qrTask.IsCompleted)
                     {
-                        if(qrTask.Result)
+                        if (qrTask.IsFaulted)
                         {
-                            Log.Info("Waiting availability");
-                            NextState(States.WaitingAvailability);
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                qrTask = Status.SetEntryPallet();
+                                Log.ErrorFormat("Could not set entry pallet. Error: {0}", qrTask.Exception);
+                                NextState(States.WaitingSetEntryPallet);
+                            }
                         }
                         else
                         {
-                            qrTask = Status.SetEntryPallet();
-                            Log.Error("Could not set entry pallet");
+                            if (qrTask.Result)
+                            {
+                                Log.Info("Waiting availability");
+                                NextState(States.WaitingAvailability);
+                            }
+                            else
+                            {
+                                if (StateTime.ElapsedMilliseconds > 100)
+                                {
+                                    qrTask = Status.SetEntryPallet();
+                                    Log.Error("Could not set entry pallet.");
+                                    NextState(States.WaitingSetEntryPallet);
+                                }
+                            }
                         }
                     }
                     break;
@@ -242,15 +253,23 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitUpdateFIFO1:
-                    if (writeTask.IsFaulted)
-                    {
-                        Log.Error("Could not write fifo 1");
-                        writeTask = Status.UpdateFIFO1();
-                    }
                     if (writeTask.IsCompleted)
                     {
-                        Log.Info("Fifo updated");
-                        NextState(States.UpdateFIFO1);
+                        if (writeTask.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not write fifo 1");
+                                writeTask = Status.UpdateFIFO1();
+                                NextState(States.WaitUpdateFIFO1);
+                            }
+                            
+                        }
+                        else
+                        {
+                            Log.Info("Fifo updated");
+                            NextState(States.UpdateFIFO1);
+                        }
                     }
                     break;
                 case States.UpdateFIFO1:
@@ -284,19 +303,26 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitUpdateCar:
-                    if (writeTask.IsFaulted)
-                    {
-                        Log.Error("Could not write car");
-                        writeTask = Status.SetCarPallet(true);
-                    }
                     if (writeTask.IsCompleted)
                     {
-                        Log.Info("Fifo updated");
-                        NextState(States.UpdateCar);
-                        currentIdEmb2 = (currentIdEmb2 + 1) % 8;
-                        if (currentIdEmb2 == 0)
+                        if (writeTask.IsFaulted)
                         {
-                            currentIdEmb2 = 1;
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not write car");
+                                writeTask = Status.SetCarPallet(true);
+                                NextState(States.WaitUpdateCar);
+                            }
+                        }
+                        else
+                        {
+                            Log.Info("Fifo updated");
+                            NextState(States.UpdateCar);
+                            currentIdEmb2 = (currentIdEmb2 + 1) % 8;
+                            if (currentIdEmb2 == 0)
+                            {
+                                currentIdEmb2 = 1;
+                            }
                         }
                     }
                     break;

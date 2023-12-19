@@ -82,15 +82,22 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingWrite:
-                    if (queueWrite.IsFaulted)
+                    if(queueWrite.IsCompleted)
                     {
-                        queueWrite = Status.UpdateFIFO1();
-                        Log.Error("Could not write the queue 2");
-                    }
-                    if (queueWrite.IsCompleted)
-                    {
-                        NextState(States.SendingFIFO);
-                        Log.Info("Queue writen");
+                        if (queueWrite.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                queueWrite = Status.UpdateFIFO1();
+                                Log.Error("Could not write the queue 2");
+                                NextState(States.WaitingWrite);
+                            }
+                        }
+                        else
+                        {
+                            NextState(States.SendingFIFO);
+                            Log.Info("Queue writen");
+                        }
                     }
                     break;
                 case States.Failed:

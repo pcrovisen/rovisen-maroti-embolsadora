@@ -274,6 +274,14 @@ namespace TcpHMIClient
                     }
                     else
                     {
+                        if (detailForm != null)
+                        {
+                            detailForm.Invoke((MethodInvoker)delegate
+                            {
+                                detailForm.DialogResult = DialogResult.Abort;
+                                detailForm.Close();
+                            });
+                        }
                         Console.WriteLine("Could not delete");
                         state = State.AskInit;
                         

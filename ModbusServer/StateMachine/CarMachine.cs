@@ -84,6 +84,7 @@ namespace ModbusServer.StateMachine
                         if (!errorSend)
                         {
                             Status.Instance.ErrorMessages.CarError = "El carro no pudo entregar el pallet. Volver a posicionar el pallet sobre el carro y pasar el carro a modo LOCAL y alejarlo de la máquina unos centimetros.Finalmente poner el carro en REMOTO.";
+                            Log.Warn("Could not deliver pallet2");
                             getQrTask = FatekPLC.GetQr(FatekPLC.Memory.CARQRa);
                             NextState(States.WaitingGetQr);
                         }
@@ -124,30 +125,36 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingGetPallet:
-                    if (getPalletTask.IsFaulted)
-                    {
-                        getPalletTask = FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
-                        NextState(States.WaitingGetPallet);
-                        Log.Error("Could not get the car info");
-                    }
                     if (getPalletTask.IsCompleted)
                     {
-                        var pallet = getPalletTask.Result;
-                        if (pallet != null)
+                        if (getPalletTask.IsFaulted)
                         {
-                            _ = SqlDatabase.NotifyPalletIn(pallet.Qr, 2);
-                            Log.InfoFormat("Pallet {0} enter Bocedi2 with ID {1}", pallet.Qr, pallet.Id);
-                            _ = Status.UpdateFIFO2();
+                            if(StateTime.ElapsedMilliseconds> 100)
+                            {
+                                getPalletTask = FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
+                                NextState(States.WaitingGetPallet);
+                                Log.Error("Could not get the car info");
+                            }
                         }
                         else
                         {
-                            Log.Warn("Get null from car machine.");
-                        }
+                            var pallet = getPalletTask.Result;
+                            if (pallet != null)
+                            {
+                                _ = SqlDatabase.NotifyPalletIn(pallet.Qr, 2);
+                                Log.InfoFormat("Pallet {0} enter Bocedi2 with ID {1}", pallet.Qr, pallet.Id);
+                                _ = Status.UpdateFIFO2();
+                            }
+                            else
+                            {
+                                Log.Warn("Get null from car machine.");
+                            }
 
-                        _ = Status.SetCarPallet(false);
-                        FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate2);
-                        NextState(States.WaitingCarInB1);
-                        Status.SetCarPosition(Car.Position.GoingToB1);
+                            _ = Status.SetCarPallet(false);
+                            FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate2);
+                            NextState(States.WaitingCarInB1);
+                            Status.SetCarPosition(Car.Position.GoingToB1);
+                        }
                     }
                     break;
             }

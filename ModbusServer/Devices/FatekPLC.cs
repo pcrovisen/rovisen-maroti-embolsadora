@@ -149,6 +149,8 @@ namespace ModbusServer.Devices
             ElevatorRequest,
             LabelNull1,
             LabelNull2,
+            WaitLabel1,
+            WaitLabel2,
         }
 
         public static void Init()
