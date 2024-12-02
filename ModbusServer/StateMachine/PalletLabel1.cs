@@ -136,6 +136,11 @@ namespace ModbusServer.StateMachine
                             writeTask = Status.UpdateFIFO1();
                             NextState(States.WaitUpdate2);
                         }
+                        if (FatekPLC.ReadBit(FatekPLC.Signals.WaitLabel1) && StateTime.ElapsedMilliseconds > 1000)
+                        {
+                            FatekPLC.ResetBit(FatekPLC.Signals.WeightOk1);
+                            NextState(States.WaitingPallet);
+                        }
                         break;
                     case States.WaitUpdate2:
                         if(writeTask.IsCompleted)
