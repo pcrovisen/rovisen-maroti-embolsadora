@@ -17,10 +17,14 @@ namespace ModbusServer.StateMachine
         enum States
         {
             WaitingPallet,
+            WaitUpdate,
             WaitingCorrection,
             Labeling,
+            WaitUpdate2,
             WaitLeaving,
             WaitAck,
+            WaitLeaveNull,
+            PalletNull,
         }
 
         OmronPLC plc;
@@ -30,6 +34,7 @@ namespace ModbusServer.StateMachine
         PrinterMachine printerMachine;
         string currentCode;
         Task<bool> palletLeaveTask;
+        Task writeTask;
         public PalletLabel2() : base(States.WaitingPallet)
         {
             plc = new OmronPLC(TransportType.Tcp);
@@ -53,28 +58,70 @@ namespace ModbusServer.StateMachine
                         if (FatekPLC.ReadBit(FatekPLC.Signals.Label2))
                         {
                             FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave2);
-                            Status.UpdateFIFO2();
-                            currentCode = Status.Instance.Packager2.LabelPallet.Qr;
-                            Log.InfoFormat("Start labeling pallet {0} in bocedi2", currentCode);
-                            FatekPLC.SetBit(FatekPLC.Signals.Labeling2);
-                            printerMachine.Reset(currentCode, Status.Instance.Packager2.LabelPallet.Labeling);
-                            NextState(States.Labeling);
+                            writeTask = Status.UpdateFIFO2();
+                            NextState(States.WaitUpdate);
+                            
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.PLCLabeling2))
                         {
-                            FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave2);
-                            currentCode = Status.Instance.Packager2.LabelPallet.Qr;
-                            Log.InfoFormat("Continue labeling pallet {0} in bocedi2", currentCode);
-                            FatekPLC.SetBit(FatekPLC.Signals.Labeling2);
-                            printerMachine.Reset(currentCode, Status.Instance.Packager2.LabelPallet.Labeling, true);
-                            Status.Instance.ErrorMessages.BDC2Error = "";
-                            NextState(States.Labeling);
+                            if (Status.Instance.Packager2.LabelPallet != null)
+                            {
+                                FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave2);
+                                currentCode = Status.Instance.Packager2.LabelPallet.Qr;
+                                Log.InfoFormat("Continue labeling pallet {0} in bocedi2", currentCode);
+                                FatekPLC.SetBit(FatekPLC.Signals.Labeling2);
+                                printerMachine.Reset(currentCode, Status.Instance.Packager2.LabelPallet.Labeling, true);
+                                Status.Instance.ErrorMessages.BDC2Error = "";
+                                NextState(States.Labeling);
+                            }
+                            else
+                            {
+                                Log.Warn("Recover but no pallet yet.");
+                            }
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.WaitCorrection2))
                         {
                             _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.desorden_embolsadora, packager: 2);
                             Log.Info("ID not corresponding with the machine in bocedi2");
                             NextState(States.WaitingCorrection);
+                        }
+                        if (FatekPLC.ReadBit(FatekPLC.Signals.LabelNull2))
+                        {
+                            Log.Warn("Pallet in labeling, but queue is empty");
+                            printerMachine.Reset("", false);
+                            NextState(States.WaitLeaveNull);
+                        }
+                        break;
+                    case States.WaitUpdate:
+                        if (writeTask.IsCompleted)
+                        {
+                            if (writeTask.IsFaulted)
+                            {
+                                if(StateTime.ElapsedMilliseconds > 100)
+                                { 
+                                    Log.Error("Could not write fifo 2");
+                                    writeTask = Status.UpdateFIFO2();
+                                    NextState(States.WaitUpdate);
+                                }
+                            }
+                            else
+                            {
+                                Log.Info("Fifo 2 updated");
+                                if(Status.Instance.Packager2.LabelPallet != null)
+                                {
+                                    currentCode = Status.Instance.Packager2.LabelPallet.Qr;
+                                    Log.InfoFormat("Start labeling pallet {0} in bocedi2", currentCode);
+                                    FatekPLC.SetBit(FatekPLC.Signals.Labeling2);
+                                    printerMachine.Reset(currentCode, Status.Instance.Packager2.LabelPallet.Labeling);
+                                    NextState(States.Labeling);
+                                }
+                                else
+                                {
+                                    Log.Error("Pallet found null after fifo update");
+                                    Status.Instance.ErrorMessages.BDC2Error = "No se pudo recuperar la información del pallet. Sacar el pallet manualmente.";
+                                    NextState(States.PalletNull);
+                                }
+                            }
                         }
                         break;
                     case States.WaitingCorrection:
@@ -93,11 +140,35 @@ namespace ModbusServer.StateMachine
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.Leave2))
                         {
-                            FatekPLC.ResetBit(FatekPLC.Signals.Labeling2);
-                            Status.UpdateFIFO2();
-                            Log.InfoFormat("Notify pallet out worldjet2 with code {0}", currentCode);
-                            palletLeaveTask = SqlDatabase.NotifyPalletOut(currentCode);
-                            NextState(States.WaitAck);
+                            writeTask = Status.UpdateFIFO2();
+                            NextState(States.WaitUpdate2);
+                        }
+                        if (FatekPLC.ReadBit(FatekPLC.Signals.WaitLabel2) && StateTime.ElapsedMilliseconds > 1000)
+                        {
+                            FatekPLC.ResetBit(FatekPLC.Signals.WeightOk2);
+                            NextState(States.WaitingPallet);
+                        }
+                        break;
+                    case States.WaitUpdate2:
+                        if (writeTask.IsCompleted)
+                        {
+                            if (writeTask.IsFaulted)
+                            {
+                                if(StateTime.ElapsedMilliseconds> 100)
+                                {
+                                    Log.Error("Could not update fifo 1");
+                                    writeTask = Status.UpdateFIFO2();
+                                    NextState(States.WaitUpdate2);
+                                }
+                            }
+                            else
+                            {
+                                Log.Info("Fifo 2 updated after leave");
+                                FatekPLC.ResetBit(FatekPLC.Signals.Labeling2);
+                                Log.InfoFormat("Notify pallet out worldjet2 with code {0}", currentCode);
+                                palletLeaveTask = SqlDatabase.NotifyPalletOut(currentCode);
+                                NextState(States.WaitAck);
+                            }
                         }
                         break;
                     case States.WaitAck:
@@ -125,7 +196,21 @@ namespace ModbusServer.StateMachine
                             Log.Info("Waiting pallet to label2");
                         }
                         break;
-                    
+                    case States.WaitLeaveNull:
+                        Status.Instance.ErrorMessages.BDC2Error = "Hay un pallet en el etiquetado, pero las colas estan vacías. El pallet no será etiquetado.";
+                        printerMachine.Step();
+                        if (!FatekPLC.ReadBit(FatekPLC.Signals.LabelNull2))
+                        {
+                            NextState(States.WaitingPallet);
+                            Log.Info("Waiting pallet to label2");
+                        }
+                        break;
+                    case States.PalletNull:
+                        if (FatekPLC.ReadBit(FatekPLC.Signals.WaitLabel2))
+                        {
+                            NextState(States.WaitingPallet);
+                        }
+                        break;
                 }
             }
         }

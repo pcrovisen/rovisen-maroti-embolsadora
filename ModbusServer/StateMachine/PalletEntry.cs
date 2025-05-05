@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -18,37 +19,49 @@ namespace ModbusServer.StateMachine
         {
             Waiting,
             ReadingQR,
+            WaitingSetQr,
+            WaitingSetEntryPallet,
             WaitingAvailability,
             DefaultBehavior,
             AskingDB,
             SendingID,
             WaitForBocedi1,
             WaitEnterBocedi,
+            WaitUpdateFIFO1,
             UpdateFIFO1,
             WaitForCar,
             WaitEnterCar,
+            WaitUpdateCar,
             UpdateCar,
             ReadingQrInError,
             Paused,
         }
 
+        readonly QrReader qrReader;
         readonly QrReadMachine qrReadCode;
+        readonly QrReaderConnection qrReaderConnection;
 
         bool bocedi1Working;
         bool bocedi2Working;
         Task<SqlDatabase.PackagerPreference> sqlRequest;
+        Task<bool> qrTask;
+        Task writeTask;
         int currentIdEmb1 = 0;
         int currentIdEmb2 = 0;
 
         public PalletEntry() : base(States.Waiting)
         {
-            this.qrReadCode = new QrReadMachine();
+            qrReader = new QrReader(ConfigurationManager.AppSettings["ipQrReader"]);
+            qrReadCode = new QrReadMachine(qrReader);
+            qrReaderConnection = new QrReaderConnection(qrReader);
             bocedi1Working = false;
             bocedi2Working = false;
         }
 
         public override void Step()
         {
+            qrReaderConnection.Step();
+
             NotifyBocediStates();
             if (FatekPLC.ReadBit(FatekPLC.Signals.WaitingPallet) && 
                 (States)State != States.Waiting &&
@@ -91,10 +104,8 @@ namespace ModbusServer.StateMachine
                     if (qrReadCode.Completed)
                     {
                         Log.InfoFormat("Code {0} readed", qrReadCode.Result);
-                        SetReadedQR(qrReadCode.Result);
-                        Status.SetEntryPallet();
-                        Log.Info("Waiting availability");
-                        NextState(States.WaitingAvailability);
+                        qrTask = SetReadedQR(qrReadCode.Result);
+                        NextState(States.WaitingSetQr);
                     }
                     if (qrReadCode.Failed)
                     {
@@ -110,6 +121,53 @@ namespace ModbusServer.StateMachine
                         {
                             qrReadCode.Reset();
                             NextState(States.ReadingQrInError);
+                        }
+                    }
+                    break;
+                case States.WaitingSetQr:
+                    if (qrTask.IsCompleted)
+                    {
+                        if (qrTask.Result)
+                        {
+                            NextState(States.WaitingSetEntryPallet);
+                            qrTask = Status.SetEntryPallet();
+                            Log.Info("Set entry QR");
+                        }
+                        else
+                        {
+                            qrTask = SetReadedQR(qrReadCode.Result);
+                            Log.Error("Could not set the QR");
+                        }
+                    }
+                    break;
+                case States.WaitingSetEntryPallet:
+                    if (qrTask.IsCompleted)
+                    {
+                        if (qrTask.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                qrTask = Status.SetEntryPallet();
+                                Log.ErrorFormat("Could not set entry pallet. Error: {0}", qrTask.Exception);
+                                NextState(States.WaitingSetEntryPallet);
+                            }
+                        }
+                        else
+                        {
+                            if (qrTask.Result)
+                            {
+                                Log.Info("Waiting availability");
+                                NextState(States.WaitingAvailability);
+                            }
+                            else
+                            {
+                                if (StateTime.ElapsedMilliseconds > 100)
+                                {
+                                    qrTask = Status.SetEntryPallet();
+                                    Log.Error("Could not set entry pallet.");
+                                    NextState(States.WaitingSetEntryPallet);
+                                }
+                            }
                         }
                     }
                     break;
@@ -129,9 +187,12 @@ namespace ModbusServer.StateMachine
                         {
                             if (sqlRequest.Result.Packager == 0)
                             {
-                                NextState(States.AskingDB);
-                                Log.InfoFormat("Get packager == 0, asking db for code {0}", qrReadCode.Result);
-                                sqlRequest = SqlDatabase.AskForPackager(qrReadCode.Result);
+                                if(StateTime.ElapsedMilliseconds > 1000)
+                                {
+                                    NextState(States.AskingDB);
+                                    Log.InfoFormat("Get packager == 0, asking db for code {0}", qrReadCode.Result);
+                                    sqlRequest = SqlDatabase.AskForPackager(qrReadCode.Result);
+                                }
                             }
                             else
                             {
@@ -158,7 +219,7 @@ namespace ModbusServer.StateMachine
                     if (!FatekPLC.ReadBit(FatekPLC.Signals.ReadQR))
                     {
                         FatekPLC.ResetBit(FatekPLC.Signals.SendingQR);
-                        Status.SetEntryPallet(true);
+                        _ = Status.SetEntryPallet(true);
                         if (FatekPLC.ReadBit(FatekPLC.Signals.ToEmb1))
                         {
                             Log.InfoFormat("Waiting Bocedi1 to accept pallet code {0}", qrReadCode.Result);
@@ -187,8 +248,28 @@ namespace ModbusServer.StateMachine
                             currentIdEmb1 = 1;
                         }
                         FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate);
-                        NextState(States.UpdateFIFO1);
-                        Status.UpdateFIFO1();
+                        NextState(States.WaitUpdateFIFO1);
+                        writeTask = Status.UpdateFIFO1();
+                    }
+                    break;
+                case States.WaitUpdateFIFO1:
+                    if (writeTask.IsCompleted)
+                    {
+                        if (writeTask.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not write fifo 1");
+                                writeTask = Status.UpdateFIFO1();
+                                NextState(States.WaitUpdateFIFO1);
+                            }
+                            
+                        }
+                        else
+                        {
+                            Log.Info("Fifo updated");
+                            NextState(States.UpdateFIFO1);
+                        }
                     }
                     break;
                 case States.UpdateFIFO1:
@@ -211,19 +292,38 @@ namespace ModbusServer.StateMachine
                     if (FatekPLC.ReadBit(FatekPLC.Signals.SendUpdate))
                     {
                         Log.InfoFormat("Pallet {0} enter to the car", qrReadCode.Result);
-                        Status.SetCarPallet(true);
-                        NextState(States.UpdateCar);
-                        currentIdEmb2 = (currentIdEmb2 + 1) % 8;
-                        if (currentIdEmb2 == 0)
-                        {
-                            currentIdEmb2 = 1;
-                        }
+                        writeTask = Status.SetCarPallet(true);
+                        NextState(States.WaitUpdateCar);
                     }
                     if (FatekPLC.ReadBit(FatekPLC.Signals.CarEntryError))
                     {
                         Status.Instance.ErrorMessages.EntryError = "El pallet no pudo ingresar al carro. Volver a posicionar el pallet en la estación de lectura y presionar el botón Start. Asegurar que el carro no se alejó del conveyor.";
                         _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.error_entrega_a_carro, code: qrReadCode.Result);
                         NextState(States.Paused);
+                    }
+                    break;
+                case States.WaitUpdateCar:
+                    if (writeTask.IsCompleted)
+                    {
+                        if (writeTask.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not write car");
+                                writeTask = Status.SetCarPallet(true);
+                                NextState(States.WaitUpdateCar);
+                            }
+                        }
+                        else
+                        {
+                            Log.Info("Fifo updated");
+                            NextState(States.UpdateCar);
+                            currentIdEmb2 = (currentIdEmb2 + 1) % 8;
+                            if (currentIdEmb2 == 0)
+                            {
+                                currentIdEmb2 = 1;
+                            }
+                        }
                     }
                     break;
                 case States.UpdateCar:
@@ -240,10 +340,9 @@ namespace ModbusServer.StateMachine
                     if (qrReadCode.Completed)
                     {
                         Log.InfoFormat("Code {0} readed", qrReadCode.Result);
-                        SetReadedQR(qrReadCode.Result);
-                        NextState(States.AskingDB);
-                        sqlRequest = SqlDatabase.AskForPackager(qrReadCode.Result);
                         FatekPLC.ResetBit(FatekPLC.Signals.ErrorQr);
+                        qrTask = SetReadedQR(qrReadCode.Result);
+                        NextState(States.WaitingSetQr);              
                         break;
                     }
                     if (qrReadCode.Failed)
@@ -318,9 +417,9 @@ namespace ModbusServer.StateMachine
             }
         }
 
-        public void SetReadedQR(string value)
+        public async Task<bool> SetReadedQR(string value)
         {
-            FatekPLC.SetQr(FatekPLC.Memory.QR1, value);
+            return await FatekPLC.SetQr(FatekPLC.Memory.QR1, value);
         }
 
         public void NotifyBocediStates()

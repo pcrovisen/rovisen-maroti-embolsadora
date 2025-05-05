@@ -28,7 +28,6 @@ namespace ModbusServer
         {
             Log.Info("Program started");
             FatekPLC.Init();
-            QrReader.Init(ConfigurationManager.AppSettings["ipQrReader"]);
 
             process = new MainProcess();
             worker = new Thread(new ThreadStart(process.DoWork))

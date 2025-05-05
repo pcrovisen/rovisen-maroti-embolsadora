@@ -97,8 +97,11 @@ namespace ModbusServer.StateMachine
                     {
                         if (omronReadingDataTask.IsFaulted)
                         {
-                            Log.Error("Could not receive weight lenght. Retrying");
-                            NextState(States.Init);
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not receive weight lenght. Retrying");
+                                NextState(States.Init);
+                            }
                         }
                         else
                         {
@@ -114,8 +117,12 @@ namespace ModbusServer.StateMachine
                     {
                         if (omronReadingDataTask.IsFaulted)
                         {
-                            Log.Error("Could not receive weight. Retrying");
-                            NextState(States.Init);
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not receive weight. Retrying");
+                                omronReadingDataTask = plc.ReadDMs(44, 3);
+                                NextState(States.RetreivingWeight);
+                            }
                         }
                         else
                         {
@@ -179,10 +186,13 @@ namespace ModbusServer.StateMachine
                 case States.RetreivingLabels:
                     if (retreivingTask.IsCompleted)
                     {
-                        if (retreivingTask.IsFaulted)
+                        if (retreivingTask.IsFaulted || retreivingTask.Result == null)
                         {
-                            Log.Error("Could not get the labels from the database. Retrying");
-                            NextState(States.WeightOk);
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not get the labels from the database. Retrying");
+                                NextState(States.WeightOk);
+                            }
                         }
                         else
                         {

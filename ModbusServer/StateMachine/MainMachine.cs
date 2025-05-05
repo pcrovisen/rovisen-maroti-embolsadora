@@ -11,13 +11,11 @@ namespace ModbusServer.StateMachine
         public static object dictLock = new object(); 
 
         internal FatekPLCCommunication fatekPLCCommunication;
-        internal QrReaderConnection qrReaderConnection;
         internal AcceptHMIs acceptHMIs;
         //internal CarConnection carConnection;
         public MainMachine()
         {
             fatekPLCCommunication = new FatekPLCCommunication();
-            qrReaderConnection = new QrReaderConnection();
             acceptHMIs = new AcceptHMIs();
             //carConnection = new CarConnection();
         }
@@ -25,7 +23,6 @@ namespace ModbusServer.StateMachine
         public void Step()
         {
             Status.Reset();
-            qrReaderConnection.Step();
             fatekPLCCommunication.Step();
             //carConnection.Step();
 

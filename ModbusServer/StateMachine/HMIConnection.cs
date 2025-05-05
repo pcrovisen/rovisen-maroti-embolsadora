@@ -19,6 +19,7 @@ namespace ModbusServer.StateMachine
         {
             Init,
             Waiting,
+            WaitingDelStart,
             WaitingDeletion1,
             WaitingDeletion2,
             Responding,
@@ -28,12 +29,15 @@ namespace ModbusServer.StateMachine
         readonly TcpDevice tcpHMI;
         Task<string> receiveTask;
         Task<bool> sendTask;
+        Task<bool> startDel;
         CancellationTokenSource cts;
+        DeletePallet pallet;
 
         bool UpdateQueueEmb1 = false;
         bool UpdateQueueEmb2 = false;
         bool UpdatedCar = false;
         bool UpdateMachineStates = false;
+
 
         public bool Terminated => (States)State == States.Terminated;
 
@@ -80,18 +84,17 @@ namespace ModbusServer.StateMachine
                             }
                             else if(receiveTask.Result.Substring(0,3) == "del")
                             {
-                                DeletePallet pallet = JsonSerializer.Deserialize<DeletePallet>(receiveTask.Result.Substring(3));
+                                pallet = JsonSerializer.Deserialize<DeletePallet>(receiveTask.Result.Substring(3));
                                 if(pallet.Packager == 1)
                                 {
-                                    DeletePalletEmb1.Instance.StartDelete(pallet);
-                                    NextState(States.WaitingDeletion1);
+                                    startDel = DeletePalletEmb1.Instance.StartDelete(pallet);
                                 }
                                 else
                                 {
-                                    DeletePalletEmb2.Instance.StartDelete(pallet);
-                                    NextState(States.WaitingDeletion2);
+                                    startDel = DeletePalletEmb2.Instance.StartDelete(pallet);
                                 }
-                                
+                                NextState(States.WaitingDelStart);
+
                             }
                             else if(receiveTask.Result == "terminate")
                             {
@@ -108,6 +111,35 @@ namespace ModbusServer.StateMachine
                         else
                         {
                             NextState(States.Terminated);
+                        }
+                    }
+                    break;
+                case States.WaitingDelStart:
+                    if (startDel.IsCompleted)
+                    {
+                        if (startDel.Result)
+                        {
+                            if(pallet.Packager == 1)
+                            {
+                                NextState(States.WaitingDeletion1);
+                            }
+                            else
+                            {
+                                NextState(States.WaitingDeletion2);
+                            }
+                            
+                        }
+                        else
+                        {
+                            if (pallet.Packager == 1)
+                            {
+                                startDel = DeletePalletEmb1.Instance.StartDelete(pallet); 
+                            }
+                            else
+                            {
+                                startDel = DeletePalletEmb2.Instance.StartDelete(pallet);
+                            }
+                            NextState(States.WaitingDelStart);
                         }
                     }
                     break;

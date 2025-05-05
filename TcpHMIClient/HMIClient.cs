@@ -32,17 +32,22 @@ namespace TcpHMIClient
         {
             Waiting,
             ReadingQR,
+            WaitingSetQr,
+            WaitingSetEntryPallet,
             WaitingAvailability,
             DefaultBehavior,
             AskingDB,
             SendingID,
             WaitForBocedi1,
             WaitEnterBocedi,
+            WaitUpdateFIFO1,
             UpdateFIFO1,
             WaitForCar,
             WaitEnterCar,
+            WaitUpdateCar,
             UpdateCar,
             ReadingQrInError,
+            Paused,
         }
 
         public enum SignalsNames
@@ -269,6 +274,14 @@ namespace TcpHMIClient
                     }
                     else
                     {
+                        if (detailForm != null)
+                        {
+                            detailForm.Invoke((MethodInvoker)delegate
+                            {
+                                detailForm.DialogResult = DialogResult.Abort;
+                                detailForm.Close();
+                            });
+                        }
                         Console.WriteLine("Could not delete");
                         state = State.AskInit;
                         

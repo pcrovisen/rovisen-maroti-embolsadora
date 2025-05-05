@@ -226,6 +226,16 @@ namespace InterfaceHMI
                         fLToCarArrow.TurnOff();
                         fLToBCDArrow.TurnOff();
                         break;
+                    case PalletEntryStates.Paused:
+                        entryPalletLabel.Visible = false;
+                        enterEmb1.Visible = false;
+                        fCameraQrBad.TurnOff();
+                        fCameraQrGood.Blink();
+                        fLabelEnter2.TurnOff();
+                        fLToCarArrow.Blink();
+                        fLToBCDArrow.Blink();
+                        break;
+
                 }
             }
         }
@@ -295,13 +305,21 @@ namespace InterfaceHMI
                     tabPalletB1.Visible = true;
                     tabPalletB2.Visible = true;
                     tabPalletNoPos.Visible = true;
-                    var text = $"{car.Pallet.Qr}\nId: {car.Pallet.Id}\nMaq: {car.Pallet.Injector}";
 
-                    palletInCarPos1.Text = text;
-                    palletInCarPos2.Text = text;
-                    tabPalletB1.Text = text;
-                    tabPalletB2.Text = text;
-                    tabPalletNoPos.Text = text;
+                    try
+                    {
+                        var text = $"{car.Pallet.Qr}\nId: {car.Pallet.Id}\nMaq: {car.Pallet.Injector}";
+
+                        palletInCarPos1.Text = text;
+                        palletInCarPos2.Text = text;
+                        tabPalletB1.Text = text;
+                        tabPalletB2.Text = text;
+                        tabPalletNoPos.Text = text;
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Failed to set car text");
+                    }
                 }
                 else
                 {

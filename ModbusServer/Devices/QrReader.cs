@@ -12,49 +12,50 @@ namespace ModbusServer.Devices
     public class QrReader
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        public static QrReader Instance { get; private set; }
         TcpClient client;
         NetworkStream stream;
-        string ip;
+        readonly string ip;
 
-        public static bool IsConnected
+        public bool IsConnected
         {
-            get { return Instance.client != null && Instance.client.Connected; }
+            get { return client != null && client.Connected; }
         }
 
-        public static void Init(string ip)
+        public string Ip 
         {
-            Instance = new QrReader()
-            {
-                ip = ip,
-            };
+            get { return ip; }
         }
 
-        public static async Task<bool> Connect()
+        public QrReader(string ip)
+        {
+            this.ip = ip;
+        }
+
+        public async Task<bool> Connect()
         {
             try
             {
-                Instance.client = new TcpClient();
-                await Instance.client.ConnectAsync(Instance.ip, 50010);
+                client = new TcpClient();
+                await client.ConnectAsync(ip, 50010);
                 return true;
             }
             catch
             {
                 Log.Warn("Qr reader not responding");
-                Instance.client = null;
+                client = null;
                 return false;
             }
         }
 
-        public static void Disconnect()
+        public void Disconnect()
         {
-            Instance.stream.Close();
-            Instance.client.Close();
+            stream.Close();
+            client.Close();
         }
 
-        public static async Task<string> Read()
+        public async Task<string> Read()
         {
-            String result = await Instance.SendMessageO2I("T?");
+            String result = await SendMessageO2I("T?");
 
             if (result == "!" || result == String.Empty)
                 return String.Empty;

@@ -23,6 +23,7 @@ namespace ModbusServer.StateMachine
         }
         Task<string> reader;
         int retries;
+        readonly QrReader qrReader;
 
         public bool Completed
             { get { return (States)State == States.Completed; } }
@@ -30,9 +31,10 @@ namespace ModbusServer.StateMachine
             { get { return (States)State == States.Failed; } }
         public string Result
             { get; protected set; }
-        public QrReadMachine() : base(States.Init)
+        public QrReadMachine(QrReader qrReader) : base(States.Init, qrReader.Ip)
         {
             retries = 0;
+            this.qrReader = qrReader;
         }
 
         public override void Step()
@@ -40,20 +42,20 @@ namespace ModbusServer.StateMachine
             switch(State)
             {
                 case States.Init:
-                    if (!QrReader.IsConnected)
+                    if (!qrReader.IsConnected)
                     {
                         Log.Error("Qr reader not connected");
                         NextState(States.Failed);
                         break;
                     }
-                    reader = QrReader.Read();
+                    reader = qrReader.Read();
                     NextState(States.Reading);
                     Log.Info("Start reading QR");
                     break;
                 case States.Reading:
                     if (reader.IsCompleted)
                     {
-                        if(reader.Result != string.Empty && IsValid(reader.Result))
+                        if(reader.Result != string.Empty)
                         {
                             Result = reader.Result;
                             Log.Info($"Qr reader read {Result}");

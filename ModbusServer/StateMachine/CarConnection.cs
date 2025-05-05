@@ -47,7 +47,11 @@ namespace ModbusServer.StateMachine
                     {
                         if(connectionTask.IsFaulted)
                         {
-                            connectionTask = carListener.AcceptTcpClientAsync();
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                connectionTask = carListener.AcceptTcpClientAsync();
+                                NextState(States.Disconnected);
+                            }
                         }
                         else
                         {

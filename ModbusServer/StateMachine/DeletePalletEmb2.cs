@@ -17,11 +17,13 @@ namespace ModbusServer.StateMachine
             Waiting,
             Validating,
             ValidatingPLC,
+            WaitingWrite,
             SendingFIFO,
             Completed,
             Failed,
         }
 
+        Task queueWrite;
         public static DeletePalletEmb2 Instance { get; set; }
         public bool needDel = false;
         public bool Completed
@@ -74,9 +76,28 @@ namespace ModbusServer.StateMachine
                     {
                         Log.Info("Valid in PLC side");
                         DeletePallet();
-                        Status.UpdateFIFO2();
-                        NextState(States.SendingFIFO);
+                        queueWrite = Status.UpdateFIFO2();
+                        NextState(States.WaitingWrite);
                         break;
+                    }
+                    break;
+                case States.WaitingWrite:
+                    if(queueWrite.IsCompleted)
+                    {
+                        if (queueWrite.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                queueWrite = Status.UpdateFIFO1();
+                                Log.Error("Could not write the queue 2");
+                                NextState(States.WaitingWrite);
+                            }
+                        }
+                        else
+                        {
+                            NextState(States.SendingFIFO);
+                            Log.Info("Queue writen");
+                        }
                     }
                     break;
                 case States.Failed:
@@ -142,14 +163,14 @@ namespace ModbusServer.StateMachine
             FatekPLC.SetMemory(FatekPLC.Memory.FIFO4Len, (short)(len2 - 1));
         }
 
-        public void StartDelete(DeletePallet pallet)
+        public async Task<bool> StartDelete(DeletePallet pallet)
         {
             Log.Info($"Start to delete pallet {pallet.Pallet.Qr}, in position {pallet.Position} from packager {pallet.Packager}");
             NextState(States.Validating);
             FatekPLC.SetMemory(FatekPLC.Memory.DEL2Pos1, (short)(2 * pallet.Position));
             FatekPLC.SetMemory(FatekPLC.Memory.DEL2Pos2, (short)pallet.Position);
 
-            FatekPLC.SetQrAndId(FatekPLC.Memory.DEL2a, FatekPLC.Memory.DEL2ID, pallet.Pallet);
+            return await FatekPLC.SetQrAndId(FatekPLC.Memory.DEL2a, FatekPLC.Memory.DEL2ID, pallet.Pallet);
         }
     }
 }

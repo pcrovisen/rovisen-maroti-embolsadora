@@ -17,6 +17,7 @@ namespace ModbusServer.StateMachine
             Init,
             Starting,
             WaitingMemory,
+            WaitingInit,
             Working,
         }
 
@@ -25,7 +26,10 @@ namespace ModbusServer.StateMachine
         public DeletePalletEmb2 delletePalletEmb2;
         readonly PalletLabel1 palletLabelBocedi1;
         readonly PalletLabel2 palletLabelBocedi2;
-        readonly CarMachine CarMachine;
+        readonly CarMachine carMachine;
+        readonly ElevatorAccess elevatorMachine;
+
+        Task initQueues;
 
         public FatekPLCCommunication() : base(States.Init)
         {
@@ -34,7 +38,8 @@ namespace ModbusServer.StateMachine
             delletePalletEmb2 = new DeletePalletEmb2();
             palletLabelBocedi1 = new PalletLabel1();
             palletLabelBocedi2 = new PalletLabel2();
-            CarMachine = new CarMachine();
+            carMachine = new CarMachine();
+            elevatorMachine = new ElevatorAccess();
         }
 
         public override void Step()
@@ -64,10 +69,29 @@ namespace ModbusServer.StateMachine
                     FatekPLC.SetBit(FatekPLC.Signals.ReceivingFIFOs);
                     if (FatekPLC.ReadBit(FatekPLC.Signals.Ready))
                     {
-                        NextState(States.Working);
+                        NextState(States.WaitingInit);
                         Log.Info("Master PLC connected");
                         palletEntry.Reset();
-                        Status.InitQueues();
+                        initQueues =  Status.InitQueues();
+                    }
+                    break;
+                case States.WaitingInit:
+                    if (initQueues.IsCompleted)
+                    {
+                        if (initQueues.IsFaulted)
+                        {
+                            if(StateTime.ElapsedMilliseconds > 100)
+                            {
+                                Log.Error("Could not init queues");
+                                initQueues = Status.InitQueues();
+                                NextState(States.WaitingInit);
+                            }
+                        }
+                        else
+                        {
+                            NextState(States.Working);
+                            Log.Info("Queues initialized");
+                        }
                     }
                     break;
                 case States.Working:
@@ -81,7 +105,8 @@ namespace ModbusServer.StateMachine
                     delletePalletEmb2.Step();
                     palletLabelBocedi1.Step();
                     palletLabelBocedi2.Step();
-                    CarMachine.Step();
+                    carMachine.Step();
+                    elevatorMachine.Step();
                     if (!FatekPLC.ReadBit(FatekPLC.Signals.Ready))
                     {
                         NextState(States.Init);

@@ -1,4 +1,5 @@
 ﻿using log4net;
+using ModbusServer.Devices;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace ModbusServer.Data
 {
@@ -77,33 +79,21 @@ namespace ModbusServer.Data
             }
         }
 
-        public static string GetQrId(string qr)
+        public static async Task<int> GetQrId(string qr)
         {
-            uint num;
-            if (Instance.Qrs.ContainsKey(qr))
-            {
-                 num = uint.MaxValue - Instance.Qrs[qr];
-            }
-            else
-            {
-                Instance.Qrs.Add(qr, Instance.LastQrId);
-                Save();
-                num = uint.MaxValue - Instance.LastQrId++;
-            }
-            return num.ToString("X");
+            return await SqlDatabase.GetIDFromString(qr);
         }
 
-        public static string GetQrString(string stringQr)
+        public static async Task<string> GetQrString(int id)
         {
-            uint qrId = uint.MaxValue - Convert.ToUInt32(stringQr.Substring(1), 16);
-            if(qrId < Instance.Qrs.Count)
+            var qrString = await SqlDatabase.GetStringFromID(id);
+            if(qrString == "")
             {
-                return Instance.Qrs.Keys.ElementAt((int)qrId);
+                Log.Error("QR not valid");
+                return null;
             }
-            else
-            {
-                return "";
-            }
+
+            return qrString;
         }
     }
 }

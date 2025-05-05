@@ -227,6 +227,91 @@ namespace ModbusServer.Devices
             }
         }
 
+        public static async Task<bool> GetAuthElevator(string code, string msg = null)
+        {
+            return await Instance._GetAuthElevator(code, msg);
+        }
+
+        private async Task<bool> _GetAuthElevator(string code, string msg)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateElevatorCommnad(code, msg), connection).ExecuteReader())
+                    {
+                        await sqlDataReader.ReadAsync();
+                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
+                        return sqlDataReader.GetBoolean(0);
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
+                    Status.Instance.Connections.WencoDB = false;
+                    return false;
+                }
+            }
+        }
+
+        public static async Task<string> GetStringFromID(int id)
+        {
+            return await Instance._GetStringFromID(id);
+        }
+
+        private async Task<string> _GetStringFromID(int id)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateGetStringFromIDCommnad(id), connection).ExecuteReader())
+                    {
+                        await sqlDataReader.ReadAsync();
+                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
+                        return sqlDataReader[0].ToString();
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
+                    Status.Instance.Connections.WencoDB = false;
+                    return "";
+                }
+            }
+        }
+
+        public static async Task<int> GetIDFromString(string code)
+        {
+            return await Instance._GetIDFromString(code);
+        }
+
+        private async Task<int> _GetIDFromString(string code)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateGetIDFromStringCommnad(code), connection).ExecuteReader())
+                    {
+                        await sqlDataReader.ReadAsync();
+                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
+                        return sqlDataReader.GetInt32(0);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
+                    Status.Instance.Connections.WencoDB = false;
+                    return -1;
+                }
+            }
+        }
+
         private string CreatePackageCommand(string code)
         {
             return ("\r\n DECLARE @out_preferencia_embolsadora INT;\r\n" +
@@ -295,6 +380,34 @@ namespace ModbusServer.Devices
                     ",@out_continuar_sin_respuesta_db = @out_continuar_sin_respuesta_db OUTPUT\r\n" +
                     ",@out_receta_por_defecto = @out_receta_por_defecto OUTPUT;\r\n\r\n" +
                     "select @out_continuar_sin_lectura_codigo, out_continuar_sin_respuesta_db, out_receta_por_defecto;\r\n");
+        }
+
+        private string CreateElevatorCommnad(string code, string msg)
+        {
+            return ("\r\n DECLARE @out_autorizado BIT;\r\n" +
+                    "EXECUTE [maroti].[sp_solicitar_ingreso_por_elevador]\r\n" +
+                    "@in_codigo = '" + code + "'\r\n" +
+                    ",@in_msg = '" + msg + "'\r\n" +
+                    ",@out_autorizado = @out_autorizado OUTPUT;\r\n\r\n" +
+                    "select @out_autorizado;\r\n");
+        }
+
+        private string CreateGetStringFromIDCommnad(int id)
+        {
+            return ("\r\n DECLARE @out_codigo NVARCHAR(200);\r\n" +
+                    "EXECUTE [maroti].[sp_get_codigo]\r\n" +
+                    "@in_id = " + id + "\r\n" +
+                    ",@out_codigo = @out_codigo OUTPUT;\r\n\r\n" +
+                    "select @out_codigo;\r\n");
+        }
+
+        private string CreateGetIDFromStringCommnad(string code)
+        {
+            return ("\r\n DECLARE @out_id INT;\r\n" +
+                    "EXECUTE [maroti].[sp_get_id]\r\n" +
+                    "@in_codigo = '" + code + "'\r\n" +
+                    ",@out_id = @out_id OUTPUT;\r\n\r\n" +
+                    "select @out_id;\r\n");
         }
     }
 }
