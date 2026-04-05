@@ -424,9 +424,10 @@ namespace ModbusServer.StateMachine
 
         public void NotifyBocediStates()
         {
-            if(FatekPLC.ReadBit(FatekPLC.Signals.BCD1OK) ^ bocedi1Working)
+            bool currentBCD1Status = FatekPLC.ReadBit(FatekPLC.Signals.BCD1OK);
+            if(currentBCD1Status ^ bocedi1Working)
             {
-                bocedi1Working = FatekPLC.ReadBit(FatekPLC.Signals.BCD1OK);
+                bocedi1Working = currentBCD1Status;
                 if(bocedi1Working)
                 {
                     _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.embolsadora_funcionando, packager: 1);
@@ -437,9 +438,10 @@ namespace ModbusServer.StateMachine
                 }
             }
 
-            if (FatekPLC.ReadBit(FatekPLC.Signals.BCD2OK) ^ bocedi2Working)
+            bool currentBCD2Status = FatekPLC.ReadBit(FatekPLC.Signals.BCD2OK);
+            if (currentBCD2Status ^ bocedi2Working)
             {
-                bocedi2Working = FatekPLC.ReadBit(FatekPLC.Signals.BCD2OK);
+                bocedi2Working = currentBCD2Status;
                 if (bocedi2Working)
                 {
                     _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.embolsadora_funcionando, packager: 2);
