@@ -40,7 +40,7 @@ namespace ModbusServer
                 Car = new Car() { CarPosition = Car.Position.Unknown, HasPallet = false, Pallet = null, Updated = false},
                 Connections = new Connections() { MasterPLC = false, SlavePLC = false, QrReader = false, Packager1 = false, Packager2 = false, WencoDB = false},
                 StateMachine = new StateMachineStatus() { Machines = new Dictionary<string, object>(), MachinesStates = new Dictionary<string, Dictionary<int, string>>() },
-                ErrorMessages = new ErrorMessages() { BDC1Error = "hola1", BDC2Error = "hola2", EntryError = "hola3", CarError = "",}
+                ErrorMessages = new ErrorMessages() { BDC1Error = "", BDC2Error = "", EntryError = "", CarError = "",}
             };
         }
 
