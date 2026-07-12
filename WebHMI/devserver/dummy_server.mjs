@@ -64,7 +64,21 @@ const MACHINE_STATES = {
 // Simulated plant state
 // ---------------------------------------------------------------------------
 
-const MAX_QUEUE = 4;
+const MAX_QUEUE = 5;
+
+// Pallets arrive faster than the packagers process them on slow cycles,
+// so queues realistically build up to several pallets.
+function nextArrivalGap() {
+  return Math.random() < 0.5
+    ? 1000 + Math.random() * 2500   // back-to-back arrivals
+    : 5000 + Math.random() * 6000;  // normal lull
+}
+
+function nextBaggingTime() {
+  return Math.random() < 0.35
+    ? 25000 + Math.random() * 25000 // slow cycle: the queue accumulates
+    : 6000 + Math.random() * 4000;  // normal cycle
+}
 
 const state = {
   config: { QrRetries: 1, ContinueIfNoQr: false, ContinueIfNoDB: false, DefaultRecipe: 1 },
@@ -151,8 +165,10 @@ function stepEntry(t) {
     case 'askingDb':
       ms.PalletEntry = PE.AskingDB;
       if (t > entryPhase.until) {
-        const toB1 = state.packager1.Queue.length <= state.packager2.Queue.length
-          && state.packager1.Queue.length < MAX_QUEUE;
+        // Mostly route to Bocedi 1 (the direct line) even if it has a
+        // backlog, like the plant DB does; the car line is the overflow.
+        const toB1 = state.packager1.Queue.length < MAX_QUEUE
+          && (Math.random() < 0.7 || state.packager2.Queue.length >= MAX_QUEUE);
         if (toB1) {
           state.entryPallet.Id = String(nextId1);
           nextId1 = nextId1 % 7 + 1;
@@ -169,7 +185,7 @@ function stepEntry(t) {
       if (t > entryPhase.until) {
         if (state.packager1.Queue.length < MAX_QUEUE) {
           state.packager1.Queue.push(state.entryPallet);
-          entryPhase = { name: 'idle', until: t + 3000 + Math.random() * 5000 };
+          entryPhase = { name: 'idle', until: t + nextArrivalGap() };
         }
       }
       break;
@@ -184,7 +200,7 @@ function stepEntry(t) {
       if (t > entryPhase.until) {
         state.car.HasPallet = true;
         state.car.Pallet = state.entryPallet;
-        entryPhase = { name: 'idle', until: t + 3000 + Math.random() * 5000 };
+        entryPhase = { name: 'idle', until: t + nextArrivalGap() };
       }
       break;
   }
@@ -206,15 +222,21 @@ function stepCar(t) {
     case 'toB2':
       car.CarPosition = CAR_POSITION.GoingToB2;
       ms.CarMachine = 3;
-      if (t > carPhase.until) carPhase = { name: 'atB2', until: 0 };
+      if (t > carPhase.until) carPhase = { name: 'atB2', until: t + 3000 };
       break;
     case 'atB2':
+      // The car stays visibly in B2 during the whole WaitingCarEmpty phase:
+      // a dwell before unloading and another one after, before departing.
       car.CarPosition = CAR_POSITION.InB2;
       ms.CarMachine = 4; // WaitingCarEmpty
-      if (state.packager2.Queue.length < MAX_QUEUE) {
-        state.packager2.Queue.push(car.Pallet);
-        car.HasPallet = false;
-        car.Pallet = null;
+      if (car.HasPallet) {
+        if (t > carPhase.until && state.packager2.Queue.length < MAX_QUEUE) {
+          state.packager2.Queue.push(car.Pallet);
+          car.HasPallet = false;
+          car.Pallet = null;
+          carPhase.until = t + 2500;
+        }
+      } else if (t > carPhase.until) {
         carPhase = { name: 'toB1', until: t + 4000 };
       }
       break;
@@ -240,7 +262,7 @@ function makePackagerSim(pk, machineKey, labelSignal) {
         ms[machineKey] = 0; // WaitingPallet
         state.signals[labelSignal] = false;
         if (pk().Queue.length > 0 && !pk().LabelPallet) {
-          phase = { name: 'bagging', until: t + 6000 + Math.random() * 4000 };
+          phase = { name: 'bagging', until: t + nextBaggingTime() };
         }
         break;
       case 'bagging': // pallet being bagged before reaching the labeler

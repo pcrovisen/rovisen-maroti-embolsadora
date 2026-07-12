@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diagnóstico — Línea Embolsadora</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" id="serverDot"></span>
+      <h1>Diagnóstico — Máquinas de estado</h1>
+    </div>
+    <div class="conns"></div>
+    <a class="btn btn-ghost" href="index.html">← Vista principal</a>
+  </header>
+
+  <!-- Shared SVG defs: arrowheads for the transition edges -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d4f70"/>
+      </marker>
+      <marker id="arrowActive" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#4da3ff"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <main class="diag-page">
+    <p class="diag-hint">
+      El estado actual se muestra en verde. Las flechas son transiciones
+      observadas desde que se abrió esta página; la última transición se
+      anima en azul.
+    </p>
+    <div class="machines-grid" id="machinesGrid"></div>
+
+    <section class="panel">
+      <h3 class="signals-title">Señales PLC</h3>
+      <div class="signals" id="signalsGrid"></div>
+    </section>
+  </main>
+
+  <div class="offline-overlay hidden" id="offlineOverlay">
+    <div>
+      <h2>Sin conexión con el servidor</h2>
+      <p>Reintentando automáticamente…</p>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script src="diag.js"></script>
+</body>
+</html>

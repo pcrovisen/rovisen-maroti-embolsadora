@@ -29,12 +29,15 @@
         <h2>Entrada</h2>
         <span class="camera" id="qrCamera" title="Lector QR">QR</span>
       </div>
-      <div class="pallet-card entry-card hidden" id="entryPallet"></div>
+      <div class="lane-group">
+        <span class="lane-label">Palet leído</span>
+        <div class="slot" id="entryPallet"></div>
+      </div>
       <div class="routes">
         <div class="route" id="routeB1">▲ Bocedi 1</div>
         <div class="route" id="routeCar">▼ Carro</div>
       </div>
-      <div class="error-banner hidden" id="entryError"></div>
+      <div class="error-banner empty" id="entryError"></div>
     </section>
 
     <!-- Bocedi 1 -->
@@ -59,7 +62,7 @@
           <div class="slots"><div class="slot" id="exit1"></div></div>
         </div>
       </div>
-      <div class="error-banner hidden" id="bcd1Error"></div>
+      <div class="error-banner empty" id="bcd1Error"></div>
     </section>
 
     <!-- Transfer car -->
@@ -77,8 +80,11 @@
         </div>
         <span class="track-end">B2</span>
       </div>
-      <div class="pallet-card hidden" id="carPallet"></div>
-      <div class="error-banner hidden" id="carError"></div>
+      <div class="lane-group">
+        <span class="lane-label">Palet en carro</span>
+        <div class="slot" id="carPallet"></div>
+      </div>
+      <div class="error-banner empty" id="carError"></div>
     </section>
 
     <!-- Bocedi 2 -->
@@ -103,12 +109,14 @@
           <div class="slots"><div class="slot" id="exit2"></div></div>
         </div>
       </div>
-      <div class="error-banner hidden" id="bcd2Error"></div>
+      <div class="error-banner empty" id="bcd2Error"></div>
     </section>
 
     <!-- Diagnostics -->
     <details class="panel panel-diag">
-      <summary>Diagnóstico</summary>
+      <summary>Diagnóstico
+        <a class="diag-open" href="diagnostico.html" target="_blank">Vista gráfica en pestaña nueva ↗</a>
+      </summary>
       <div class="diag-grid">
         <div>
           <h3>Procesos</h3>
@@ -168,6 +176,7 @@
 
   <div class="toasts" id="toasts"></div>
 
+  <script src="common.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

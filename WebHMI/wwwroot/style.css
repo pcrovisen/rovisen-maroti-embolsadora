@@ -175,8 +175,13 @@ body {
 .slots { display: flex; gap: 0.45rem; flex-wrap: wrap; }
 
 .slot {
-  min-width: 8.5rem;
-  min-height: 4.2rem;
+  /* Fixed size (QR wraps to 2 lines + Id + Maq) so filling/emptying a
+     slot never reflows the page: empty dashed slots and filled pallet
+     cards occupy exactly the same box. */
+  width: 8.5rem;
+  height: 5.7rem;
+  flex: 0 0 auto;
+  overflow: hidden;
   border: 1px dashed var(--line);
   border-radius: 0.45rem;
   padding: 0.4rem 0.5rem;
@@ -229,6 +234,7 @@ body {
 
 /* ---------- Errors ---------- */
 
+/* Banners keep their box when empty so the layout never shifts. */
 .error-banner {
   margin-top: 0.6rem;
   padding: 0.5rem 0.7rem;
@@ -237,7 +243,9 @@ body {
   border: 1px solid var(--bad);
   color: #ffb4b4;
   font-size: 0.85rem;
+  min-height: 2.4rem;
 }
+.error-banner.empty { visibility: hidden; }
 
 /* ---------- Diagnostics ---------- */
 
@@ -246,6 +254,14 @@ body {
   font-weight: 600;
   color: var(--muted);
 }
+.diag-open {
+  margin-left: 1rem;
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.diag-open:hover { text-decoration: underline; }
 .diag-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -279,6 +295,69 @@ body {
 }
 .signal.on { color: var(--text); }
 .signal.on::before { background: var(--ok); }
+
+/* ---------- Diagnostics page (state-machine graphs) ---------- */
+
+.diag-page { padding: 0.8rem; }
+
+.diag-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0 0 0.8rem;
+}
+
+.machines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.machine-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.8rem;
+}
+
+.machine-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.machine-head h2 { margin: 0; font-size: 0.9rem; font-weight: 600; }
+.machine-state { color: var(--ok); font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+
+.machine-card svg { width: 100%; height: auto; display: block; }
+
+.st-node {
+  fill: var(--panel-2);
+  stroke: var(--line);
+  stroke-width: 1.5;
+  transition: fill 0.25s, stroke 0.25s;
+}
+.st-node.current { fill: var(--ok); stroke: var(--ok); }
+
+.st-label { fill: var(--muted); font-size: 9.5px; }
+.st-label.current { fill: var(--text); font-weight: 700; }
+
+.st-edge {
+  stroke: #3d4f70;
+  stroke-width: 1.3;
+  fill: none;
+  marker-end: url(#arrow);
+}
+.st-edge.active {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  animation: dash-flow 0.5s linear infinite;
+  marker-end: url(#arrowActive);
+}
+@keyframes dash-flow { to { stroke-dashoffset: -11; } }
+
+.signals-title { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); }
 
 /* ---------- Dialogs ---------- */
 

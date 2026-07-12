@@ -4,47 +4,7 @@
 
 'use strict';
 
-// ---------------------------------------------------------------------------
-// Enum mirrors (same order as ModbusServer / FatekPLC.Signals coils 21+)
-// ---------------------------------------------------------------------------
-
-const SIGNAL_NAMES = [
-  'ReadQR', 'Label1', 'Label2', 'SendingFIFOs', 'Ready',
-  'Del1Valid', 'Del1Error', 'Del2Valid', 'Del2Error',
-  'SendUpdate', 'SendUpdate2', 'CarWithPallet', 'CarInB1', 'CarInB2',
-  'bcd1Avaliable', 'bcd2Avaliable', 'Leave1', 'Leave2',
-  'WaitBocedi', 'WaitCar', 'SlaveConnected', 'WaitingPallet',
-  'PLCStarting', 'PLCLabeling1', 'PLCLabeling2',
-  'WaitCorrection1', 'WaitCorrection2', 'BCD2EntryError',
-];
-const SIG = Object.fromEntries(SIGNAL_NAMES.map((n, i) => [n, i]));
-
-const PE = {
-  Waiting: 0, ReadingQR: 1, WaitingSetQr: 2, WaitingSetEntryPallet: 3,
-  WaitingAvailability: 4, DefaultBehavior: 5, AskingDB: 6, SendingID: 7,
-  WaitForBocedi1: 8, WaitEnterBocedi: 9, WaitUpdateFIFO1: 10, UpdateFIFO1: 11,
-  WaitForCar: 12, WaitEnterCar: 13, WaitUpdateCar: 14, UpdateCar: 15,
-  ReadingQrInError: 16, Paused: 17,
-};
-
-const CAR_POS_TEXT = {
-  0: 'Posición desconocida',
-  1: 'Hacia Bocedi 1',
-  2: 'En Bocedi 1',
-  3: 'Hacia Bocedi 2',
-  4: 'En Bocedi 2',
-};
-
-const CONN_LABELS = {
-  MasterPLC: 'PLC Maestro',
-  SlavePLC: 'PLC Esclavo',
-  WencoDB: 'BD Wenco',
-  QrReader: 'Lector QR',
-  Packager1: 'Embolsadora 1',
-  Packager2: 'Embolsadora 2',
-  Labeler1: 'Etiquetadora 1',
-  Labeler2: 'Etiquetadora 2',
-};
+// Enum mirrors and helpers live in common.js (loaded first).
 
 const QUEUE_SLOTS = 5;
 
@@ -123,21 +83,21 @@ const signalEls = SIGNAL_NAMES.map((name) => {
 
 function palletText(p) {
   if (!p) return '';
-  const lines = [`<div class="qr">${escapeHtml(p.Qr) || '(sin QR)'}</div>`];
-  if (p.Id && p.Id !== '0') lines.push(`Id: ${escapeHtml(p.Id)}`);
-  if (p.Injector) lines.push(`Maq: ${escapeHtml(p.Injector)}`);
-  return lines.join('<br>');
-}
-
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
+  const info = [];
+  if (p.Id && p.Id !== '0') info.push(`Id: ${escapeHtml(p.Id)}`);
+  if (p.Injector) info.push(`Maq: ${escapeHtml(p.Injector)}`);
+  // The QR div is block-level: no <br> after it, or an empty line sneaks in.
+  return `<div class="qr">${escapeHtml(p.Qr) || '(sin QR)'}</div>${info.join('<br>')}`;
 }
 
 function setBanner(el, message) {
-  el.classList.toggle('hidden', !message);
+  el.classList.toggle('empty', !message);
   el.textContent = message || '';
+}
+
+function renderSlot(el, pallet) {
+  el.className = 'slot' + (pallet && pallet.Qr ? ' filled' : '');
+  el.innerHTML = pallet && pallet.Qr ? palletText(pallet) : '';
 }
 
 function render(st) {
@@ -170,8 +130,7 @@ function renderEntry(st) {
   else if (s !== undefined && s !== PE.Waiting) cam.classList.add('ok');
 
   const showPallet = st.EntryPallet && s !== PE.Waiting && s !== PE.UpdateCar && s !== PE.Paused;
-  els.entryPallet.classList.toggle('hidden', !showPallet);
-  if (showPallet) els.entryPallet.innerHTML = palletText(st.EntryPallet);
+  renderSlot(els.entryPallet, showPallet ? st.EntryPallet : null);
 
   els.routeB1.className = 'route';
   els.routeCar.className = 'route';
@@ -201,10 +160,6 @@ function renderLane(st, pk) {
     }
   });
 
-  const renderSlot = (el, pallet) => {
-    el.className = 'slot' + (pallet && pallet.Qr ? ' filled' : '');
-    el.innerHTML = pallet && pallet.Qr ? palletText(pallet) : '';
-  };
   renderSlot(els.labels[pk], packager.LabelPallet);
   renderSlot(els.exits[pk], packager.ExitPallet);
 
@@ -225,8 +180,7 @@ function renderCar(st) {
 
   els.carStateText.textContent = CAR_POS_TEXT[pos] || '';
   els.carPalletMini.classList.toggle('hidden', !st.Car.HasPallet);
-  els.carPallet.classList.toggle('hidden', !st.Car.HasPallet);
-  if (st.Car.HasPallet) els.carPallet.innerHTML = palletText(st.Car.Pallet);
+  renderSlot(els.carPallet, st.Car.HasPallet ? st.Car.Pallet : null);
 }
 
 function machineStateName(st, machine) {

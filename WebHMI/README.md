@@ -81,8 +81,11 @@ or `401` when the token is missing/expired.
 
 ### Static files
 
-Everything in `wwwroot/` is served as-is; `/` → `index.html`. The page is a
-single plain-JS app (no build step): `index.html`, `style.css`, `app.js`.
+Everything in `wwwroot/` is served as-is; `/` → `index.html`. Plain JS, no
+build step: `index.html` + `app.js` (operator view), `diagnostico.html` +
+`diag.js` (live state-machine graphs: states on a ring, current state
+highlighted, transitions learned by observation and animated), and
+`common.js` (shared enum mirrors) + `style.css`.
 
 ## Server-side integration plan (ModbusServer)
 
