@@ -402,9 +402,14 @@ namespace ModbusServer.StateMachine
         {
             base.Reset();
             Log.Info("Waiting new pallet");
-            if (FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len) != 0)
+            // Ids are assigned incrementally, so the next id follows the one of the
+            // newest pallet, which sits at the tail of the queue (index len - 1),
+            // not at the head. The %8 strips the label bit and the injector/recipe
+            // nibbles from the ID word (both are multiples of 8).
+            var len1 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len);
+            if (len1 != 0)
             {
-                currentIdEmb1 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO21) + 1;
+                currentIdEmb1 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO21 + (len1 - 1)) + 1;
             }
             currentIdEmb1 %= 8;
             if(currentIdEmb1 == 0)
@@ -412,9 +417,10 @@ namespace ModbusServer.StateMachine
                 currentIdEmb1 = 1;
             }
 
-            if (FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len) != 0)
+            var len2 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len);
+            if (len2 != 0)
             {
-                currentIdEmb2 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO41) + 1;
+                currentIdEmb2 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO41 + (len2 - 1)) + 1;
             }
             currentIdEmb2 %= 8;
 
