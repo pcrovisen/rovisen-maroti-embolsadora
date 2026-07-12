@@ -124,43 +124,57 @@ function makePallet(idCounter) {
 
 // --- entry simulation -------------------------------------------------------
 
-let entryPhase = { name: 'idle', until: now() + 3000, target: null };
+// The entry walks the same state chain the real PalletEntry machine declares
+// (see transitions.json): intermediate states get short dwells so the
+// diagnostics graphs light up along the declared paths.
+let entryPhase = { name: 'idle', until: now() + 3000 };
 
 function now() { return Date.now(); }
 
 function stepEntry(t) {
   const ms = state.machineState;
+  const go = (name, dwell, extra) => { entryPhase = { name, until: t + dwell, ...extra }; };
   switch (entryPhase.name) {
     case 'idle':
       ms.PalletEntry = PE.Waiting;
       state.entryPallet = null;
       state.signals[SIG.ReadQR] = false;
+      if (t > entryPhase.until) go('reading', 1500);
+      break;
+    case 'reading':
+      ms.PalletEntry = PE.ReadingQR;
+      state.signals[SIG.ReadQR] = true;
       if (t > entryPhase.until) {
         // 1 in 8 pallets arrives with an unreadable QR
         if (Math.random() < 0.125) {
-          entryPhase = { name: 'qrError', until: t + 6000 };
+          state.entryPallet = { Qr: '', Id: '', Recipe: '', Injector: '', Labeling: false };
+          go('qrError', 6000);
         } else {
-          entryPhase = { name: 'reading', until: t + 1500 };
+          state.entryPallet = makePallet({ value: 0 }); // id filled after DB answer
+          state.entryPallet.Id = '';
+          go('setQr', 400);
         }
       }
       break;
     case 'qrError':
       ms.PalletEntry = PE.ReadingQrInError;
       state.errors.EntryError = 'No se pudo leer el código QR. Retire el palet y vuelva a intentar.';
-      state.entryPallet = { Qr: '', Id: '', Recipe: '', Injector: '', Labeling: false };
       if (t > entryPhase.until) {
         state.errors.EntryError = '';
-        entryPhase = { name: 'idle', until: t + 2000 };
+        go('idle', 2000);
       }
       break;
-    case 'reading':
-      ms.PalletEntry = PE.ReadingQR;
-      state.signals[SIG.ReadQR] = true;
-      if (t > entryPhase.until) {
-        state.entryPallet = makePallet({ value: 0 }); // id filled after DB answer
-        state.entryPallet.Id = '';
-        entryPhase = { name: 'askingDb', until: t + 1200 };
-      }
+    case 'setQr':
+      ms.PalletEntry = PE.WaitingSetQr;
+      if (t > entryPhase.until) go('setEntryPallet', 400);
+      break;
+    case 'setEntryPallet':
+      ms.PalletEntry = PE.WaitingSetEntryPallet;
+      if (t > entryPhase.until) go('availability', 500);
+      break;
+    case 'availability':
+      ms.PalletEntry = PE.WaitingAvailability;
+      if (t > entryPhase.until) go('askingDb', 1200);
       break;
     case 'askingDb':
       ms.PalletEntry = PE.AskingDB;
@@ -172,27 +186,42 @@ function stepEntry(t) {
         if (toB1) {
           state.entryPallet.Id = String(nextId1);
           nextId1 = nextId1 % 7 + 1;
-          entryPhase = { name: 'toBocedi1', until: t + 2500 };
         } else {
           state.entryPallet.Id = String(nextId2);
           nextId2 = nextId2 % 7 + 1;
-          entryPhase = { name: 'waitCar', until: t };
         }
+        go('sendingId', 500, { toB1 });
       }
       break;
-    case 'toBocedi1':
+    case 'sendingId':
+      ms.PalletEntry = PE.SendingID;
+      if (t > entryPhase.until) go(entryPhase.toB1 ? 'waitBocedi1' : 'waitCar', 600);
+      break;
+    case 'waitBocedi1':
+      ms.PalletEntry = PE.WaitForBocedi1;
+      if (t > entryPhase.until && state.packager1.Queue.length < MAX_QUEUE) {
+        go('enterBocedi', 2500);
+      }
+      break;
+    case 'enterBocedi':
       ms.PalletEntry = PE.WaitEnterBocedi;
       if (t > entryPhase.until) {
-        if (state.packager1.Queue.length < MAX_QUEUE) {
-          state.packager1.Queue.push(state.entryPallet);
-          entryPhase = { name: 'idle', until: t + nextArrivalGap() };
-        }
+        state.packager1.Queue.push(state.entryPallet);
+        go('waitUpdateFifo', 500);
       }
+      break;
+    case 'waitUpdateFifo':
+      ms.PalletEntry = PE.WaitUpdateFIFO1;
+      if (t > entryPhase.until) go('updateFifo', 300);
+      break;
+    case 'updateFifo':
+      ms.PalletEntry = PE.UpdateFIFO1;
+      if (t > entryPhase.until) go('idle', nextArrivalGap());
       break;
     case 'waitCar':
       ms.PalletEntry = PE.WaitForCar;
       if (state.car.CarPosition === CAR_POSITION.InB1 && !state.car.HasPallet) {
-        entryPhase = { name: 'enterCar', until: t + 2000 };
+        go('enterCar', 2000);
       }
       break;
     case 'enterCar':
@@ -200,8 +229,16 @@ function stepEntry(t) {
       if (t > entryPhase.until) {
         state.car.HasPallet = true;
         state.car.Pallet = state.entryPallet;
-        entryPhase = { name: 'idle', until: t + nextArrivalGap() };
+        go('waitUpdateCar', 500);
       }
+      break;
+    case 'waitUpdateCar':
+      ms.PalletEntry = PE.WaitUpdateCar;
+      if (t > entryPhase.until) go('updateCar', 300);
+      break;
+    case 'updateCar':
+      ms.PalletEntry = PE.UpdateCar;
+      if (t > entryPhase.until) go('idle', nextArrivalGap());
       break;
   }
 }
@@ -237,8 +274,14 @@ function stepCar(t) {
           carPhase.until = t + 2500;
         }
       } else if (t > carPhase.until) {
-        carPhase = { name: 'toB1', until: t + 4000 };
+        carPhase = { name: 'getPallet', until: t + 800 };
       }
+      break;
+    case 'getPallet':
+      // Declared step between leaving B2 and heading back to B1.
+      car.CarPosition = CAR_POSITION.InB2;
+      ms.CarMachine = 6; // WaitingGetPallet
+      if (t > carPhase.until) carPhase = { name: 'toB1', until: t + 4000 };
       break;
     case 'toB1':
       car.CarPosition = CAR_POSITION.GoingToB1;
@@ -253,8 +296,11 @@ function stepCar(t) {
 
 // --- packager simulation ----------------------------------------------------
 
+// Walks the declared PalletLabel chain: WaitingPallet → WaitUpdate →
+// Labeling → WaitUpdate2 → WaitAck → WaitLeaving → WaitingPallet.
 function makePackagerSim(pk, machineKey, labelSignal) {
   let phase = { name: 'waiting', until: 0 };
+  const go = (name, dwell, t) => { phase = { name, until: t + dwell }; };
   return function step(t) {
     const ms = state.machineState;
     switch (phase.name) {
@@ -262,30 +308,44 @@ function makePackagerSim(pk, machineKey, labelSignal) {
         ms[machineKey] = 0; // WaitingPallet
         state.signals[labelSignal] = false;
         if (pk().Queue.length > 0 && !pk().LabelPallet) {
-          phase = { name: 'bagging', until: t + nextBaggingTime() };
+          go('bagging', nextBaggingTime(), t);
         }
         break;
       case 'bagging': // pallet being bagged before reaching the labeler
+        if (t > phase.until) go('waitUpdate', 500, t);
+        break;
+      case 'waitUpdate':
+        ms[machineKey] = 1; // WaitUpdate
         if (t > phase.until) {
           pk().LabelPallet = pk().Queue.shift();
-          phase = { name: 'labeling', until: t + 4000 };
+          go('labeling', 4000, t);
         }
         break;
       case 'labeling':
         ms[machineKey] = 3; // Labeling
         state.signals[labelSignal] = true;
         if (t > phase.until) {
+          state.signals[labelSignal] = false;
+          go('waitUpdate2', 400, t);
+        }
+        break;
+      case 'waitUpdate2':
+        ms[machineKey] = 4; // WaitUpdate2
+        if (t > phase.until) go('waitAck', 600, t);
+        break;
+      case 'waitAck':
+        ms[machineKey] = 5; // WaitAck
+        if (t > phase.until) {
           pk().ExitPallet = pk().LabelPallet;
           pk().LabelPallet = null;
-          state.signals[labelSignal] = false;
-          phase = { name: 'exiting', until: t + 5000 };
+          go('exiting', 5000, t);
         }
         break;
       case 'exiting':
         ms[machineKey] = 6; // WaitLeaving
         if (t > phase.until) {
           pk().ExitPallet = null;
-          phase = { name: 'waiting', until: 0 };
+          go('waiting', 0, t);
         }
         break;
     }
@@ -376,20 +436,27 @@ function handleDelete(body, res) {
     return;
   }
   const machine = del.Packager === 1 ? 'DeletePalletEmb1' : 'DeletePalletEmb2';
-  state.machineState[machine] = 1; // Validating
-  // Simulate the PLC round-trip taking a couple of seconds
+  // Walk the declared chain (Validating → ValidatingPLC → WaitingWrite →
+  // SendingFIFO → Completed/Failed) while the PLC round-trip runs.
+  const walk = (states, step) =>
+    states.forEach((s, i) => setTimeout(() => { state.machineState[machine] = s; }, i * step));
+  walk([1, 2], 500); // Validating, ValidatingPLC
   setTimeout(() => {
     const pk = del.Packager === 1 ? state.packager1 : state.packager2;
     const found = pk.Queue[del.Position];
     const ok = found && found.Qr === del.Pallet.Qr;
-    if (ok) pk.Queue.splice(del.Position, 1);
-    state.machineState[machine] = ok ? 5 : 6; // Completed : Failed
-    setTimeout(() => { state.machineState[machine] = 0; }, 1500);
+    if (ok) {
+      pk.Queue.splice(del.Position, 1);
+      walk([3, 4, 5], 500); // WaitingWrite, SendingFIFO, Completed
+    } else {
+      state.machineState[machine] = 6; // Failed
+    }
+    setTimeout(() => { state.machineState[machine] = 0; }, 2500);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(ok
       ? { result: 'OK' }
       : { result: 'NOK', error: 'El palet ya no está en esa posición' }));
-  }, 2000);
+  }, 1500);
 }
 
 // ---------------------------------------------------------------------------

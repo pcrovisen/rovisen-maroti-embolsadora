@@ -33,9 +33,11 @@
 
   <main class="diag-page">
     <p class="diag-hint">
-      El estado actual se muestra en verde. Las flechas son transiciones
-      observadas desde que se abrió esta página; la última transición se
-      anima en azul.
+      El estado actual se muestra en verde, ordenado según el flujo declarado
+      en el código (inicio arriba). Flechas tenues: transiciones posibles;
+      resaltadas: observadas desde que se abrió esta página; azul animado: la
+      última; <span class="hint-warn">naranja</span>: transición observada que
+      el código no declara.
     </p>
     <div class="machines-grid" id="machinesGrid"></div>
 

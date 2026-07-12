@@ -305,12 +305,14 @@ body {
   font-size: 0.82rem;
   margin: 0 0 0.8rem;
 }
+.hint-warn { color: var(--warn); }
 
 .machines-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
   gap: 0.8rem;
   margin-bottom: 0.8rem;
+  align-items: start; /* cards keep their natural height */
 }
 
 .machine-card {
@@ -348,6 +350,11 @@ body {
   fill: none;
   marker-end: url(#arrow);
 }
+/* Declared but not yet observed: barely visible. */
+.st-edge.declared { stroke: #2a3852; stroke-width: 1.1; }
+.st-edge.declared.observed { stroke: #55719f; stroke-width: 1.6; }
+/* Observed but not declared in the C# code. */
+.st-edge.unexpected { stroke: var(--warn); stroke-width: 1.6; }
 .st-edge.active {
   stroke: var(--accent);
   stroke-width: 2;

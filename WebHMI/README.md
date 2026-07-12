@@ -83,9 +83,22 @@ or `401` when the token is missing/expired.
 
 Everything in `wwwroot/` is served as-is; `/` → `index.html`. Plain JS, no
 build step: `index.html` + `app.js` (operator view), `diagnostico.html` +
-`diag.js` (live state-machine graphs: states on a ring, current state
-highlighted, transitions learned by observation and animated), and
-`common.js` (shared enum mirrors) + `style.css`.
+`diag.js` (live state-machine graphs), and `common.js` (shared enum mirrors)
++ `style.css`.
+
+The diagnostics page lays each machine out as a flow (layers by distance from
+the initial state) using `wwwroot/transitions.json`, which is **generated from
+the C# sources** — never edit it by hand. After changing any state machine in
+`ModbusServer/StateMachine/`, regenerate it:
+
+```sh
+node WebHMI/devserver/generate_transitions.mjs
+```
+
+Declared transitions are drawn faintly, observed ones brighten, the latest
+animates in blue, and an observed transition that the code does not declare
+shows in orange (a discrepancy detector). Machines missing from
+transitions.json fall back to a ring layout with observed edges only.
 
 ## Server-side integration plan (ModbusServer)
 
