@@ -2,15 +2,18 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
+using log4net;
 using Microsoft.Win32;
 
 namespace ModbusServer
 {
     public class Config
     {
+        static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public static Config Instance { get; private set; }
         public int QrRetries { get; set; }
         public bool ContinueIfNoQr { get; set; }
@@ -23,26 +26,38 @@ namespace ModbusServer
         }
         public static void Load()
         {
-            RegistryKey key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\WencoSettings");
-
-            //if it does exist, retrieve the stored values  
-            if (key != null)
+            RegistryKey key = null;
+            try
             {
-                var qrRetries = (int)key.GetValue("QrRetries");
-                var continueIfNoQr = Convert.ToBoolean(key.GetValue("ContinueIfNotQr"));
-                var continueIfNoDB = Convert.ToBoolean(key.GetValue("ContinueIfNoDB"));
-                var defaultRecipe = (int)key.GetValue("DefaultRecipe");
+                key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\WencoSettings");
 
-                Instance = new Config { QrRetries = qrRetries, ContinueIfNoQr = continueIfNoQr, ContinueIfNoDB = continueIfNoDB, DefaultRecipe = defaultRecipe };
-                key.Close();
+                //if it does exist, retrieve the stored values
+                if (key != null)
+                {
+                    var qrRetries = (int)key.GetValue("QrRetries");
+                    var continueIfNoQr = Convert.ToBoolean(key.GetValue("ContinueIfNotQr"));
+                    var continueIfNoDB = Convert.ToBoolean(key.GetValue("ContinueIfNoDB"));
+                    var defaultRecipe = (int)key.GetValue("DefaultRecipe");
 
-                Save();
+                    Instance = new Config { QrRetries = qrRetries, ContinueIfNoQr = continueIfNoQr, ContinueIfNoDB = continueIfNoDB, DefaultRecipe = defaultRecipe };
+                }
+                else
+                {
+                    Instance = new Config { QrRetries = 1, ContinueIfNoQr = false, ContinueIfNoDB = false, DefaultRecipe = 1 };
+                }
             }
-            else
+            catch (Exception e)
             {
+                // A missing or wrongly-typed value must not stop the service.
+                Log.ErrorFormat("Could not read WencoSettings from the registry. Using defaults. Error: {0}", e.Message);
                 Instance = new Config { QrRetries = 1, ContinueIfNoQr = false, ContinueIfNoDB = false, DefaultRecipe = 1 };
-                Save();
             }
+            finally
+            {
+                key?.Close();
+            }
+
+            Save();
         }
 
         public static void Save()
