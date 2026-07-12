@@ -115,7 +115,6 @@ namespace ModbusServer.StateMachine
                         if (Config.Instance.ContinueIfNoQr)
                         {
                             NextState(States.DefaultBehavior);
-                            Log.InfoFormat("Utilizando receta por defecto #{0}", Config.Instance.DefaultRecipe);
                         }
                         else
                         {
@@ -333,6 +332,14 @@ namespace ModbusServer.StateMachine
                         Log.Info("Waiting new pallet");
                         NextState(States.Waiting);
                     }
+                    break;
+                case States.DefaultBehavior:
+                    // Entry without a QR was never implemented: the DB routing and the
+                    // PLC queues both require a pallet code, so there is nothing valid
+                    // to send. Fall back to the same retry loop as ContinueIfNoQr=false.
+                    Log.Warn("ContinueIfNoQr is enabled but entry without QR is not implemented. Retrying QR read");
+                    qrReadCode.Reset();
+                    NextState(States.ReadingQrInError);
                     break;
                 case States.ReadingQrInError:
                     FatekPLC.SetBit(FatekPLC.Signals.ErrorQr);
