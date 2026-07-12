@@ -63,13 +63,20 @@ namespace ModbusServer.StateMachine
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.PLCLabeling1))
                         {
-                            FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave1);
-                            currentCode = Status.Instance.Packager1.LabelPallet.Qr;
-                            Log.InfoFormat("Continue labeling pallet {0} in bocedi1", currentCode);
-                            FatekPLC.SetBit(FatekPLC.Signals.Labeling1);
-                            printerMachine.Reset(currentCode, Status.Instance.Packager1.LabelPallet.Labeling, true);
-                            Status.Instance.ErrorMessages.BDC1Error = "";
-                            NextState(States.Labeling);
+                            if (Status.Instance.Packager1.LabelPallet != null)
+                            {
+                                FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave1);
+                                currentCode = Status.Instance.Packager1.LabelPallet.Qr;
+                                Log.InfoFormat("Continue labeling pallet {0} in bocedi1", currentCode);
+                                FatekPLC.SetBit(FatekPLC.Signals.Labeling1);
+                                printerMachine.Reset(currentCode, Status.Instance.Packager1.LabelPallet.Labeling, true);
+                                Status.Instance.ErrorMessages.BDC1Error = "";
+                                NextState(States.Labeling);
+                            }
+                            else
+                            {
+                                Log.Warn("Recover but no pallet yet.");
+                            }
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.WaitCorrection1))
                         {
