@@ -20,6 +20,7 @@ Operators watch and control the line from WinForms HMIs that connect to the serv
 |---|---|
 | `ModbusServer/` | The main Windows service (.NET Framework 4.8, Topshelf). Despite the name, it is the whole line coordinator; the name comes from it hosting a Modbus TCP server that the Fatek master PLC polls. |
 | `TcpHMIClient/` | WinForms HMI (.NET Framework 4.7.2) for operators. Connects to the service on TCP port 8153 and renders queues, car position, connection health and error messages. |
+| `WebHMI/` | Browser-based HMI intended to replace `TcpHMIClient` (in progress). Static page (`wwwroot/`) plus a zero-dependency Node dummy server (`devserver/`) that simulates the line for local development. See `WebHMI/README.md` for the SSE/HTTP contract and integration plan. |
 | `PLCs/` | Fatek WinProladder projects (`.pdw`): `MasterPLC`, `SlavePLC`, `CarroPLC` (transfer car), `Ascensor`/`Ascensor_New` (elevator), `master-rpd`. Opened/edited only with WinProladder on Windows. |
 | `Dependencies/` | Prebuilt DLLs: `EasyModbus.dll` (Modbus TCP server) and `mc.Omron.v1.00.dll` (Omron FINS/TCP client). |
 | `ModbusServer.sln` | Visual Studio solution with both C# projects. |
