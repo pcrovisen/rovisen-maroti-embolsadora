@@ -3,6 +3,7 @@ using mcOMRON;
 using ModbusServer.Devices;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -473,7 +474,7 @@ namespace ModbusServer.StateMachine
                 bytes[i * 2 + 1] = byteValues[0];
             }
             var weight = Encoding.UTF8.GetString(bytes);
-            return (int)(Convert.ToDouble(weight.Insert(weight.Length - 1, ".")) * 1000);
+            return (int)(Convert.ToDouble(weight.Insert(weight.Length - 1, "."), CultureInfo.InvariantCulture) * 1000);
         }
     }
 }
