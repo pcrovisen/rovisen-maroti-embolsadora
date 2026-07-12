@@ -3,8 +3,13 @@
 // For every `class X : Machine` in ModbusServer/StateMachine/*.cs it extracts
 // the States enum, the initial state (base(States.X)) and the declared
 // transitions: every `NextState(States.Y)` inside a `case States.X:` block of
-// Step(). Best effort — NextState calls outside case blocks (helper methods)
-// have no attributable source state and are skipped.
+// Step(). For each transition it also extracts the gating condition (the
+// closest preceding `if (...)`): FatekPLC signals (with negation) and a "⏱"
+// marker when the condition involves StateTime.ElapsedMilliseconds.
+//
+// Best effort — NextState calls outside case blocks (helper methods) have no
+// attributable source state and are skipped, and only the innermost if
+// condition is inspected.
 //
 // Run after changing any C# state machine:
 //   node WebHMI/devserver/generate_transitions.mjs
@@ -50,13 +55,41 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
     }
   }
 
-  const edges = new Set();
+  // The closest `if (...)` condition that fully precedes position `pos`.
+  const gateFor = (block, pos) => {
+    let best = null;
+    const re = /if\s*\(/g;
+    let m;
+    while ((m = re.exec(block)) && m.index < pos) {
+      let depth = 1;
+      let i = m.index + m[0].length;
+      while (i < block.length && depth > 0) {
+        if (block[i] === '(') depth++;
+        else if (block[i] === ')') depth--;
+        i++;
+      }
+      if (i - 1 < pos) best = block.slice(m.index + m[0].length, i - 1);
+    }
+    if (!best) return [];
+    const tokens = [];
+    for (const s of best.matchAll(/(!?)\s*FatekPLC\.ReadBit\(\s*FatekPLC\.Signals\.(\w+)\s*\)/g)) {
+      tokens.push(`${s[1]}${s[2]}`);
+    }
+    if (/ElapsedMilliseconds/.test(best)) tokens.push('⏱');
+    return [...new Set(tokens)];
+  };
+
+  const edges = new Map(); // "from>to" -> Set(gate tokens)
   groups.forEach((g, i) => {
     const blockEnd = i + 1 < groups.length ? groups[i + 1].start : src.length;
     const block = src.slice(g.end, blockEnd);
     for (const m of block.matchAll(/NextState\s*\(\s*States\.(\w+)/g)) {
+      const gates = gateFor(block, m.index);
       for (const from of g.states) {
-        if (from !== m[1]) edges.add(`${from}>${m[1]}`);
+        if (from === m[1]) continue;
+        const key = `${from}>${m[1]}`;
+        if (!edges.has(key)) edges.set(key, new Set());
+        gates.forEach((tk) => edges.get(key).add(tk));
       }
     }
   });
@@ -64,7 +97,7 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
   result[cls[1]] = {
     init,
     states,
-    edges: [...edges].map((e) => e.split('>')),
+    edges: [...edges].map(([e, gates]) => [...e.split('>'), [...gates]]),
   };
 }
 

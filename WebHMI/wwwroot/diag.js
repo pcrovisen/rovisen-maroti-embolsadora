@@ -1,27 +1,40 @@
 // Diagnóstico — live state-machine graphs.
 //
-// Machines with declared transitions (transitions.json, generated from the
-// C# sources by devserver/generate_transitions.mjs) are laid out as a flow:
-// layers by distance from the initial state, all declared edges drawn faintly,
-// observed edges highlighted, the latest transition animated, and observed
-// transitions that are NOT declared shown in orange (either the dummy sim
-// taking a shortcut, or a real discrepancy with the code). Machines without
-// declared data fall back to a ring layout with observed edges only.
+// Sidebar lists every machine with its live state; selecting one renders a
+// large flow graph (layers by distance from the initial state, from
+// transitions.json — generated from the C# sources). Edges are labeled with
+// the FatekPLC signal that gates each transition (⏱ = time-based); labels
+// light up green while their condition is currently satisfied. Declared
+// edges are faint, observed ones brighten, the latest animates, and an
+// observed-but-undeclared transition shows orange.
 
 'use strict';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 
-const W = 360;
-const machines = new Map();
-let DECLARED = {};
+const DIMS = {
+  W: 780,
+  rowGap: 80,
+  topPad: 46,
+  bottomPad: 40,
+  nodeR: 10,
+  circleH: 620,
+  circleR: 240,
+};
+
+const metas = new Map(); // machine name -> persistent info
+let selected = null;
+let view = null; // DOM refs for the selected machine's graph
+let lastStatus = null;
 
 function svgEl(tag, attrs) {
   const el = document.createElementNS(SVGNS, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
 }
+
+let DECLARED = {};
 
 function findDeclared(name) {
   if (DECLARED[name]) return DECLARED[name];
@@ -31,16 +44,19 @@ function findDeclared(name) {
 }
 
 // ---------------------------------------------------------------------------
-// Layouts: node positions (+ layers for the flow layout)
+// Layouts
 // ---------------------------------------------------------------------------
 
 function circleLayout(n) {
-  const H = 300;
-  const R = 96;
+  const H = DIMS.circleH;
   const pos = [];
   for (let i = 0; i < n; i++) {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-    pos.push({ x: W / 2 + R * Math.cos(a), y: H / 2 + R * Math.sin(a), angle: a });
+    pos.push({
+      x: DIMS.W / 2 + DIMS.circleR * Math.cos(a),
+      y: H / 2 + DIMS.circleR * Math.sin(a),
+      angle: a,
+    });
   }
   return { H, pos, circle: true, edges: [] };
 }
@@ -50,11 +66,11 @@ function layeredLayout(stateNames, decl) {
   const idx = (s) => stateNames.indexOf(s);
   const edges = [];
   const out = Array.from({ length: n }, () => []);
-  for (const [a, b] of decl.edges) {
+  for (const [a, b, gates] of decl.edges) {
     const ia = idx(a);
     const ib = idx(b);
     if (ia < 0 || ib < 0 || ia === ib) continue;
-    edges.push([ia, ib]);
+    edges.push([ia, ib, gates || []]);
     out[ia].push(ib);
   }
 
@@ -82,18 +98,16 @@ function layeredLayout(stateNames, decl) {
     rows.get(layer[i]).push(i);
   }
 
-  const rowGap = 56;
-  const topPad = 26;
   const numRows = Math.max(...layer) + 1;
-  const H = topPad + (numRows - 1) * rowGap + 30;
+  const H = DIMS.topPad + (numRows - 1) * DIMS.rowGap + DIMS.bottomPad;
 
   const pos = Array(n);
   for (const [l, members] of rows) {
     members.sort((a, b) => a - b);
     members.forEach((m, j) => {
       pos[m] = {
-        x: (W * (j + 1)) / (members.length + 1),
-        y: topPad + l * rowGap,
+        x: (DIMS.W * (j + 1)) / (members.length + 1),
+        y: DIMS.topPad + l * DIMS.rowGap,
         slot: j,
         rowSize: members.length,
       };
@@ -103,184 +117,269 @@ function layeredLayout(stateNames, decl) {
 }
 
 // ---------------------------------------------------------------------------
-// Edge geometry
+// Edge geometry: path + label anchor (quadratic midpoint)
 // ---------------------------------------------------------------------------
 
-function edgeD(m, a, b) {
-  const A = m.pos[a];
-  const B = m.pos[b];
+function edgeGeom(layout, a, b) {
+  const A = layout.pos[a];
+  const B = layout.pos[b];
   let c;
-  if (m.circle) {
-    // Pull the control point toward the ring center.
+  if (layout.circle) {
     c = {
-      x: ((A.x + B.x) / 2) * 0.62 + (W / 2) * 0.38,
-      y: ((A.y + B.y) / 2) * 0.62 + (m.H / 2) * 0.38,
+      x: ((A.x + B.x) / 2) * 0.62 + (DIMS.W / 2) * 0.38,
+      y: ((A.y + B.y) / 2) * 0.62 + (layout.H / 2) * 0.38,
     };
-  } else if (m.layers[b] > m.layers[a]) {
+  } else if (layout.layers[b] > layout.layers[a]) {
     // Forward edge: gentle curve perpendicular to the direction. Opposite
     // directions bend to opposite sides, so A→B and B→A never overlap.
     const dx = B.x - A.x;
     const dy = B.y - A.y;
     const len = Math.hypot(dx, dy) || 1;
-    const bend = m.layers[b] - m.layers[a] > 1 ? 24 : 9;
+    const bend = layout.layers[b] - layout.layers[a] > 1 ? 46 : 18;
     c = { x: (A.x + B.x) / 2 + (dy / len) * bend, y: (A.y + B.y) / 2 - (dx / len) * bend };
   } else {
     // Back edge (or same layer): arc out to the nearest side.
-    const side = (A.x + B.x) / 2 <= W / 2 ? -1 : 1;
-    const mag = 30 + 13 * Math.abs(m.layers[a] - m.layers[b]);
+    const side = (A.x + B.x) / 2 <= DIMS.W / 2 ? -1 : 1;
+    const mag = Math.min(60 + 26 * Math.abs(layout.layers[a] - layout.layers[b]), 190);
     c = { x: (A.x + B.x) / 2 + side * mag, y: (A.y + B.y) / 2 };
   }
   const trim = (p, q, d) => {
     const len = Math.hypot(q.x - p.x, q.y - p.y) || 1;
     return { x: p.x + ((q.x - p.x) / len) * d, y: p.y + ((q.y - p.y) / len) * d };
   };
-  const s = trim(A, c, 9);
-  const e = trim(B, c, 11);
-  return `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} Q ${c.x.toFixed(1)} ${c.y.toFixed(1)} ${e.x.toFixed(1)} ${e.y.toFixed(1)}`;
+  const s = trim(A, c, DIMS.nodeR + 2);
+  const e = trim(B, c, DIMS.nodeR + 4);
+  return {
+    d: `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} Q ${c.x.toFixed(1)} ${c.y.toFixed(1)} ${e.x.toFixed(1)} ${e.y.toFixed(1)}`,
+    mid: { x: 0.25 * A.x + 0.5 * c.x + 0.25 * B.x, y: 0.25 * A.y + 0.5 * c.y + 0.25 * B.y },
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Machine cards
+// Sidebar
 // ---------------------------------------------------------------------------
 
-function ensureMachine(name, statesDict) {
-  let m = machines.get(name);
+function ensureMeta(name, statesDict) {
+  let m = metas.get(name);
   if (m) return m;
 
   const stateNames = Object.keys(statesDict)
     .sort((a, b) => Number(a) - Number(b))
     .map((k) => statesDict[k]);
-  const decl = findDeclared(name);
-  const layout = decl && decl.edges.length
-    ? layeredLayout(stateNames, decl)
-    : circleLayout(stateNames.length);
 
-  const card = document.createElement('div');
-  card.className = 'machine-card';
-  card.innerHTML = `
-    <div class="machine-head">
-      <h2>${escapeHtml(name)}</h2>
-      <span class="machine-state"></span>
-    </div>`;
-
-  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${layout.H}` });
-  const edgeLayer = svgEl('g', {});
-  const nodeLayer = svgEl('g', {});
-  svg.append(edgeLayer, nodeLayer);
-  card.appendChild(svg);
-  $('machinesGrid').appendChild(card);
+  const item = document.createElement('div');
+  item.className = 'machine-item';
+  item.innerHTML = `<span class="mi-name">${escapeHtml(name)}</span><span class="mi-state"></span>`;
+  item.addEventListener('click', () => selectMachine(name));
+  $('machineList').appendChild(item);
 
   m = {
-    ...layout,
-    edgeLayer,
-    stateEl: card.querySelector('.machine-state'),
     stateNames,
-    edgeEls: new Map(),
-    activeEdge: null,
+    decl: findDeclared(name),
     current: null,
     since: Date.now(),
+    observed: new Set(),
+    item,
+    itemState: item.querySelector('.mi-state'),
   };
+  metas.set(name, m);
+  if (!selected) selectMachine(name);
+  return m;
+}
 
-  m.nodes = stateNames.map((sn, i) => {
+// ---------------------------------------------------------------------------
+// Big graph view
+// ---------------------------------------------------------------------------
+
+function gateTspans(label, gates, geomMid) {
+  gates.forEach((token, i) => {
+    const tspan = svgEl('tspan', {});
+    if (token === '⏱') {
+      tspan.setAttribute('class', 'sig timer');
+    } else {
+      const neg = token.startsWith('!');
+      const sigName = neg ? token.slice(1) : token;
+      tspan.setAttribute('class', 'sig');
+      tspan.setAttribute('data-sig', sigName);
+      if (neg) tspan.setAttribute('data-neg', '1');
+    }
+    tspan.textContent = (i ? ' · ' : '') + token;
+    label.appendChild(tspan);
+  });
+  label.setAttribute('x', geomMid.x);
+  label.setAttribute('y', geomMid.y - 4);
+}
+
+function selectMachine(name) {
+  selected = name;
+  for (const [n, m] of metas) m.item.classList.toggle('selected', n === name);
+
+  const meta = metas.get(name);
+  const layout = meta.decl && meta.decl.edges.length
+    ? layeredLayout(meta.stateNames, meta.decl)
+    : circleLayout(meta.stateNames.length);
+
+  $('mvName').textContent = name;
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${DIMS.W} ${layout.H}` });
+  const edgeLayer = svgEl('g', {});
+  const labelLayer = svgEl('g', {});
+  const nodeLayer = svgEl('g', {});
+  svg.append(edgeLayer, labelLayer, nodeLayer);
+
+  const nodes = meta.stateNames.map((sn, i) => {
     const p = layout.pos[i];
-    const circle = svgEl('circle', { cx: p.x, cy: p.y, r: 7, class: 'st-node' });
+    const circle = svgEl('circle', { cx: p.x, cy: p.y, r: DIMS.nodeR, class: 'st-node' });
     let lx;
     let ly;
     let anchor;
     if (layout.circle) {
       const cos = Math.cos(p.angle);
-      const dist = stateNames.length > 9 ? 13 + (i % 2) * 15 : 13;
-      lx = p.x + cos * dist;
-      ly = p.y + Math.sin(p.angle) * dist;
+      lx = p.x + cos * (DIMS.nodeR + 9);
+      ly = p.y + Math.sin(p.angle) * (DIMS.nodeR + 9);
       anchor = Math.abs(cos) < 0.35 ? 'middle' : cos > 0 ? 'start' : 'end';
     } else if (p.rowSize > 3) {
-      // Crowded row: center the label and alternate above/below the node.
       anchor = 'middle';
       lx = p.x;
-      ly = p.y + (p.slot % 2 ? 16 : -13);
+      ly = p.y + (p.slot % 2 ? DIMS.nodeR + 14 : -(DIMS.nodeR + 8));
     } else {
-      anchor = p.x > W - 80 ? 'end' : 'start';
-      lx = p.x + (anchor === 'start' ? 11 : -11);
-      ly = p.y - 9;
+      anchor = p.x > DIMS.W - 130 ? 'end' : 'start';
+      lx = p.x + (anchor === 'start' ? DIMS.nodeR + 6 : -(DIMS.nodeR + 6));
+      ly = p.y - DIMS.nodeR - 6;
     }
     const label = svgEl('text', {
       x: lx, y: ly, class: 'st-label',
       'dominant-baseline': 'middle', 'text-anchor': anchor,
     });
-    label.textContent = sn.length > 17 ? `${sn.slice(0, 16)}…` : sn;
-    const title = svgEl('title', {});
-    title.textContent = sn;
-    label.appendChild(title);
+    label.textContent = sn;
     nodeLayer.append(circle, label);
     return { circle, label };
   });
 
-  // Draw every declared transition, faintly, from the start.
-  for (const [a, b] of layout.edges) {
-    const path = svgEl('path', { d: edgeD(m, a, b), class: 'st-edge declared' });
-    m.edgeLayer.appendChild(path);
-    m.edgeEls.set(`${a}>${b}`, path);
+  const edgeEls = new Map();
+  for (const [a, b, gates] of layout.edges) {
+    const geom = edgeGeom(layout, a, b);
+    const path = svgEl('path', { d: geom.d, class: 'st-edge declared' });
+    if (meta.observed.has(`${a}>${b}`)) path.classList.add('observed');
+    edgeLayer.appendChild(path);
+    edgeEls.set(`${a}>${b}`, path);
+    if (gates && gates.length) {
+      const label = svgEl('text', { class: 'edge-label', 'text-anchor': 'middle' });
+      gateTspans(label, gates, geom.mid);
+      labelLayer.appendChild(label);
+    }
+  }
+  // Observed-but-undeclared edges from before this view was (re)built.
+  for (const key of meta.observed) {
+    if (edgeEls.has(key)) continue;
+    const [a, b] = key.split('>').map(Number);
+    const path = svgEl('path', {
+      d: edgeGeom(layout, a, b).d,
+      class: layout.circle ? 'st-edge observed' : 'st-edge unexpected observed',
+    });
+    edgeLayer.appendChild(path);
+    edgeEls.set(key, path);
   }
 
-  machines.set(name, m);
-  return m;
+  if (meta.current !== null) {
+    nodes[meta.current]?.circle.classList.add('current');
+    nodes[meta.current]?.label.classList.add('current');
+  }
+
+  // Signals panel: every signal referenced by this machine's transitions.
+  const sigNames = [...new Set(
+    layout.edges.flatMap(([, , g]) => (g || [])
+      .filter((tk) => tk !== '⏱')
+      .map((tk) => (tk.startsWith('!') ? tk.slice(1) : tk))),
+  )];
+  $('mvSignals').innerHTML = '';
+  const sigChips = sigNames.map((sn) => {
+    const el = document.createElement('div');
+    el.className = 'signal';
+    el.textContent = sn;
+    if (!(sn in SIG)) {
+      el.classList.add('unknown');
+      el.title = 'Señal escrita por el PC (coils 1–20): sin estado visible';
+    }
+    $('mvSignals').appendChild(el);
+    return { el, name: sn };
+  });
+  if (!sigNames.length) {
+    $('mvSignals').innerHTML = '<span class="mv-nosignals">Esta máquina no depende de señales del PLC.</span>';
+  }
+
+  $('mvGraph').innerHTML = '';
+  $('mvGraph').appendChild(svg);
+  view = { name, layout, nodes, edgeEls, edgeLayer, sigChips, activeEdge: null };
+  if (lastStatus) refreshView(lastStatus);
 }
 
-function recordTransition(m, from, to) {
-  if (!m.nodes[from] || !m.nodes[to] || from === to) return;
+function refreshView(st) {
+  if (!view) return;
+  // Live coloring: edge-gate labels and the signal chips.
+  for (const tspan of $('mvGraph').querySelectorAll('.edge-label .sig[data-sig]')) {
+    const sigName = tspan.getAttribute('data-sig');
+    if (!(sigName in SIG)) continue;
+    const value = !!st.Signals[SIG[sigName]];
+    const satisfied = tspan.hasAttribute('data-neg') ? !value : value;
+    tspan.classList.toggle('on', satisfied);
+  }
+  for (const { el, name } of view.sigChips) {
+    if (name in SIG) el.classList.toggle('on', !!st.Signals[SIG[name]]);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Transitions
+// ---------------------------------------------------------------------------
+
+function recordTransition(name, meta, from, to) {
   const key = `${from}>${to}`;
-  let edge = m.edgeEls.get(key);
+  meta.observed.add(key);
+  if (selected !== name || !view) return;
+  let edge = view.edgeEls.get(key);
   if (!edge) {
-    // Observed but not declared: either the sim took a shortcut or the
-    // machine did something the C# code doesn't declare. Shown in orange.
     edge = svgEl('path', {
-      d: edgeD(m, from, to),
-      class: m.circle ? 'st-edge' : 'st-edge unexpected',
+      d: edgeGeom(view.layout, from, to).d,
+      class: view.layout.circle ? 'st-edge' : 'st-edge unexpected',
     });
-    m.edgeLayer.appendChild(edge);
-    m.edgeEls.set(key, edge);
+    view.edgeLayer.appendChild(edge);
+    view.edgeEls.set(key, edge);
   }
   edge.classList.add('observed');
-  if (m.activeEdge && m.activeEdge !== edge) m.activeEdge.classList.remove('active');
+  if (view.activeEdge && view.activeEdge !== edge) view.activeEdge.classList.remove('active');
   edge.classList.add('active');
-  m.activeEdge = edge;
+  view.activeEdge = edge;
   clearTimeout(edge._timer);
   edge._timer = setTimeout(() => edge.classList.remove('active'), 4000);
 }
 
-function setMachineState(m, idx) {
-  if (m.current === idx) return;
-  if (m.current !== null) {
-    m.nodes[m.current]?.circle.classList.remove('current');
-    m.nodes[m.current]?.label.classList.remove('current');
-    recordTransition(m, m.current, idx);
+function setMachineState(name, meta, idx) {
+  if (meta.current === idx) return;
+  if (meta.current !== null) {
+    recordTransition(name, meta, meta.current, idx);
+    if (selected === name && view) {
+      view.nodes[meta.current]?.circle.classList.remove('current');
+      view.nodes[meta.current]?.label.classList.remove('current');
+    }
   }
-  m.nodes[idx]?.circle.classList.add('current');
-  m.nodes[idx]?.label.classList.add('current');
-  m.current = idx;
-  m.since = Date.now();
+  if (selected === name && view) {
+    view.nodes[idx]?.circle.classList.add('current');
+    view.nodes[idx]?.label.classList.add('current');
+  }
+  meta.current = idx;
+  meta.since = Date.now();
 }
 
 function refreshStateTexts() {
-  for (const m of machines.values()) {
+  for (const [name, m] of metas) {
     if (m.current === null) continue;
-    const secs = Math.floor((Date.now() - m.since) / 1000);
-    m.stateEl.textContent = `${m.stateNames[m.current] ?? m.current} · ${secs} s`;
+    const text = `${m.stateNames[m.current] ?? m.current} · ${Math.floor((Date.now() - m.since) / 1000)} s`;
+    m.itemState.textContent = text;
+    if (selected === name) $('mvState').textContent = text;
   }
 }
 setInterval(refreshStateTexts, 1000);
-
-// ---------------------------------------------------------------------------
-// Signals
-// ---------------------------------------------------------------------------
-
-const signalEls = SIGNAL_NAMES.map((name) => {
-  const el = document.createElement('div');
-  el.className = 'signal';
-  el.textContent = name;
-  $('signalsGrid').appendChild(el);
-  return el;
-});
 
 // ---------------------------------------------------------------------------
 // Startup: load the declared transitions, then connect
@@ -297,15 +396,15 @@ fetch('transitions.json')
       $('serverDot').classList.add('on');
       $('offlineOverlay').classList.add('hidden');
       const st = JSON.parse(ev.data);
+      lastStatus = st;
 
       for (const [name, idx] of Object.entries(st.MachineState)) {
         const statesDict = st.States && st.States[name];
         if (!statesDict) continue;
-        setMachineState(ensureMachine(name, statesDict), idx);
+        setMachineState(name, ensureMeta(name, statesDict), idx);
       }
       refreshStateTexts();
-
-      signalEls.forEach((el, i) => el.classList.toggle('on', !!st.Signals[i]));
+      refreshView(st);
     });
 
     source.onerror = () => {

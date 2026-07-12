@@ -11,31 +11,40 @@
   "edges": [
    [
     "Init",
-    "Listening"
+    "Listening",
+    []
    ],
    [
     "Listening",
-    "Connecting"
+    "Connecting",
+    []
    ],
    [
     "Connecting",
-    "Listening"
+    "Listening",
+    []
    ],
    [
     "Connecting",
-    "Adding"
+    "Adding",
+    []
    ],
    [
     "Adding",
-    "Pause"
+    "Pause",
+    []
    ],
    [
     "Pause",
-    "Listening"
+    "Listening",
+    [
+     "⏱"
+    ]
    ],
    [
     "Pause",
-    "Init"
+    "Init",
+    []
    ]
   ]
  },
@@ -53,43 +62,67 @@
   "edges": [
    [
     "UnknownPosition",
-    "WaitingCarWithPallet"
+    "WaitingCarWithPallet",
+    [
+     "CarInB1"
+    ]
    ],
    [
     "UnknownPosition",
-    "WaitingCarEmpty"
+    "WaitingCarEmpty",
+    [
+     "CarInB2"
+    ]
    ],
    [
     "WaitingCarInB1",
-    "WaitingCarWithPallet"
+    "WaitingCarWithPallet",
+    [
+     "CarInB1"
+    ]
    ],
    [
     "WaitingCarWithPallet",
-    "WaitingCarInB2"
+    "WaitingCarInB2",
+    [
+     "CarWithPallet"
+    ]
    ],
    [
     "WaitingCarInB2",
-    "WaitingCarEmpty"
+    "WaitingCarEmpty",
+    [
+     "CarInB2"
+    ]
    ],
    [
     "WaitingCarEmpty",
-    "WaitingGetQr"
+    "WaitingGetQr",
+    []
    ],
    [
     "WaitingCarEmpty",
-    "WaitingGetPallet"
+    "WaitingGetPallet",
+    [
+     "SendUpdate2"
+    ]
    ],
    [
     "WaitingCarEmpty",
-    "WaitingCarWithPallet"
+    "WaitingCarWithPallet",
+    [
+     "CarInB1"
+    ]
    ],
    [
     "WaitingGetQr",
-    "WaitingCarEmpty"
+    "WaitingCarEmpty",
+    []
    ],
    [
     "WaitingGetPallet",
-    "WaitingCarInB1"
+    "WaitingCarInB1",
+    []
    ]
   ]
  },
@@ -107,35 +140,49 @@
   "edges": [
    [
     "Waiting",
-    "Validating"
+    "Validating",
+    []
    ],
    [
     "Validating",
-    "ValidatingPLC"
+    "ValidatingPLC",
+    []
    ],
    [
     "Validating",
-    "Failed"
+    "Failed",
+    []
    ],
    [
     "ValidatingPLC",
-    "Failed"
+    "Failed",
+    [
+     "Del1Error"
+    ]
    ],
    [
     "ValidatingPLC",
-    "WaitingWrite"
+    "WaitingWrite",
+    [
+     "Del1Valid"
+    ]
    ],
    [
     "WaitingWrite",
-    "SendingFIFO"
+    "SendingFIFO",
+    [
+     "⏱"
+    ]
    ],
    [
     "SendingFIFO",
-    "Completed"
+    "Completed",
+    []
    ],
    [
     "Failed",
-    "Validating"
+    "Validating",
+    []
    ]
   ]
  },
@@ -153,35 +200,49 @@
   "edges": [
    [
     "Waiting",
-    "Validating"
+    "Validating",
+    []
    ],
    [
     "Validating",
-    "ValidatingPLC"
+    "ValidatingPLC",
+    []
    ],
    [
     "Validating",
-    "Failed"
+    "Failed",
+    []
    ],
    [
     "ValidatingPLC",
-    "Failed"
+    "Failed",
+    [
+     "Del2Error"
+    ]
    ],
    [
     "ValidatingPLC",
-    "WaitingWrite"
+    "WaitingWrite",
+    [
+     "Del2Valid"
+    ]
    ],
    [
     "WaitingWrite",
-    "SendingFIFO"
+    "SendingFIFO",
+    [
+     "⏱"
+    ]
    ],
    [
     "SendingFIFO",
-    "Completed"
+    "Completed",
+    []
    ],
    [
     "Completed",
-    "Validating"
+    "Validating",
+    []
    ]
   ]
  },
@@ -198,31 +259,46 @@
   "edges": [
    [
     "WaitingRequest",
-    "ReadingQr"
+    "ReadingQr",
+    [
+     "ElevatorRequest"
+    ]
    ],
    [
     "ReadingQr",
-    "WaitingRequest"
+    "WaitingRequest",
+    [
+     "!ElevatorRequest"
+    ]
    ],
    [
     "ReadingQr",
-    "WaitingAuth"
+    "WaitingAuth",
+    []
    ],
    [
     "WaitingAuth",
-    "WaitingLeave"
+    "WaitingLeave",
+    []
    ],
    [
     "WaitingAuth",
-    "Delay"
+    "Delay",
+    []
    ],
    [
     "WaitingLeave",
-    "WaitingRequest"
+    "WaitingRequest",
+    [
+     "!ElevatorRequest"
+    ]
    ],
    [
     "Delay",
-    "WaitingRequest"
+    "WaitingRequest",
+    [
+     "⏱"
+    ]
    ]
   ]
  },
@@ -238,23 +314,38 @@
   "edges": [
    [
     "Init",
-    "Starting"
+    "Starting",
+    [
+     "PLCStarting"
+    ]
    ],
    [
     "Starting",
-    "WaitingMemory"
+    "WaitingMemory",
+    [
+     "SendingFIFOs"
+    ]
    ],
    [
     "WaitingMemory",
-    "WaitingInit"
+    "WaitingInit",
+    [
+     "Ready"
+    ]
    ],
    [
     "WaitingInit",
-    "Working"
+    "Working",
+    [
+     "⏱"
+    ]
    ],
    [
     "Working",
-    "Init"
+    "Init",
+    [
+     "!Ready"
+    ]
    ]
   ]
  },
@@ -272,43 +363,55 @@
   "edges": [
    [
     "Init",
-    "Waiting"
+    "Waiting",
+    []
    ],
    [
     "Waiting",
-    "Terminated"
+    "Terminated",
+    [
+     "⏱"
+    ]
    ],
    [
     "Waiting",
-    "Responding"
+    "Responding",
+    []
    ],
    [
     "Waiting",
-    "WaitingDelStart"
+    "WaitingDelStart",
+    []
    ],
    [
     "WaitingDelStart",
-    "WaitingDeletion1"
+    "WaitingDeletion1",
+    []
    ],
    [
     "WaitingDelStart",
-    "WaitingDeletion2"
+    "WaitingDeletion2",
+    []
    ],
    [
     "Responding",
-    "Waiting"
+    "Waiting",
+    []
    ],
    [
     "Responding",
-    "Terminated"
+    "Terminated",
+    []
    ],
    [
     "WaitingDeletion1",
-    "Responding"
+    "Responding",
+    []
    ],
    [
     "WaitingDeletion2",
-    "Responding"
+    "Responding",
+    []
    ]
   ]
  },
@@ -322,19 +425,23 @@
   "edges": [
    [
     "Connect",
-    "Connecting"
+    "Connecting",
+    []
    ],
    [
     "Connecting",
-    "Connected"
+    "Connected",
+    []
    ],
    [
     "Connecting",
-    "Connect"
+    "Connect",
+    []
    ],
    [
     "Connected",
-    "Connect"
+    "Connect",
+    []
    ]
   ]
  },
@@ -348,19 +455,23 @@
   "edges": [
    [
     "Connect",
-    "Connecting"
+    "Connecting",
+    []
    ],
    [
     "Connecting",
-    "Connected"
+    "Connected",
+    []
    ],
    [
     "Connecting",
-    "Connect"
+    "Connect",
+    []
    ],
    [
     "Connected",
-    "Connect"
+    "Connect",
+    []
    ]
   ]
  },
@@ -389,103 +500,163 @@
   "edges": [
    [
     "Waiting",
-    "Paused"
+    "Paused",
+    [
+     "Pause"
+    ]
    ],
    [
     "Waiting",
-    "ReadingQR"
+    "ReadingQR",
+    [
+     "ReadQR"
+    ]
    ],
    [
     "ReadingQR",
-    "WaitingSetQr"
+    "WaitingSetQr",
+    []
    ],
    [
     "ReadingQR",
-    "DefaultBehavior"
+    "DefaultBehavior",
+    []
    ],
    [
     "ReadingQR",
-    "ReadingQrInError"
+    "ReadingQrInError",
+    []
    ],
    [
     "WaitingSetQr",
-    "WaitingSetEntryPallet"
+    "WaitingSetEntryPallet",
+    []
    ],
    [
     "WaitingSetEntryPallet",
-    "WaitingAvailability"
+    "WaitingAvailability",
+    []
    ],
    [
     "WaitingAvailability",
-    "AskingDB"
+    "AskingDB",
+    [
+     "bcd1Avaliable",
+     "bcd2Avaliable"
+    ]
    ],
    [
     "AskingDB",
-    "SendingID"
+    "SendingID",
+    [
+     "⏱"
+    ]
    ],
    [
     "AskingDB",
-    "ReadingQR"
+    "ReadingQR",
+    [
+     "⏱"
+    ]
    ],
    [
     "SendingID",
-    "WaitForBocedi1"
+    "WaitForBocedi1",
+    [
+     "ToEmb1"
+    ]
    ],
    [
     "SendingID",
-    "WaitForCar"
+    "WaitForCar",
+    [
+     "ToEmb1"
+    ]
    ],
    [
     "WaitForBocedi1",
-    "WaitEnterBocedi"
+    "WaitEnterBocedi",
+    [
+     "WaitBocedi"
+    ]
    ],
    [
     "WaitEnterBocedi",
-    "WaitUpdateFIFO1"
+    "WaitUpdateFIFO1",
+    []
    ],
    [
     "WaitUpdateFIFO1",
-    "UpdateFIFO1"
+    "UpdateFIFO1",
+    [
+     "⏱"
+    ]
    ],
    [
     "UpdateFIFO1",
-    "Waiting"
+    "Waiting",
+    [
+     "!SendUpdate"
+    ]
    ],
    [
     "WaitForCar",
-    "WaitEnterCar"
+    "WaitEnterCar",
+    [
+     "WaitCar"
+    ]
    ],
    [
     "WaitEnterCar",
-    "WaitUpdateCar"
+    "WaitUpdateCar",
+    [
+     "SendUpdate"
+    ]
    ],
    [
     "WaitEnterCar",
-    "Paused"
+    "Paused",
+    [
+     "CarEntryError"
+    ]
    ],
    [
     "WaitUpdateCar",
-    "UpdateCar"
+    "UpdateCar",
+    [
+     "⏱"
+    ]
    ],
    [
     "UpdateCar",
-    "Waiting"
+    "Waiting",
+    [
+     "!SendUpdate"
+    ]
    ],
    [
     "DefaultBehavior",
-    "ReadingQrInError"
+    "ReadingQrInError",
+    []
    ],
    [
     "ReadingQrInError",
-    "WaitingSetQr"
+    "WaitingSetQr",
+    []
    ],
    [
     "ReadingQrInError",
-    "Waiting"
+    "Waiting",
+    [
+     "!ReadQR"
+    ]
    ],
    [
     "Paused",
-    "Waiting"
+    "Waiting",
+    [
+     "!Pause"
+    ]
    ]
   ]
  },
@@ -505,59 +676,94 @@
   "edges": [
    [
     "WaitingPallet",
-    "WaitUpdate"
+    "WaitUpdate",
+    [
+     "Label1"
+    ]
    ],
    [
     "WaitingPallet",
-    "Labeling"
+    "Labeling",
+    []
    ],
    [
     "WaitingPallet",
-    "WaitingCorrection"
+    "WaitingCorrection",
+    [
+     "WaitCorrection1"
+    ]
    ],
    [
     "WaitingPallet",
-    "WaitLeaveNull"
+    "WaitLeaveNull",
+    [
+     "LabelNull1"
+    ]
    ],
    [
     "WaitUpdate",
-    "Labeling"
+    "Labeling",
+    []
    ],
    [
     "WaitUpdate",
-    "PalletNull"
+    "PalletNull",
+    []
    ],
    [
     "WaitingCorrection",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "!WaitCorrection1"
+    ]
    ],
    [
     "Labeling",
-    "WaitUpdate2"
+    "WaitUpdate2",
+    [
+     "Leave1"
+    ]
    ],
    [
     "Labeling",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "WaitLabel1",
+     "⏱"
+    ]
    ],
    [
     "WaitUpdate2",
-    "WaitAck"
+    "WaitAck",
+    [
+     "⏱"
+    ]
    ],
    [
     "WaitAck",
-    "WaitLeaving"
+    "WaitLeaving",
+    []
    ],
    [
     "WaitLeaving",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "!Leave1"
+    ]
    ],
    [
     "WaitLeaveNull",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "!LabelNull1"
+    ]
    ],
    [
     "PalletNull",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "WaitLabel1"
+    ]
    ]
   ]
  },
@@ -577,59 +783,94 @@
   "edges": [
    [
     "WaitingPallet",
-    "WaitUpdate"
+    "WaitUpdate",
+    [
+     "Label2"
+    ]
    ],
    [
     "WaitingPallet",
-    "Labeling"
+    "Labeling",
+    []
    ],
    [
     "WaitingPallet",
-    "WaitingCorrection"
+    "WaitingCorrection",
+    [
+     "WaitCorrection2"
+    ]
    ],
    [
     "WaitingPallet",
-    "WaitLeaveNull"
+    "WaitLeaveNull",
+    [
+     "LabelNull2"
+    ]
    ],
    [
     "WaitUpdate",
-    "Labeling"
+    "Labeling",
+    []
    ],
    [
     "WaitUpdate",
-    "PalletNull"
+    "PalletNull",
+    []
    ],
    [
     "WaitingCorrection",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "!WaitCorrection2"
+    ]
    ],
    [
     "Labeling",
-    "WaitUpdate2"
+    "WaitUpdate2",
+    [
+     "Leave2"
+    ]
    ],
    [
     "Labeling",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "WaitLabel2",
+     "⏱"
+    ]
    ],
    [
     "WaitUpdate2",
-    "WaitAck"
+    "WaitAck",
+    [
+     "⏱"
+    ]
    ],
    [
     "WaitAck",
-    "WaitLeaving"
+    "WaitLeaving",
+    []
    ],
    [
     "WaitLeaving",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "!Leave2"
+    ]
    ],
    [
     "WaitLeaveNull",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "!LabelNull2"
+    ]
    ],
    [
     "PalletNull",
-    "WaitingPallet"
+    "WaitingPallet",
+    [
+     "WaitLabel2"
+    ]
    ]
   ]
  },
@@ -658,115 +899,153 @@
   "edges": [
    [
     "Init",
-    "WeightOk"
+    "WeightOk",
+    []
    ],
    [
     "Init",
-    "RetreivingWeightLen"
+    "RetreivingWeightLen",
+    []
    ],
    [
     "RetreivingWeightLen",
-    "Init"
+    "Init",
+    [
+     "⏱"
+    ]
    ],
    [
     "RetreivingWeightLen",
-    "RetreivingWeight"
+    "RetreivingWeight",
+    [
+     "⏱"
+    ]
    ],
    [
     "RetreivingWeight",
-    "SendWeightOk"
+    "SendWeightOk",
+    []
    ],
    [
     "SendWeightOk",
-    "WeightOk"
+    "WeightOk",
+    []
    ],
    [
     "SendWeightOk",
-    "RetreivingWeight"
+    "RetreivingWeight",
+    []
    ],
    [
     "WeightOk",
-    "RetreivingLabels"
+    "RetreivingLabels",
+    []
    ],
    [
     "WeightOk",
-    "WaitPallet"
+    "WaitPallet",
+    []
    ],
    [
     "RetreivingLabels",
-    "WeightOk"
+    "WeightOk",
+    [
+     "⏱"
+    ]
    ],
    [
     "RetreivingLabels",
-    "WaitPallet"
+    "WaitPallet",
+    [
+     "⏱"
+    ]
    ],
    [
     "WaitPallet",
-    "WaitLabelInstruction"
+    "WaitLabelInstruction",
+    []
    ],
    [
     "WaitPallet",
-    "Skipped"
+    "Skipped",
+    []
    ],
    [
     "WaitLabelInstruction",
-    "Print1"
+    "Print1",
+    []
    ],
    [
     "WaitLabelInstruction",
-    "WaitLabelLost"
+    "WaitLabelLost",
+    []
    ],
    [
     "WaitLabelLost",
-    "WaitApplicatorReady"
+    "WaitApplicatorReady",
+    []
    ],
    [
     "WaitLabelLost",
-    "WaitLabelInstruction"
+    "WaitLabelInstruction",
+    []
    ],
    [
     "WaitApplicatorReady",
-    "Reset1"
+    "Reset1",
+    []
    ],
    [
     "Reset1",
-    "Reset2"
+    "Reset2",
+    [
+     "⏱"
+    ]
    ],
    [
     "Reset2",
-    "WaitLabelInstruction"
+    "WaitLabelInstruction",
+    []
    ],
    [
     "Reset2",
-    "Print2"
+    "Print2",
+    []
    ],
    [
     "Print1",
-    "Reset1"
+    "Reset1",
+    []
    ],
    [
     "Print2",
-    "WaitPrinter"
+    "WaitPrinter",
+    []
    ],
    [
     "WaitPrinter",
-    "WaitPLCConfirmation"
+    "WaitPLCConfirmation",
+    []
    ],
    [
     "WaitPrinter",
-    "Print2"
+    "Print2",
+    []
    ],
    [
     "WaitPLCConfirmation",
-    "WaitLabelInstruction"
+    "WaitLabelInstruction",
+    []
    ],
    [
     "Skipped",
-    "Completed"
+    "Completed",
+    []
    ],
    [
     "Completed",
-    "Init"
+    "Init",
+    []
    ]
   ]
  },
@@ -782,27 +1061,35 @@
   "edges": [
    [
     "Init",
-    "Failed"
+    "Failed",
+    []
    ],
    [
     "Init",
-    "Reading"
+    "Reading",
+    []
    ],
    [
     "Reading",
-    "Completed"
+    "Completed",
+    []
    ],
    [
     "Reading",
-    "Retrying"
+    "Retrying",
+    []
    ],
    [
     "Reading",
-    "Failed"
+    "Failed",
+    []
    ],
    [
     "Retrying",
-    "Init"
+    "Init",
+    [
+     "⏱"
+    ]
    ]
   ]
  },
@@ -817,23 +1104,30 @@
   "edges": [
    [
     "Init",
-    "Disconnected"
+    "Disconnected",
+    []
    ],
    [
     "Disconnected",
-    "Connected"
+    "Connected",
+    []
    ],
    [
     "Disconnected",
-    "Wait"
+    "Wait",
+    []
    ],
    [
     "Connected",
-    "Disconnected"
+    "Disconnected",
+    []
    ],
    [
     "Wait",
-    "Init"
+    "Init",
+    [
+     "⏱"
+    ]
    ]
   ]
  }

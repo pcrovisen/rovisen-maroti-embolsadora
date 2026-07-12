@@ -33,18 +33,29 @@
 
   <main class="diag-page">
     <p class="diag-hint">
-      El estado actual se muestra en verde, ordenado según el flujo declarado
-      en el código (inicio arriba). Flechas tenues: transiciones posibles;
-      resaltadas: observadas desde que se abrió esta página; azul animado: la
-      última; <span class="hint-warn">naranja</span>: transición observada que
-      el código no declara.
+      Seleccione una máquina de la lista. El estado actual se muestra en
+      verde, ordenado según el flujo declarado en el código (inicio arriba).
+      Las flechas indican la señal que dispara cada transición (⏱ = por
+      tiempo) y se encienden en verde cuando esa condición está activa.
+      Flechas tenues: transiciones posibles; resaltadas: observadas desde que
+      se abrió esta página; azul animado: la última;
+      <span class="hint-warn">naranja</span>: transición observada que el
+      código no declara.
     </p>
-    <div class="machines-grid" id="machinesGrid"></div>
-
-    <section class="panel">
-      <h3 class="signals-title">Señales PLC</h3>
-      <div class="signals" id="signalsGrid"></div>
-    </section>
+    <div class="diag2">
+      <aside class="panel machine-list" id="machineList"></aside>
+      <section class="panel machine-view">
+        <div class="machine-head">
+          <h2 id="mvName">—</h2>
+          <span class="machine-state" id="mvState"></span>
+        </div>
+        <div id="mvGraph"></div>
+        <div class="mv-signals">
+          <h3 class="signals-title">Señales de esta máquina</h3>
+          <div class="signals" id="mvSignals"></div>
+        </div>
+      </section>
+    </div>
   </main>
 
   <div class="offline-overlay hidden" id="offlineOverlay">
