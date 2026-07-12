@@ -28,7 +28,7 @@ MainMachine
 └── AcceptHMIs                     — TCP listener :8153, one HMIConnection per client (stepped last)
 ```
 
-`CarConnection` / `CarCommunication` are **legacy** (direct TCP link to the car, port 51401). Since the "coordination at PLC level" change the car is driven through the master PLC; these classes are commented out in `MainMachine` — don't revive them without reason.
+A legacy direct TCP link to the car (`CarConnection`/`CarCommunication`, port 51401) and the old `PrinterConnection` were removed; the car is driven through the master PLC since the "coordination at PLC level" change.
 
 ## Shared state: `Status`
 
@@ -55,7 +55,7 @@ Registers are 16-bit, so:
 
 ## Pallet entry flow (`PalletEntry`)
 
-`Waiting` → (`ReadQR` coil) → `ReadingQR` (ifm reader, `Config.QrRetries` retries; on failure either `DefaultBehavior` if `ContinueIfNoQr` or `ReadingQrInError` which raises `ErrorQr` and keeps retrying) → write QR id to `Memory.QR1` → `WaitingAvailability` (either Bocedi free) → `AskingDB` (`sp_evento_lectura_codigo`, retried every 1 s while it answers packager 0 / NULL) → `SendingID` (sets `ToEmb1`/`ToEmb2` + ID word, raises `SendingQR`) → then either:
+`Waiting` → (`ReadQR` coil) → `ReadingQR` (ifm reader, `Config.QrRetries` retries; on failure `ReadingQrInError`, which raises `ErrorQr` and keeps retrying — `ContinueIfNoQr`/`DefaultBehavior` is a stub that logs and falls back to the same retry loop, since entry without a pallet code was never implementable) → write QR id to `Memory.QR1` → `WaitingAvailability` (either Bocedi free) → `AskingDB` (`sp_evento_lectura_codigo`, retried every 1 s while it answers packager 0 / NULL) → `SendingID` (sets `ToEmb1`/`ToEmb2` + ID word, raises `SendingQR`) → then either:
 
 - **Bocedi 1**: `WaitForBocedi1` → `WaitEnterBocedi` (PLC raises `SendUpdate`) → increment queue id, `ConfirmUpdate`, re-read FIFO1 → `sp_evento_ingreso_embolsadora(1)` → `Waiting`.
 - **Car → Bocedi 2**: `WaitForCar` → `WaitEnterCar` (`SendUpdate` = pallet on car; `CarEntryError` pauses with operator message) → `Status.SetCarPallet(true)` → `ConfirmUpdate` → `Waiting`. `CarMachine` later detects delivery into Bocedi 2 (`SendUpdate2`), notifies `sp_evento_ingreso_embolsadora(2)` and re-reads FIFO2.
@@ -81,7 +81,7 @@ HMI sends `del{json DeletePallet}` → `HMIConnection` calls `DeletePalletEmb{1,
 
 ## HMI protocol (TCP :8153)
 
-`AcceptHMIs` accepts clients (one per source IP; a reconnect replaces the old one). Request/response, UTF-8, no framing:
+`AcceptHMIs` accepts clients (one per source IP; a reconnect replaces the old one). Request/response, UTF-8, every message prefixed with its byte length as a 4-byte little-endian int (`TcpDevice` on the server, `HMIClient.ReadMessage`/`Request` on the client — both sides must change together):
 
 - `init` → full JSON snapshot; `update` (or anything else) → snapshot where `Packager1/2`, `Car`, `States` are `null` unless changed since that client's last message; `del…` → deletion (answer `OK`/`NOK`); `terminate` → close.
 - Snapshot keys: `Config`, `Signals` (coils 21–48 as bool[28], indexed by the client's `SignalsNames` enum which starts at `ReadQR`), `Connections`, `EntryPallet`, `ErrorMessages`, `Packager1`, `Packager2`, `Car`, `MachineState` (name → state ordinal), `States` (name → ordinal → state name).
@@ -102,14 +102,14 @@ All calls are stored procedures built by string concatenation in `Devices/SqlDat
 | `sp_get_id` / `sp_get_codigo` | QR string ↔ int id mapping |
 | `sp_get_parametros` | remote config (wired in `GetConfiguration` but not currently called) |
 
-Note: the QR code is interpolated into SQL text unescaped; codes come from the plant's own QR labels, but keep this in mind if inputs ever become less trusted.
+All inputs are passed as `SqlParameter`s (`sp_evento_alarma` maps packager 0 / empty code to `DBNull`). Keep it that way — never interpolate scanned QR content into SQL text.
 
 ## Configuration & persistence surfaces
 
 | Where | What |
 |---|---|
-| `ModbusServer/App.config` | QR reader IPs, SQL connection string |
-| Hardcoded in `PalletLabel1/2.cs` | printer + Omron PLC IPs |
+| `ModbusServer/App.config` | all device IPs (QR readers, printers, Omron PLCs) |
+| `secrets.config` (gitignored, next to the exe; see `secrets.config.example`) | SQL connection string — overrides the empty `App.config` placeholder via the `appSettings file=` attribute |
 | `HKCU\SOFTWARE\WencoSettings` | `QrRetries`, `ContinueIfNotQr`, `ContinueIfNoDB`, `DefaultRecipe` (read at startup by `Config`) |
 | `HKLM\SOFTWARE\WencoInfo\Wolrdjet{1,2}` | last weight per Bocedi (crash recovery) |
 | `visualIdData.json` (next to exe) | injector name → visual id map (order-sensitive) |
@@ -121,7 +121,5 @@ Note: the QR code is interpolated into SQL text unescaped; codes come from the p
 - `PackagerPreference.Labeling` means *omit* labeling (see encoding section).
 - `Config.ContinueIfNoQr` is stored under registry name `ContinueIfNotQr`.
 - Queue ids deliberately skip 0 and 8; 8 is the labeling flag bit.
-- `Status.ErrorMessages` init values `"hola1"…"hola3"` are debug placeholders overwritten as soon as machines step.
-- HMI JSON has no message framing; the client detects end-of-message by `read < bufferSize`. Large snapshots that are an exact multiple of 4096 bytes would confuse it — keep that in mind if you grow the payload.
-- `PalletEntry` `currentIdEmb1/2` are re-derived from FIFO head ids on `Reset()` so restarts don't reuse ids.
+- `PalletEntry` `currentIdEmb1/2` are re-derived from the FIFO **tail** ids on `Reset()` so restarts don't reuse ids (assumes the PLC appends new pallets at the end of the FIFO area, as the deletion compaction also does).
 - The service self-kills (`Environment.Exit(-1)`) on any unhandled exception in the main loop; Topshelf/Windows service recovery restarts it (twice immediately, then after 1 min).

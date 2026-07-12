@@ -40,7 +40,7 @@ namespace ModbusServer
                 Car = new Car() { CarPosition = Car.Position.Unknown, HasPallet = false, Pallet = null, Updated = false},
                 Connections = new Connections() { MasterPLC = false, SlavePLC = false, QrReader = false, Packager1 = false, Packager2 = false, WencoDB = false},
                 StateMachine = new StateMachineStatus() { Machines = new Dictionary<string, object>(), MachinesStates = new Dictionary<string, Dictionary<int, string>>() },
-                ErrorMessages = new ErrorMessages() { BDC1Error = "hola1", BDC2Error = "hola2", EntryError = "hola3", CarError = "",}
+                ErrorMessages = new ErrorMessages() { BDC1Error = "", BDC2Error = "", EntryError = "", CarError = "",}
             };
         }
 
@@ -149,26 +149,27 @@ namespace ModbusServer
 
         public async Task UpdateQueue(int lenght, FatekPLC.Memory startFIFO, FatekPLC.Memory startId)
         {
-            if (Queue == null) 
-            {
-                Queue = new List<Pallet>();
-            }
-
-            Queue.Clear();
-            Updated = true;
+            // This runs on a thread-pool task while HMIConnection may be serializing
+            // the current list on the main thread: build a new list and swap the
+            // reference instead of mutating the live one.
+            var newQueue = new List<Pallet>();
 
             for (ushort i = 0; i < lenght; i++)
             {
-                Queue.Add(await FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
+                newQueue.Add(await FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
             }
+
+            Queue = newQueue;
 
             // Label Pallet
             FatekPLC.Memory aux = startFIFO + 20;
             LabelPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
-           
+
             // Exit Pallet
             aux += 3;
             ExitPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
+
+            Updated = true;
         }
     }
 

@@ -118,18 +118,6 @@ namespace ModbusServer.StateMachine
                 {
                     hmis.Remove(hmi);
                 }
-
-                /*_ = keys.RemoveAll(connection =>
-                {
-                    connection.Step();
-                    if (connection.Terminated)
-                    {
-                        Log.InfoFormat("HMI {0} removed", connection.Name);
-                        connection.Remove();
-                        return true;
-                    }
-                    return false;
-                });*/
             }
             catch (Exception ex)
             {

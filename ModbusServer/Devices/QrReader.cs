@@ -12,6 +12,7 @@ namespace ModbusServer.Devices
     public class QrReader
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        const int ReadTimeoutMs = 5000;
         TcpClient client;
         NetworkStream stream;
         readonly string ip;
@@ -99,34 +100,47 @@ namespace ModbusServer.Devices
                 await stream.WriteAsync(buffer, 0, buffer.Length);
                 stream.Flush();
 
-                // Receive the TcpServer response. 
-
-                // Buffer to store the response bytes. 
-                Byte[] data = new Byte[256];
-
-                // String to store the response ASCII representation. 
-                String responseData = String.Empty;
-
-                Int32 bytes;
-
-                // Read the first batch of the TcpServer response bytes. 
-                bytes = await stream.ReadAsync(data, 0, data.Length);
-                responseData = System.Text.Encoding.ASCII.GetString(data, 0, bytes);
-
-                // Read the second batch of the TcpServer response bytes. 
-                bytes = await stream.ReadAsync(data, 0, data.Length);
-                responseData = responseData + System.Text.Encoding.ASCII.GetString(data, 0, bytes);
-
+                // Receive the TcpServer response.
                 //response data sampel: 2 codes with content "ABC-abc-1234"
                 //1234L000000043{0D}{0A}1234star;1;ABC-abc-1234;ABC-abc-1234;stop
                 //ticket + length + /r/n + ticket + data + /r/n
-                //extract data from receive string
-                //extract length information
-                int lengthData = int.Parse(responseData.Substring(5, 9));
-                //extract data from string
-                string stringData = responseData.Substring(20, (lengthData - 6));
-                //return result data
-                return stringData;
+                //the length field counts the data plus 6 bytes (ticket + trailing /r/n)
+                Byte[] data = new Byte[256];
+                String responseData = String.Empty;
+                int expectedLength = -1;
+
+                // Read until the length declared in the header is satisfied. The reader
+                // may deliver the response in one or several packets.
+                while (expectedLength < 0 || responseData.Length < expectedLength)
+                {
+                    var readTask = stream.ReadAsync(data, 0, data.Length);
+                    if (await Task.WhenAny(readTask, Task.Delay(ReadTimeoutMs)) != readTask)
+                    {
+                        Log.Error("Timeout waiting for the qr reader response");
+                        client.Close();
+                        client = null;
+                        return string.Empty;
+                    }
+
+                    int bytes = await readTask;
+                    if (bytes == 0)
+                    {
+                        Log.Error("Connection closed by the qr reader");
+                        client.Close();
+                        client = null;
+                        return string.Empty;
+                    }
+
+                    responseData += System.Text.Encoding.ASCII.GetString(data, 0, bytes);
+
+                    if (expectedLength < 0 && responseData.Length >= 16)
+                    {
+                        //header (16) + ticket (4) + data (length field - ticket - /r/n)
+                        expectedLength = 20 + int.Parse(responseData.Substring(5, 9)) - 6;
+                    }
+                }
+
+                return responseData.Substring(20, expectedLength - 20);
             }
             catch(Exception ex)
             {

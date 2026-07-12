@@ -14,7 +14,7 @@ Read `README.md` for the plant/network overview and `docs/ARCHITECTURE.md` for s
 
 1. **Single-threaded step model.** All logic runs in `MainProcess` → `MainMachine.Step()` every 100 ms. Never block inside a `Step()`; start a `Task` and poll `IsCompleted`/`IsFaulted` on later steps (see any machine for the retry idiom with `StateTime`).
 2. Every `Machine` subclass must contain a nested enum literally named `States` — it's read by reflection at construction; renaming it crashes startup.
-3. **Server and HMI DTOs are duplicated by hand.** Any change to `Status.cs` DTOs, `FatekPLC.Signals` order (coils 21+), or state enums shown on the HMI must be mirrored in `TcpHMIClient/HMIClient.cs` (`SystemStatus`, `SignalsNames`, `PalletEntryStates`).
+3. **Server and HMI DTOs are duplicated by hand.** Any change to `Status.cs` DTOs, `FatekPLC.Signals` order (coils 21+), or state enums shown on the HMI must be mirrored in `TcpHMIClient/HMIClient.cs` (`SystemStatus`, `SignalsNames`, `PalletEntryStates`). The HMI protocol is length-prefixed (4-byte LE int) on both sides — a change to the framing means deploying server and HMIs together.
 4. **Coil/register maps are contracts with the PLC programs** in `PLCs/*.pdw`. Don't renumber `FatekPLC.Signals`/`Memory` values unless the PLC program changes too. Convention: coils 1–20 written by the PC, 21+ by the PLC.
 5. Deliberate-looking oddities usually are deliberate — check "Known quirks" in `docs/ARCHITECTURE.md` before fixing: the `Wolrdjet` typo (registry key + packager id), `PackagerPreference.Labeling` meaning *omit* labeling, queue ids cycling 1–7 with 8 as the label flag, registry name `ContinueIfNotQr`.
 6. Operator-facing strings (`Status.ErrorMessages`, HMI labels) are **Spanish**; logs are English.
@@ -23,8 +23,8 @@ Read `README.md` for the plant/network overview and `docs/ARCHITECTURE.md` for s
 
 - `ModbusServer/StateMachine/FatekPLCCommunication.cs` — PLC handshake; gates all line machines
 - `ModbusServer/StateMachine/PalletEntry.cs` — entry: QR → DB routing → Bocedi1/car
-- `ModbusServer/StateMachine/PalletLabel{1,2}.cs` + `PrinterMachine.cs` — weighing/labeling per Bocedi (IPs hardcoded here)
+- `ModbusServer/StateMachine/PalletLabel{1,2}.cs` + `PrinterMachine.cs` — weighing/labeling per Bocedi
 - `ModbusServer/Devices/FatekPLC.cs` — Modbus maps + QR/ID register encoding
 - `ModbusServer/Devices/SqlDatabase.cs` — all stored-proc calls (`[maroti]` schema)
 - `ModbusServer/StateMachine/AcceptHMIs.cs` / `HMIConnection.cs` — HMI TCP protocol (:8153)
-- `CarConnection.cs` / `CarCommunication.cs` — legacy direct car link, disabled; car is coordinated via the PLC now
+- `ModbusServer/secrets.config` (gitignored, see `secrets.config.example`) — real SQL connection string, deployed next to the exe

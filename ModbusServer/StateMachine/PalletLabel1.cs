@@ -4,6 +4,7 @@ using ModbusServer.Data;
 using ModbusServer.Devices;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -38,8 +39,8 @@ namespace ModbusServer.StateMachine
         public PalletLabel1() : base(States.WaitingPallet)
         {
             plc = new OmronPLC(TransportType.Tcp);
-            printer = new NetworkPrinter("192.168.6.122");
-            omronConnection = new OmronConnection(plc, "192.168.6.124");
+            printer = new NetworkPrinter(ConfigurationManager.AppSettings["ipPrinter1"]);
+            omronConnection = new OmronConnection(plc, ConfigurationManager.AppSettings["ipOmron1"]);
             printerConnection = new NetworkPrinterConnection(printer);
             printerMachine = new PrinterMachine(plc, printer, "Wolrdjet1");
         }
@@ -63,13 +64,20 @@ namespace ModbusServer.StateMachine
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.PLCLabeling1))
                         {
-                            FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave1);
-                            currentCode = Status.Instance.Packager1.LabelPallet.Qr;
-                            Log.InfoFormat("Continue labeling pallet {0} in bocedi1", currentCode);
-                            FatekPLC.SetBit(FatekPLC.Signals.Labeling1);
-                            printerMachine.Reset(currentCode, Status.Instance.Packager1.LabelPallet.Labeling, true);
-                            Status.Instance.ErrorMessages.BDC1Error = "";
-                            NextState(States.Labeling);
+                            if (Status.Instance.Packager1.LabelPallet != null)
+                            {
+                                FatekPLC.ResetBit(FatekPLC.Signals.PalletLeave1);
+                                currentCode = Status.Instance.Packager1.LabelPallet.Qr;
+                                Log.InfoFormat("Continue labeling pallet {0} in bocedi1", currentCode);
+                                FatekPLC.SetBit(FatekPLC.Signals.Labeling1);
+                                printerMachine.Reset(currentCode, Status.Instance.Packager1.LabelPallet.Labeling, true);
+                                Status.Instance.ErrorMessages.BDC1Error = "";
+                                NextState(States.Labeling);
+                            }
+                            else
+                            {
+                                Log.Warn("Recover but no pallet yet.");
+                            }
                         }
                         if (FatekPLC.ReadBit(FatekPLC.Signals.WaitCorrection1))
                         {

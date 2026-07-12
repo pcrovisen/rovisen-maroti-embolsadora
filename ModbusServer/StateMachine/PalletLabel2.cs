@@ -4,6 +4,7 @@ using ModbusServer.Data;
 using ModbusServer.Devices;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -38,8 +39,8 @@ namespace ModbusServer.StateMachine
         public PalletLabel2() : base(States.WaitingPallet)
         {
             plc = new OmronPLC(TransportType.Tcp);
-            printer = new NetworkPrinter("192.168.6.163");
-            omronConnection = new OmronConnection(plc, "192.168.250.1");
+            printer = new NetworkPrinter(ConfigurationManager.AppSettings["ipPrinter2"]);
+            omronConnection = new OmronConnection(plc, ConfigurationManager.AppSettings["ipOmron2"]);
             printerConnection = new NetworkPrinterConnection(printer);
             printerMachine = new PrinterMachine(plc, printer, "Wolrdjet2");
         }

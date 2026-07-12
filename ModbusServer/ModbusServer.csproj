@@ -139,9 +139,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StateMachine\AcceptHMIs.cs" />
-    <Compile Include="StateMachine\CarCommunication.cs" />
     <Compile Include="StateMachine\CarMachine.cs" />
-    <Compile Include="StateMachine\CarConnection.cs" />
     <Compile Include="StateMachine\ElevatorAccess.cs" />
     <Compile Include="StateMachine\NetworkPrinterConnection.cs" />
     <Compile Include="StateMachine\OmronConnection.cs" />
@@ -149,7 +147,6 @@
     <Compile Include="StateMachine\PalletLabel1.cs" />
     <Compile Include="StateMachine\HMIConnection.cs" />
     <Compile Include="StateMachine\Machine.cs" />
-    <Compile Include="StateMachine\PrinterConnection.cs" />
     <Compile Include="StateMachine\PrinterMachine.cs" />
     <Compile Include="StateMachine\QrReadMachine.cs" />
     <Compile Include="StateMachine\FatekPLCCommunication.cs" />
@@ -167,6 +164,10 @@
     </None>
     <None Include="ModbusServer_TemporaryKey.pfx" />
     <None Include="packages.config" />
+    <None Include="secrets.config" Condition="Exists('secrets.config')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="secrets.config.example" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">

@@ -34,11 +34,11 @@ See `docs/ARCHITECTURE.md` for the full design: state machines, PLC signal/memor
 | Fatek master PLC | polls the PC | Modbus TCP (PC is the *server*; PLC is the client). Slave PLC, car and elevator hang off the master. |
 | Entry QR reader (ifm O2I) | 192.168.6.236:50010 | ifm protocol V3 (`App.config: ipQrReader`) |
 | Elevator QR reader (ifm O2I) | 192.168.6.241:50010 | ifm protocol V3 (`App.config: ipQrElevator`) |
-| Bocedi 1 Omron PLC | 192.168.6.124:9600 | FINS/TCP (hardcoded in `PalletLabel1.cs`) |
-| Bocedi 2 Omron PLC | 192.168.250.1:9600 | FINS/TCP (hardcoded in `PalletLabel2.cs`) |
-| Printer Bocedi 1 ("Worldjet 1") | 192.168.6.122:9100 | raw label commands (hardcoded in `PalletLabel1.cs`) |
-| Printer Bocedi 2 | 192.168.6.163:9100 | raw label commands (hardcoded in `PalletLabel2.cs`) |
-| Wenco DB (SQL Server) | 192.168.20.69, catalog `SISTEMAS` | `App.config: sqlConnectiongString` |
+| Bocedi 1 Omron PLC | 192.168.6.124:9600 | FINS/TCP (`App.config: ipOmron1`) |
+| Bocedi 2 Omron PLC | 192.168.250.1:9600 | FINS/TCP (`App.config: ipOmron2`) |
+| Printer Bocedi 1 ("Worldjet 1") | 192.168.6.122:9100 | raw label commands (`App.config: ipPrinter1`) |
+| Printer Bocedi 2 | 192.168.6.163:9100 | raw label commands (`App.config: ipPrinter2`) |
+| Wenco DB (SQL Server) | 192.168.20.69, catalog `SISTEMAS` | `sqlConnectiongString` in `secrets.config` (gitignored; see `ModbusServer/secrets.config.example`) |
 | HMIs | any, connect to PC :8153 | line-less JSON over TCP |
 
 ## Building & deploying
@@ -54,4 +54,6 @@ ModbusServer.exe stop
 ModbusServer.exe           # run in console mode for debugging
 ```
 
-Logs are written next to the exe under `Logs/` (`info-YYYY-MM-DD.log`, `error-YYYY-MM-DD.log`). Runtime tuning lives in the Windows registry under `HKCU\SOFTWARE\WencoSettings` (QR retries, default recipe, continue-without-QR/DB flags).
+When deploying, place a `secrets.config` with the real SQL connection string next to `ModbusServer.exe.config` (copy `ModbusServer/secrets.config.example` and fill it in — the file is gitignored and, when present in the project directory, copied to the build output automatically).
+
+Logs are written next to the exe under `Logs/` (`info-YYYY-MM-DD.log`, `error-YYYY-MM-DD.log`). Runtime tuning lives in the Windows registry under `HKCU\SOFTWARE\WencoSettings` (QR retries, default recipe, continue-without-QR/DB flags) — note the service runs as LocalSystem, so that is LocalSystem's HKCU hive, not the logged-in user's.

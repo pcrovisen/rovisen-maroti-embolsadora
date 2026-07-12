@@ -96,19 +96,5 @@ namespace ModbusServer.StateMachine
             base.Reset();
             retries = 0;
         }
-
-        private bool IsValid(string value)
-        {
-            if (value[0] == 'S')
-            {
-                return true;
-            }
-
-            if(value.IndexOf("REEMBOLSADO") != -1)
-            {
-                return true;
-            }
-            return false;
-        }
     }
 }

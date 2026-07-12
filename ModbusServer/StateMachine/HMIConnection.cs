@@ -82,7 +82,7 @@ namespace ModbusServer.StateMachine
                                 NextState(States.Responding);
                                 sendTask = tcpHMI.Send(CreateMessage(true), Cts.Token);
                             }
-                            else if(receiveTask.Result.Substring(0,3) == "del")
+                            else if(receiveTask.Result.StartsWith("del"))
                             {
                                 pallet = JsonSerializer.Deserialize<DeletePallet>(receiveTask.Result.Substring(3));
                                 if(pallet.Packager == 1)
