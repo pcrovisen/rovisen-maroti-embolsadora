@@ -1,0 +1,56 @@
+<title>Planta — Línea Embolsadora</title>
+<style>
+/*__CSS__*/
+
+/* Demo-only additions */
+.demo-badge {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  color: var(--warn);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  align-self: center;
+}
+.plant-page { height: calc(100vh - 5.4rem); }
+</style>
+
+/*__BODY__*/
+
+<script>
+/*__COMMON__*/
+
+const TRANSITIONS = /*__TRANSITIONS__*/;
+
+// ---------------------------------------------------------------------------
+// Local line simulation (same code as devserver/dummy_server.mjs)
+// ---------------------------------------------------------------------------
+
+const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
+const MACHINE_STATES = Object.fromEntries([
+  'FatekPLCCommunication', 'PalletEntry', 'PalletLabel1', 'PalletLabel2',
+  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs',
+].map((n) => [n, TRANSITIONS[n].states]));
+
+/*__SIM__*/
+
+/*__PLANT__*/
+
+// ---------------------------------------------------------------------------
+// Drive the page from the local simulation instead of SSE
+// ---------------------------------------------------------------------------
+
+document.getElementById('serverDot').classList.add('on');
+
+setInterval(() => {
+  const t = now();
+  stepEntry(t);
+  stepCar(t);
+  stepPackager1(t);
+  stepPackager2(t);
+  stepDisturbances(t);
+  handleStatus(buildStatus());
+}, 500);
+</script>

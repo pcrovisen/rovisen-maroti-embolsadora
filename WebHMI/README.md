@@ -82,9 +82,10 @@ or `401` when the token is missing/expired.
 ### Static files
 
 Everything in `wwwroot/` is served as-is; `/` → `index.html`. Plain JS, no
-build step: `index.html` + `app.js` (operator view), `diagnostico.html` +
-`diag.js` (live state-machine graphs), and `common.js` (shared enum mirrors)
-+ `style.css`.
+build step: `index.html` + `app.js` (operator dashboard), `planta.html` +
+`plant.js` (SCADA-style plant synoptic: pan/zoom, pallets moving through the
+stations with their data), `diagnostico.html` + `diag.js` (live state-machine
+graphs), and `common.js` (shared enum mirrors) + `style.css`.
 
 The diagnostics page lays each machine out as a flow (layers by distance from
 the initial state) using `wwwroot/transitions.json`, which is **generated from

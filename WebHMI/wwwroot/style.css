@@ -395,6 +395,115 @@ body {
 
 .signals-title { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); }
 
+/* ---------- Plant view (SCADA synoptic) ---------- */
+
+.page-nav { display: flex; gap: 0.4rem; }
+
+.plant-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 4.2rem);
+  padding: 0.8rem;
+  gap: 0.6rem;
+}
+
+.plant-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+#plantSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+#plantSvg:active { cursor: grabbing; }
+
+.plant-toolbar {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.plant-toolbar .btn {
+  width: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.plant-hint {
+  position: absolute;
+  left: 0.9rem;
+  bottom: 0.6rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.plant-errors {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+}
+.plant-errors .error-banner { margin-top: 0; }
+@media (max-width: 900px) { .plant-errors { grid-template-columns: 1fr 1fr; } }
+
+/* SVG scene */
+.lane { fill: #ffffff07; stroke: var(--line); stroke-width: 1.5; }
+.chevron { fill: none; stroke: #3d4f70; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.rail { stroke: #3d4f70; stroke-width: 3; }
+.rail-tie { stroke: #2a3852; stroke-width: 2; }
+
+.station { fill: var(--panel-2); stroke: var(--line); stroke-width: 2; }
+.station-name { fill: var(--text); font-size: 17px; font-weight: 600; }
+.station-sub { fill: var(--muted); font-size: 13px; }
+.compass-line { stroke: var(--muted); stroke-width: 2; }
+.compass-n { fill: var(--muted); }
+
+.labeling-circle { fill: none; stroke: var(--muted); stroke-width: 3; stroke-dasharray: 5 4; }
+.labeling-circle.active {
+  stroke: var(--accent);
+  animation: labeling-spin 1.4s linear infinite;
+}
+@keyframes labeling-spin { to { stroke-dashoffset: -27; } }
+
+.qr-box { fill: var(--panel-2); stroke: var(--line); stroke-width: 2; }
+.qr-text { fill: var(--muted); font-size: 15px; font-weight: 700; }
+.qr-beam { stroke: var(--line); stroke-width: 2.5; stroke-dasharray: 3 3; }
+.qr-station.ok .qr-box, .qr-station.ok .qr-beam { stroke: var(--ok); }
+.qr-station.ok .qr-text { fill: var(--ok); }
+.qr-station.bad .qr-box, .qr-station.bad .qr-beam { stroke: var(--bad); }
+.qr-station.bad .qr-text { fill: var(--bad); }
+.qr-station.blink { animation: blink 0.8s step-start infinite; }
+
+.car-body {
+  transition-property: transform;
+  transition-timing-function: linear;
+}
+.car-body.unknown { animation: blink 0.8s step-start infinite; }
+.car-rect { fill: var(--panel-2); stroke: var(--accent); stroke-width: 2.5; }
+.car-wheel { fill: #3d4f70; }
+
+.pallet {
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
+}
+.pallet.leaving { opacity: 0; transition: opacity 0.6s; }
+.pallet-box { fill: var(--pallet); stroke: #8a5a2b; stroke-width: 1.5; }
+.pallet-plank { stroke: #8a5a2b; stroke-width: 1.5; }
+.pallet-data { fill: var(--text); font-size: 12px; paint-order: stroke; stroke: #10151ccc; stroke-width: 3; }
+
 /* ---------- Dialogs ---------- */
 
 .dialog {

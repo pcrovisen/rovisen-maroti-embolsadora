@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planta — Línea Embolsadora</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" id="serverDot"></span>
+      <h1>Vista de planta</h1>
+    </div>
+    <div class="conns" id="connChips"></div>
+    <nav class="page-nav">
+      <a class="btn btn-ghost" href="index.html">Panel</a>
+      <a class="btn btn-ghost" href="diagnostico.html">Diagnóstico</a>
+    </nav>
+  </header>
+
+  <main class="plant-page">
+    <div class="plant-stage" id="plantStage">
+      <svg id="plantSvg" tabindex="0"></svg>
+      <div class="plant-toolbar">
+        <button class="btn" id="zoomInBtn" title="Acercar">+</button>
+        <button class="btn" id="zoomOutBtn" title="Alejar">−</button>
+        <button class="btn" id="zoomFitBtn" title="Vista completa">⤢</button>
+      </div>
+      <div class="plant-hint">Rueda / pellizco: zoom · Arrastrar: mover</div>
+    </div>
+    <div class="plant-errors">
+      <div class="error-banner empty" id="entryError"></div>
+      <div class="error-banner empty" id="bcd1Error"></div>
+      <div class="error-banner empty" id="bcd2Error"></div>
+      <div class="error-banner empty" id="carError"></div>
+    </div>
+  </main>
+
+  <div class="offline-overlay hidden" id="offlineOverlay">
+    <div>
+      <h2>Sin conexión con el servidor</h2>
+      <p>Reintentando automáticamente…</p>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script src="plant.js"></script>
+</body>
+</html>

@@ -34,14 +34,29 @@ const simEnd = dummy.indexOf('// Auth + delete');
 if (simStart < 0 || simEnd < 0) throw new Error('dummy_server sim markers not found');
 const sim = dummy.slice(simStart, simEnd);
 
-const index = read(path.join(www, 'index.html'));
-let body = index.slice(index.indexOf('<body>') + 6, index.indexOf('</body>'));
-body = body.replace(/\s*<script src="[^"]*"><\/script>/g, '');
-body = body.replace(/<a class="diag-open"[\s\S]*?<\/a>/, '');
-body = body.replace(
-  '<div class="session">',
-  '<span class="demo-badge">DEMO · simulación en el navegador</span>\n    <div class="session">',
-);
+let plant = read(path.join(www, 'plant.js'));
+const plantCut = plant.indexOf('// Startup: connect to the server');
+if (plantCut < 0) throw new Error('plant.js startup marker not found');
+plant = plant.slice(0, plantCut);
+
+const extractBody = (page) => {
+  let body = page.slice(page.indexOf('<body>') + 6, page.indexOf('</body>'));
+  body = body.replace(/\s*<script src="[^"]*"><\/script>/g, '');
+  body = body.replace(/<a class="diag-open"[\s\S]*?<\/a>/, '');
+  body = body.replace(/<nav class="page-nav">[\s\S]*?<\/nav>/, '');
+  body = body.replace(
+    '<div class="session">',
+    '<span class="demo-badge">DEMO · simulación en el navegador</span>\n    <div class="session">',
+  );
+  body = body.replace(
+    '</header>',
+    (body.includes('demo-badge') ? '' : '<span class="demo-badge">DEMO · simulación en el navegador</span>') + '</header>',
+  );
+  return body;
+};
+
+const body = extractBody(read(path.join(www, 'index.html')));
+const plantBody = extractBody(read(path.join(www, 'planta.html')));
 
 const fill = (template, parts) => {
   let out = template;
@@ -62,6 +77,9 @@ const outputs = {
   }),
   'hmi-demo.html': fill(read(path.join(here, 'demo', 'main.template.html')), {
     CSS: css, BODY: body, COMMON: common, TRANSITIONS: transitions, SIM: sim, APP: app,
+  }),
+  'planta-demo.html': fill(read(path.join(here, 'demo', 'plant.template.html')), {
+    CSS: css, BODY: plantBody, COMMON: common, TRANSITIONS: transitions, SIM: sim, PLANT: plant,
   }),
 };
 
