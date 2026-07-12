@@ -149,26 +149,27 @@ namespace ModbusServer
 
         public async Task UpdateQueue(int lenght, FatekPLC.Memory startFIFO, FatekPLC.Memory startId)
         {
-            if (Queue == null) 
-            {
-                Queue = new List<Pallet>();
-            }
-
-            Queue.Clear();
-            Updated = true;
+            // This runs on a thread-pool task while HMIConnection may be serializing
+            // the current list on the main thread: build a new list and swap the
+            // reference instead of mutating the live one.
+            var newQueue = new List<Pallet>();
 
             for (ushort i = 0; i < lenght; i++)
             {
-                Queue.Add(await FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
+                newQueue.Add(await FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
             }
+
+            Queue = newQueue;
 
             // Label Pallet
             FatekPLC.Memory aux = startFIFO + 20;
             LabelPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
-           
+
             // Exit Pallet
             aux += 3;
             ExitPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
+
+            Updated = true;
         }
     }
 
