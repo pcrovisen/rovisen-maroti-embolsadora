@@ -55,7 +55,7 @@ Registers are 16-bit, so:
 
 ## Pallet entry flow (`PalletEntry`)
 
-`Waiting` → (`ReadQR` coil) → `ReadingQR` (ifm reader, `Config.QrRetries` retries; on failure either `DefaultBehavior` if `ContinueIfNoQr` or `ReadingQrInError` which raises `ErrorQr` and keeps retrying) → write QR id to `Memory.QR1` → `WaitingAvailability` (either Bocedi free) → `AskingDB` (`sp_evento_lectura_codigo`, retried every 1 s while it answers packager 0 / NULL) → `SendingID` (sets `ToEmb1`/`ToEmb2` + ID word, raises `SendingQR`) → then either:
+`Waiting` → (`ReadQR` coil) → `ReadingQR` (ifm reader, `Config.QrRetries` retries; on failure `ReadingQrInError`, which raises `ErrorQr` and keeps retrying — `ContinueIfNoQr`/`DefaultBehavior` is a stub that logs and falls back to the same retry loop, since entry without a pallet code was never implementable) → write QR id to `Memory.QR1` → `WaitingAvailability` (either Bocedi free) → `AskingDB` (`sp_evento_lectura_codigo`, retried every 1 s while it answers packager 0 / NULL) → `SendingID` (sets `ToEmb1`/`ToEmb2` + ID word, raises `SendingQR`) → then either:
 
 - **Bocedi 1**: `WaitForBocedi1` → `WaitEnterBocedi` (PLC raises `SendUpdate`) → increment queue id, `ConfirmUpdate`, re-read FIFO1 → `sp_evento_ingreso_embolsadora(1)` → `Waiting`.
 - **Car → Bocedi 2**: `WaitForCar` → `WaitEnterCar` (`SendUpdate` = pallet on car; `CarEntryError` pauses with operator message) → `Status.SetCarPallet(true)` → `ConfirmUpdate` → `Waiting`. `CarMachine` later detects delivery into Bocedi 2 (`SendUpdate2`), notifies `sp_evento_ingreso_embolsadora(2)` and re-reads FIFO2.
@@ -102,7 +102,7 @@ All calls are stored procedures built by string concatenation in `Devices/SqlDat
 | `sp_get_id` / `sp_get_codigo` | QR string ↔ int id mapping |
 | `sp_get_parametros` | remote config (wired in `GetConfiguration` but not currently called) |
 
-Note: the QR code is interpolated into SQL text unescaped; codes come from the plant's own QR labels, but keep this in mind if inputs ever become less trusted.
+All inputs are passed as `SqlParameter`s (`sp_evento_alarma` maps packager 0 / empty code to `DBNull`). Keep it that way — never interpolate scanned QR content into SQL text.
 
 ## Configuration & persistence surfaces
 
