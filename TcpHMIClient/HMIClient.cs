@@ -171,6 +171,7 @@ namespace TcpHMIClient
             public string CarError { get; set; }
         }
 
+        const int MaxMessageSize = 1 << 20;
         State state;
         TcpClient tcpClient;
         BackgroundWorker worker;
@@ -294,14 +295,7 @@ namespace TcpHMIClient
         {
             try
             {
-                var stream = tcpClient.GetStream();
-                var buffer = new byte[20];
-                var byteCount = stream.Read(buffer, 0, buffer.Length);
-                var request = Encoding.UTF8.GetString(buffer, 0, byteCount);
-                if(request == "OK")
-                    return true;
-                else
-                    return false;
+                return ReadMessage() == "OK";
             }
             catch
             {
@@ -337,6 +331,8 @@ namespace TcpHMIClient
             {
                 var stream = tcpClient.GetStream();
                 var echoBytes = Encoding.UTF8.GetBytes(message);
+                var header = BitConverter.GetBytes(echoBytes.Length);
+                stream.Write(header, 0, header.Length);
                 stream.Write(echoBytes, 0, echoBytes.Length);
                 return true;
             }
@@ -345,41 +341,52 @@ namespace TcpHMIClient
                 worker.ReportProgress(0);
                 return false;
             }
-            
+
         }
 
         public bool WaitResponse()
         {
             try
             {
-                var stream = tcpClient.GetStream();
-                var bufferSize = 4096;
-                var buffer = new byte[bufferSize];
-                var completeMessage = "";
-                var byteCount = 0;
-
-                do
-                {
-                    byteCount = stream.Read(buffer, 0, buffer.Length);
-                    var request = Encoding.UTF8.GetString(buffer, 0, byteCount);
-                    completeMessage += request;
-                }
-                while (byteCount == bufferSize);
-
-                SystemStatus status = JsonSerializer.Deserialize<SystemStatus>(completeMessage);
+                SystemStatus status = JsonSerializer.Deserialize<SystemStatus>(ReadMessage());
                 worker.ReportProgress(100, status);
                 return true;
             }
-            catch (IOException)
+            catch
             {
                 worker.ReportProgress(0);
                 return false;
             }
-            catch (JsonException)
+        }
+
+        // Every message is prefixed with its byte length as a 4-byte little-endian
+        // int. The server (TcpDevice) uses the same framing; both sides must change
+        // together.
+        private string ReadMessage()
+        {
+            var stream = tcpClient.GetStream();
+            var length = BitConverter.ToInt32(ReadExactly(stream, 4), 0);
+            if (length <= 0 || length > MaxMessageSize)
             {
-                worker.ReportProgress(0);
-                return true;
+                throw new IOException($"Invalid message length {length}");
             }
+            return Encoding.UTF8.GetString(ReadExactly(stream, length));
+        }
+
+        private byte[] ReadExactly(NetworkStream stream, int count)
+        {
+            var buffer = new byte[count];
+            var offset = 0;
+            while (offset < count)
+            {
+                var read = stream.Read(buffer, offset, count - offset);
+                if (read == 0)
+                {
+                    throw new IOException("Connection closed");
+                }
+                offset += read;
+            }
+            return buffer;
         }
 
         internal void Terminate()

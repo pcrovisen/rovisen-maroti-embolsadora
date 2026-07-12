@@ -17,6 +17,9 @@ namespace ModbusServer.Devices
     internal class TcpDevice
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        // Every message is prefixed with its byte length as a 4-byte little-endian
+        // int. TcpHMIClient uses the same framing; both sides must change together.
+        const int MaxMessageSize = 1 << 20;
         TcpClient client;
         public string Name { get; private set; }
 
@@ -36,10 +39,22 @@ namespace ModbusServer.Devices
             try
             {
                 var stream = client.GetStream();
-                var buffer = new byte[4096];
-                var byteCount = await stream.ReadAsync(buffer, 0, buffer.Length, ctk);
-                var request = Encoding.UTF8.GetString(buffer, 0, byteCount);
-                return request;
+                var header = await ReadExactly(stream, 4, ctk);
+                if (header == null)
+                {
+                    return null;
+                }
+                var length = BitConverter.ToInt32(header, 0);
+                if (length <= 0 || length > MaxMessageSize)
+                {
+                    throw new InvalidOperationException($"Invalid message length {length}");
+                }
+                var payload = await ReadExactly(stream, length, ctk);
+                if (payload == null)
+                {
+                    return null;
+                }
+                return Encoding.UTF8.GetString(payload);
             }
             catch(Exception ex)
             {
@@ -56,6 +71,8 @@ namespace ModbusServer.Devices
             {
                 var stream = client.GetStream();
                 var echoBytes = Encoding.UTF8.GetBytes(message);
+                var header = BitConverter.GetBytes(echoBytes.Length);
+                await stream.WriteAsync(header, 0, header.Length, ctk);
                 await stream.WriteAsync(echoBytes, 0, echoBytes.Length, ctk);
                 return true;
             }
@@ -66,6 +83,23 @@ namespace ModbusServer.Devices
                 client = null;
                 return false;
             }
+        }
+
+        static async Task<byte[]> ReadExactly(NetworkStream stream, int count, CancellationToken ctk)
+        {
+            var buffer = new byte[count];
+            var offset = 0;
+            while (offset < count)
+            {
+                var read = await stream.ReadAsync(buffer, offset, count - offset, ctk);
+                if (read == 0)
+                {
+                    // Connection closed by the peer.
+                    return null;
+                }
+                offset += read;
+            }
+            return buffer;
         }
     }
 }
