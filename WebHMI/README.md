@@ -114,6 +114,15 @@ transitions.json fall back to a ring layout with observed edges only.
 5. Run alongside the TCP protocol (port 8153) until both operator stations use
    the browser, then retire `TcpHMIClient` and `AcceptHMIs`/`HMIConnection`.
 
+## Single-file demos
+
+`node WebHMI/devserver/build_demos.mjs [outDir]` assembles the real sources +
+the dummy simulation into two self-contained HTML files (`hmi-demo.html`,
+`diagnostico-demo.html`) that run anywhere with no server — useful for viewing
+the pages remotely (e.g. published as a private Claude artifact). The main-page
+demo shims `fetch`/`EventSource` so even PIN login and pallet deletion work
+against the in-browser sim.
+
 ## Keeping the dummy honest
 
 If a DTO, enum order, or `FatekPLC.Signals` coil changes in ModbusServer, the

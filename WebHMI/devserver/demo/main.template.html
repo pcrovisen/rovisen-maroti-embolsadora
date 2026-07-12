@@ -1,0 +1,117 @@
+<title>HMI — Línea Embolsadora</title>
+<style>
+/*__CSS__*/
+
+/* Demo-only additions */
+.demo-badge {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  color: var(--warn);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  align-self: center;
+}
+</style>
+
+/*__BODY__*/
+
+<script>
+// sessionStorage may be blocked in the sandboxed artifact frame.
+try {
+  sessionStorage.getItem('probe');
+} catch {
+  const mem = new Map();
+  Object.defineProperty(window, 'sessionStorage', {
+    value: {
+      getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+      setItem: (k, v) => mem.set(k, String(v)),
+      removeItem: (k) => mem.delete(k),
+    },
+  });
+}
+
+/*__COMMON__*/
+
+const TRANSITIONS = /*__TRANSITIONS__*/;
+
+// ---------------------------------------------------------------------------
+// Local line simulation (same code as devserver/dummy_server.mjs)
+// ---------------------------------------------------------------------------
+
+const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
+const MACHINE_STATES = Object.fromEntries([
+  'FatekPLCCommunication', 'PalletEntry', 'PalletLabel1', 'PalletLabel2',
+  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs',
+].map((n) => [n, TRANSITIONS[n].states]));
+
+/*__SIM__*/
+
+// ---------------------------------------------------------------------------
+// Shims: the artifact sandbox has no network, so SSE and the login/delete
+// API are served by the local simulation (PIN: 1234).
+// ---------------------------------------------------------------------------
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const demoSessions = new Set();
+
+window.fetch = async (url, opts = {}) => {
+  await sleep(300);
+  if (url === '/api/login') {
+    const { pin } = JSON.parse(opts.body);
+    if (pin !== '1234') {
+      return new Response(JSON.stringify({ error: 'PIN incorrecto' }), { status: 401 });
+    }
+    const token = Math.random().toString(36).slice(2);
+    demoSessions.add(token);
+    return new Response(JSON.stringify({ token }), { status: 200 });
+  }
+  if (url === '/api/delete') {
+    const auth = (opts.headers || {}).Authorization || '';
+    if (!demoSessions.has(auth.replace('Bearer ', ''))) {
+      return new Response(JSON.stringify({ result: 'NOK' }), { status: 401 });
+    }
+    const del = JSON.parse(opts.body);
+    await sleep(1800);
+    const pk = del.Packager === 1 ? state.packager1 : state.packager2;
+    const found = pk.Queue[del.Position];
+    const ok = found && found.Qr === del.Pallet.Qr;
+    if (ok) pk.Queue.splice(del.Position, 1);
+    return new Response(JSON.stringify(ok
+      ? { result: 'OK' }
+      : { result: 'NOK', error: 'El palet ya no está en esa posición' }), { status: 200 });
+  }
+  return new Response('{}', { status: 404 });
+};
+
+const fakeSources = new Set();
+window.EventSource = class {
+  constructor() {
+    this.handlers = {};
+    fakeSources.add(this);
+  }
+
+  addEventListener(type, cb) {
+    (this.handlers[type] = this.handlers[type] || []).push(cb);
+  }
+
+  close() {
+    fakeSources.delete(this);
+  }
+};
+
+setInterval(() => {
+  const t = now();
+  stepEntry(t);
+  stepCar(t);
+  stepPackager1(t);
+  stepPackager2(t);
+  stepDisturbances(t);
+  const data = JSON.stringify(buildStatus());
+  for (const s of fakeSources) (s.handlers.status || []).forEach((cb) => cb({ data }));
+}, 500);
+
+/*__APP__*/
+</script>

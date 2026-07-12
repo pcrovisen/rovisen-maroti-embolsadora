@@ -1,0 +1,110 @@
+<title>Diagnóstico — Línea Embolsadora</title>
+<style>
+/*__CSS__*/
+
+/* Demo-only additions */
+.demo-badge {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  color: var(--warn);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+</style>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-dot on"></span>
+    <h1>Diagnóstico — Máquinas de estado</h1>
+  </div>
+  <div class="conns"></div>
+  <span class="demo-badge">DEMO · simulación en el navegador</span>
+</header>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d4f70"></path>
+    </marker>
+    <marker id="arrowActive" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4da3ff"></path>
+    </marker>
+  </defs>
+</svg>
+
+<main class="diag-page">
+  <p class="diag-hint">
+    Réplica exacta de la página de diagnóstico del Web HMI, alimentada por la
+    misma simulación de la línea que usa el servidor de desarrollo (corre en
+    esta pestaña). Seleccione una máquina de la lista. El estado actual se
+    muestra en verde, ordenado según el flujo declarado en el código (inicio
+    arriba). Las flechas indican la señal que dispara cada transición (⏱ =
+    por tiempo) y se encienden en verde cuando esa condición está activa.
+    Flechas tenues: transiciones posibles; resaltadas: observadas;
+    azul animado: la última;
+    <span class="hint-warn">naranja</span>: transición no declarada.
+  </p>
+  <div class="diag2">
+    <aside class="panel machine-list" id="machineList"></aside>
+    <section class="panel machine-view">
+      <div class="machine-head">
+        <h2 id="mvName">—</h2>
+        <span class="machine-state" id="mvState"></span>
+      </div>
+      <div id="mvGraph"></div>
+      <div class="mv-signals">
+        <h3 class="signals-title">Señales de esta máquina</h3>
+        <div class="signals" id="mvSignals"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+/*__COMMON__*/
+
+const TRANSITIONS = /*__TRANSITIONS__*/;
+
+/*__DIAG__*/
+
+// ---------------------------------------------------------------------------
+// Local line simulation (same code as devserver/dummy_server.mjs)
+// ---------------------------------------------------------------------------
+
+const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
+const MACHINE_STATES = Object.fromEntries([
+  'FatekPLCCommunication', 'PalletEntry', 'PalletLabel1', 'PalletLabel2',
+  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs',
+].map((n) => [n, TRANSITIONS[n].states]));
+
+/*__SIM__*/
+
+// ---------------------------------------------------------------------------
+// Drive the page from the local simulation instead of SSE
+// ---------------------------------------------------------------------------
+
+DECLARED = TRANSITIONS;
+
+setInterval(() => {
+  const t = now();
+  stepEntry(t);
+  stepCar(t);
+  stepPackager1(t);
+  stepPackager2(t);
+  stepDisturbances(t);
+  const st = buildStatus();
+  lastStatus = st;
+  for (const [name, idx] of Object.entries(st.MachineState)) {
+    const statesDict = st.States && st.States[name];
+    if (!statesDict) continue;
+    setMachineState(name, ensureMeta(name, statesDict), idx);
+  }
+  refreshStateTexts();
+  refreshView(st);
+}, 500);
+</script>
