@@ -111,8 +111,8 @@ namespace ModbusServer.StateMachine
                 case States.WaitingGetQr:
                     if (getQrTask.IsCompleted)
                     {
-                        var qrString = getQrTask.Result;
-                        if (qrString != "")
+                        var qrString = getQrTask.IsFaulted ? null : getQrTask.Result;
+                        if (!string.IsNullOrEmpty(qrString))
                         {
                             _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.error_entrega_a_embolsadora_2, code: qrString);
                             errorSend = true;

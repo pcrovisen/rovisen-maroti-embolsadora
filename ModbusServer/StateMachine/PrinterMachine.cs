@@ -149,7 +149,7 @@ namespace ModbusServer.StateMachine
                 case States.SendWeightOk:
                     if (omronWritingTask.IsCompleted)
                     {
-                        if (omronWritingTask.Result)
+                        if (!omronWritingTask.IsFaulted && omronWritingTask.Result)
                         {
                             Log.Info("PLC receive weight OK");
                             NextState(States.WeightOk);
@@ -206,7 +206,12 @@ namespace ModbusServer.StateMachine
                 case States.WaitPallet:
                     if(omronWaitingPallet.IsCompleted)
                     {
-                        if(omronWaitingPallet.Result == 1)
+                        if (omronWaitingPallet.IsFaulted)
+                        {
+                            Log.Error("Could not read pallet position. Retrying");
+                            omronWaitingPallet = plc.ReadDM(25);
+                        }
+                        else if(omronWaitingPallet.Result == 1)
                         {
                             if (shouldLabel)
                             {
@@ -315,7 +320,7 @@ namespace ModbusServer.StateMachine
                 case States.WaitApplicatorReady:
                     if (readingBitTask.IsCompleted)
                     {
-                        if (readingBitTask.Result == 0)
+                        if (readingBitTask.IsFaulted || readingBitTask.Result == 0)
                         {
                             readingBitTask = plc.ReadCIOBit(160, 6);
                         }
@@ -330,7 +335,7 @@ namespace ModbusServer.StateMachine
                 case States.Reset1:
                     if (omronWritingTask.IsCompleted)
                     {
-                        if (omronWritingTask.Result)
+                        if (!omronWritingTask.IsFaulted && omronWritingTask.Result)
                         {
                             if(StateTime.ElapsedMilliseconds > 220)
                             {
@@ -349,7 +354,7 @@ namespace ModbusServer.StateMachine
                 case States.Reset2:
                     if (omronWritingTask.IsCompleted)
                     {
-                        if (omronWritingTask.Result)
+                        if (!omronWritingTask.IsFaulted && omronWritingTask.Result)
                         {
                             /*Log.Info("Wait label instruction");
                             omronReadingDataTask = plc.ReadDMs(10, 2);
@@ -415,7 +420,7 @@ namespace ModbusServer.StateMachine
                 case States.WaitPLCConfirmation:
                     if (omronWritingTask.IsCompleted)
                     {
-                        if (omronWritingTask.Result)
+                        if (!omronWritingTask.IsFaulted && omronWritingTask.Result)
                         {
                             omronReadingDataTask = plc.ReadDMs(10, 2);
                             NextState(States.WaitLabelInstruction);
@@ -431,7 +436,7 @@ namespace ModbusServer.StateMachine
                 case States.Skipped:
                     if(omronWritingTask.IsCompleted)
                     {
-                        if(omronWritingTask.Result)
+                        if(!omronWritingTask.IsFaulted && omronWritingTask.Result)
                         {
                             Log.Info("PLC recieved the skip signal");
                             NextState(States.Completed);
