@@ -65,7 +65,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreatePackageCommand(code), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreatePackageCommand(connection, code).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -98,7 +98,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateLabelsCommand(code, weight), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreateLabelsCommand(connection, code, weight).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -129,7 +129,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreatePalletOutCommand(code), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreatePalletOutCommand(connection, code).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -156,7 +156,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreatePalletInCommand(code, packager), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreatePalletInCommand(connection, code, packager).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -183,7 +183,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateErrorCommand(error, code, packager), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreateErrorCommand(connection, error, code, packager).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -210,7 +210,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateConfigCommand(), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreateConfigCommand(connection).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -239,7 +239,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateElevatorCommnad(code, msg), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreateElevatorCommnad(connection, code, msg).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -268,7 +268,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateGetStringFromIDCommnad(id), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreateGetStringFromIDCommnad(connection, id).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -296,7 +296,7 @@ namespace ModbusServer.Devices
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = new SqlCommand(CreateGetIDFromStringCommnad(code), connection).ExecuteReader())
+                    using (SqlDataReader sqlDataReader = CreateGetIDFromStringCommnad(connection, code).ExecuteReader())
                     {
                         await sqlDataReader.ReadAsync();
                         Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
@@ -312,102 +312,134 @@ namespace ModbusServer.Devices
             }
         }
 
-        private string CreatePackageCommand(string code)
+        private SqlCommand CreatePackageCommand(SqlConnection connection, string code)
         {
-            return ("\r\n DECLARE @out_preferencia_embolsadora INT;\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_preferencia_embolsadora INT;\r\n" +
                     " DECLARE @out_receta INT;\r\n" +
                     " DECLARE @out_identificador_visual NVARCHAR(50);\r\n" +
                     " DECLARE @out_omitir_proceso_etiquetado BIT;\r\n" +
                     "EXECUTE [maroti].[sp_evento_lectura_codigo]\r\n" +
-                    "@in_codigo = '" + code + "'\r\n" +
-                    ",@in_disponibilidad_embolsadora_1 = " + (FatekPLC.ReadBit(FatekPLC.Signals.bcd1Avaliable) ? 1 : 0)  + "\r\n" +
-                    ",@in_disponibilidad_embolsadora_2 = " + (FatekPLC.ReadBit(FatekPLC.Signals.bcd2Avaliable) ? 1 : 0) + "\r\n" +
+                    "@in_codigo = @codigo\r\n" +
+                    ",@in_disponibilidad_embolsadora_1 = @disponibilidad1\r\n" +
+                    ",@in_disponibilidad_embolsadora_2 = @disponibilidad2\r\n" +
                     ",@out_preferencia_embolsadora = @out_preferencia_embolsadora OUTPUT\r\n" +
                     ",@out_receta = @out_receta OUTPUT\r\n" +
                     ",@out_identificador_visual = @out_identificador_visual OUTPUT\r\n" +
                     ",@out_omitir_proceso_etiquetado = @out_omitir_proceso_etiquetado OUTPUT;\r\n\r\n" +
-                    "select @out_preferencia_embolsadora, @out_receta, @out_identificador_visual, @out_omitir_proceso_etiquetado;\r\n");
+                    "select @out_preferencia_embolsadora, @out_receta, @out_identificador_visual, @out_omitir_proceso_etiquetado;\r\n", connection);
+            command.Parameters.AddWithValue("@codigo", code);
+            command.Parameters.AddWithValue("@disponibilidad1", FatekPLC.ReadBit(FatekPLC.Signals.bcd1Avaliable) ? 1 : 0);
+            command.Parameters.AddWithValue("@disponibilidad2", FatekPLC.ReadBit(FatekPLC.Signals.bcd2Avaliable) ? 1 : 0);
+            return command;
         }
 
-        private string CreateLabelsCommand(string code, int weight)
+        private SqlCommand CreateLabelsCommand(SqlConnection connection, string code, int weight)
         {
-            return ("\r\n DECLARE @out_comando_etiqueta_1 NVARCHAR(MAX);\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_comando_etiqueta_1 NVARCHAR(MAX);\r\n" +
                     " DECLARE @out_comando_etiqueta_2 NVARCHAR(MAX);\r\n" +
                     "EXECUTE [maroti].[sp_evento_peso_embolsadora_y_datos_etiquetado]\r\n" +
-                    "@in_codigo = '" + code + "'\r\n" +
-                    ",@in_peso_gramos = " + weight + "\r\n" +
+                    "@in_codigo = @codigo\r\n" +
+                    ",@in_peso_gramos = @peso\r\n" +
                     ",@out_comando_etiqueta_1 = @out_comando_etiqueta_1 OUTPUT\r\n" +
                     ",@out_comando_etiqueta_2 = @out_comando_etiqueta_2 OUTPUT;\r\n\r\n" +
-                    "select @out_comando_etiqueta_1, @out_comando_etiqueta_2;\r\n");
+                    "select @out_comando_etiqueta_1, @out_comando_etiqueta_2;\r\n", connection);
+            command.Parameters.AddWithValue("@codigo", code);
+            command.Parameters.AddWithValue("@peso", weight);
+            return command;
         }
 
-        private string CreatePalletInCommand(string code, int packager)
+        private SqlCommand CreatePalletInCommand(SqlConnection connection, string code, int packager)
         {
-            return ("\r\n DECLARE @out_ack INT;\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_ack INT;\r\n" +
                     "EXECUTE [maroti].[sp_evento_ingreso_embolsadora]\r\n" +
-                    "@in_codigo = '" + code + "'\r\n" +
-                    ",@in_embolsadora = " + packager + "\r\n" +
+                    "@in_codigo = @codigo\r\n" +
+                    ",@in_embolsadora = @embolsadora\r\n" +
                     ",@out_ack = @out_ack OUTPUT;\r\n\r\n" +
-                    "select @out_ack;\r\n");
+                    "select @out_ack;\r\n", connection);
+            command.Parameters.AddWithValue("@codigo", code);
+            command.Parameters.AddWithValue("@embolsadora", packager);
+            return command;
         }
 
-        private string CreatePalletOutCommand(string code)
+        private SqlCommand CreatePalletOutCommand(SqlConnection connection, string code)
         {
-            return ("\r\n DECLARE @out_ack INT;\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_ack INT;\r\n" +
                     "EXECUTE [maroti].[sp_evento_etiquetado]\r\n" +
-                    "@in_codigo = '" + code + "'\r\n" +
+                    "@in_codigo = @codigo\r\n" +
                     ",@out_ack = @out_ack OUTPUT;\r\n\r\n" +
-                    "select @out_ack;\r\n");
+                    "select @out_ack;\r\n", connection);
+            command.Parameters.AddWithValue("@codigo", code);
+            return command;
         }
 
-        private string CreateErrorCommand(string error, string code, int packager)
+        private SqlCommand CreateErrorCommand(SqlConnection connection, string error, string code, int packager)
         {
-            return ("\r\n DECLARE @out_ack INT;\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_ack INT;\r\n" +
                     "EXECUTE [maroti].[sp_evento_alarma]\r\n" +
-                    "@in_id_tipo_alerta = '" + error + "'\r\n" +
-                    ",@in_id_embolsadora = " + (packager == 0 ? "NULL" : packager.ToString()) + "\r\n" +
-                    ",@in_codigo = " + (code == "" ? "NULL" : ("'" + code + "'")) + "\r\n" +
+                    "@in_id_tipo_alerta = @tipoAlerta\r\n" +
+                    ",@in_id_embolsadora = @embolsadora\r\n" +
+                    ",@in_codigo = @codigo\r\n" +
                     ",@out_ack = @out_ack OUTPUT;\r\n\r\n" +
-                    "select @out_ack;\r\n");
+                    "select @out_ack;\r\n", connection);
+            command.Parameters.AddWithValue("@tipoAlerta", error);
+            command.Parameters.AddWithValue("@embolsadora", packager == 0 ? (object)DBNull.Value : packager);
+            command.Parameters.AddWithValue("@codigo", string.IsNullOrEmpty(code) ? (object)DBNull.Value : code);
+            return command;
         }
-        private string CreateConfigCommand()
+        private SqlCommand CreateConfigCommand(SqlConnection connection)
         {
-            return ("\r\n DECLARE @out_continuar_sin_lectura_codigo BIT;\r\n" +
+            return new SqlCommand(
+                    "\r\n DECLARE @out_continuar_sin_lectura_codigo BIT;\r\n" +
                     " DECLARE @out_continuar_sin_respuesta_db BIT;\r\n" +
                     " DECLARE @out_receta_por_defecto INT;\r\n" +
                     "EXECUTE [maroti].[sp_get_parametros]\r\n" +
                     "@out_continuar_sin_lectura_codigo = @out_continuar_sin_lectura_codigo OUTPUT\r\n" +
                     ",@out_continuar_sin_respuesta_db = @out_continuar_sin_respuesta_db OUTPUT\r\n" +
                     ",@out_receta_por_defecto = @out_receta_por_defecto OUTPUT;\r\n\r\n" +
-                    "select @out_continuar_sin_lectura_codigo, out_continuar_sin_respuesta_db, out_receta_por_defecto;\r\n");
+                    "select @out_continuar_sin_lectura_codigo, @out_continuar_sin_respuesta_db, @out_receta_por_defecto;\r\n", connection);
         }
 
-        private string CreateElevatorCommnad(string code, string msg)
+        private SqlCommand CreateElevatorCommnad(SqlConnection connection, string code, string msg)
         {
-            return ("\r\n DECLARE @out_autorizado BIT;\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_autorizado BIT;\r\n" +
                     "EXECUTE [maroti].[sp_solicitar_ingreso_por_elevador]\r\n" +
-                    "@in_codigo = '" + code + "'\r\n" +
-                    ",@in_msg = '" + msg + "'\r\n" +
+                    "@in_codigo = @codigo\r\n" +
+                    ",@in_msg = @msg\r\n" +
                     ",@out_autorizado = @out_autorizado OUTPUT;\r\n\r\n" +
-                    "select @out_autorizado;\r\n");
+                    "select @out_autorizado;\r\n", connection);
+            command.Parameters.AddWithValue("@codigo", code ?? string.Empty);
+            command.Parameters.AddWithValue("@msg", msg ?? string.Empty);
+            return command;
         }
 
-        private string CreateGetStringFromIDCommnad(int id)
+        private SqlCommand CreateGetStringFromIDCommnad(SqlConnection connection, int id)
         {
-            return ("\r\n DECLARE @out_codigo NVARCHAR(200);\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_codigo NVARCHAR(200);\r\n" +
                     "EXECUTE [maroti].[sp_get_codigo]\r\n" +
-                    "@in_id = " + id + "\r\n" +
+                    "@in_id = @id\r\n" +
                     ",@out_codigo = @out_codigo OUTPUT;\r\n\r\n" +
-                    "select @out_codigo;\r\n");
+                    "select @out_codigo;\r\n", connection);
+            command.Parameters.AddWithValue("@id", id);
+            return command;
         }
 
-        private string CreateGetIDFromStringCommnad(string code)
+        private SqlCommand CreateGetIDFromStringCommnad(SqlConnection connection, string code)
         {
-            return ("\r\n DECLARE @out_id INT;\r\n" +
+            var command = new SqlCommand(
+                    "\r\n DECLARE @out_id INT;\r\n" +
                     "EXECUTE [maroti].[sp_get_id]\r\n" +
-                    "@in_codigo = '" + code + "'\r\n" +
+                    "@in_codigo = @codigo\r\n" +
                     ",@out_id = @out_id OUTPUT;\r\n\r\n" +
-                    "select @out_id;\r\n");
+                    "select @out_id;\r\n", connection);
+            command.Parameters.AddWithValue("@codigo", code);
+            return command;
         }
     }
 }
