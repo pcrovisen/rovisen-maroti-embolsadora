@@ -1,12 +1,18 @@
 // Vista de planta — SCADA-style synoptic of the bagging line.
 //
-// Plan view, north up. Pallets enter on a vertical conveyor (south → north),
-// get their QR read, and at the junction go right to Bocedi 1 or left onto
-// the transfer car, which runs a straight rail to Bocedi 2's entrance.
-// Bocedi 2 mirrors Bocedi 1 (both flow outward from the center); each has a
-// labeling station drawn as a circle, and discharges north. Pallets carry
-// their data above them and glide between stations; wheel/pinch zooms,
-// dragging pans.
+// Plan view, north up. Pallets enter on a vertical conveyor (south → north);
+// the QR reader sits at the north end of the conveyor, and from there the
+// pallet moves sideways: right into Bocedi 1, or left onto the transfer car,
+// which runs a straight rail to Bocedi 2's entrance. The two Bocedis are
+// mirrored enclosures containing entry queue → processing (bagging) →
+// measurement → labeler (circle), discharging north.
+//
+// Pallet positions inside a Bocedi are educated guesses from the FIFO:
+// Queue[0] is shown at the processing station when another pallet is queued
+// behind it (its arrival proves the first advanced), otherwise in the entry
+// queue (1 slot in B1, 2 in B2; overflow waits on the approach outside).
+// LabelPallet sits at measurement, moving onto the labeler circle only while
+// the machine is in its labeling states. ExitPallet is at the output.
 
 'use strict';
 
@@ -22,34 +28,40 @@ function svgEl(tag, attrs = {}, parent) {
 }
 
 // ---------------------------------------------------------------------------
-// Geometry (viewBox units). North is up.
+// Geometry (viewBox units). North is up. Main east-west axis at y = 320.
 // ---------------------------------------------------------------------------
 
+const Y = 320;
+
 const GEO = {
-  world: { x: 0, y: 40, w: 1600, h: 900 },
-  laneY: 320,              // main east-west axis (B2 lane, car rail, B1 lane)
-  entryX: 800,             // entry conveyor (vertical)
+  world: { x: 0, y: 40, w: 2000, h: 940 },
+  entryX: 1050,
   entrySouth: 860,
-  qrY: 470,                // reading position on the conveyor
-  approachY: 385,          // waiting just before the junction
-  b1: {
-    entrance: 872,
-    slots: [1192, 1128, 1064, 1000, 936],   // queue[0] nearest the machine
-    circle: { x: 1298, y: 320, r: 34 },
-    rect: { x: 1244, y: 268, w: 108, h: 104 },
-    exitY: 182,
+  qrY: 370,                       // reading position: north end of the conveyor
+  b1: {                           // flow west → east
+    box: { x: 1200, y: 240, w: 580, h: 160 },
+    approach: [{ x: 1160 }, { x: 1104 }, { x: 1048 }],  // backlog outside, toward the junction
+    entryQueue: [{ x: 1262 }],
+    processing: { x: 1392 },
+    measurement: { x: 1524 },
+    labeler: { x: 1662, r: 36 },
+    output: { x: 1662, y: 170 },
+    entrance: 1226,
   },
-  b2: {
-    slots: [214, 278, 342, 406, 470],       // mirrored: queue[0] nearest the machine
-    circle: { x: 108, y: 320, r: 34 },
-    rect: { x: 54, y: 268, w: 108, h: 104 },
-    exitY: 182,
+  b2: {                           // mirrored: flow east → west
+    box: { x: 220, y: 240, w: 580, h: 160 },
+    approach: [{ x: 830, y: 420 }, { x: 830, y: 486 }], // rare overflow, beside the dock
+    entryQueue: [{ x: 738 }, { x: 668 }],
+    processing: { x: 548 },
+    measurement: { x: 428 },
+    labeler: { x: 308, r: 36 },
+    output: { x: 308, y: 170 },
   },
-  car: { inB1: 736, inB2: 534, unknown: 635, y: 320 },
+  car: { inB1: 990, inB2: 830, unknown: 910 },
 };
 
 const PALLET_HALF = 22;
-const LABELING_STATE = 3; // PalletLabel States.Labeling
+const AT_LABELER_STATES = [3, 4, 5]; // PalletLabel: Labeling, WaitUpdate2, WaitAck
 
 // ---------------------------------------------------------------------------
 // Static scene
@@ -62,7 +74,6 @@ function lane(x, y, w, h, parent) {
 }
 
 function chevrons(parent, x0, y0, x1, y1, count) {
-  // Direction arrows along a lane from (x0,y0) to (x1,y1).
   const dx = x1 - x0;
   const dy = y1 - y0;
   const len = Math.hypot(dx, dy);
@@ -78,13 +89,14 @@ function chevrons(parent, x0, y0, x1, y1, count) {
   }
 }
 
-function station(rect, name, parent) {
+function subStation(x, label, parent, labelBelowY = 392) {
   svgEl('rect', {
-    x: rect.x, y: rect.y, width: rect.w, height: rect.h, class: 'station', rx: 8,
+    x: x - 30, y: Y - 30, width: 60, height: 60, rx: 6, class: 'sub-station',
   }, parent);
-  svgEl('text', {
-    x: rect.x + rect.w / 2, y: rect.y - 12, class: 'station-name', 'text-anchor': 'middle',
-  }, parent).textContent = name;
+  if (label) {
+    svgEl('text', { x, y: labelBelowY, class: 'station-sub', 'text-anchor': 'middle' }, parent)
+      .textContent = label;
+  }
 }
 
 let carEl;
@@ -92,73 +104,79 @@ let qrBoxEl;
 let labelCircle1;
 let labelCircle2;
 
+function buildBocedi(geo, name, parent) {
+  const b = geo.box;
+  svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 12, class: 'bocedi-box' }, parent);
+  svgEl('text', {
+    x: b.x + b.w / 2, y: b.y - 14, class: 'station-name', 'text-anchor': 'middle',
+  }, parent).textContent = name;
+
+  geo.entryQueue.forEach((s, i) => subStation(s.x, i === 0 ? 'Cola' : '', parent));
+  subStation(geo.processing.x, 'Embolsado', parent);
+  subStation(geo.measurement.x, 'Medición', parent);
+
+  const circle = svgEl('circle', {
+    cx: geo.labeler.x, cy: Y, r: geo.labeler.r, class: 'labeling-circle',
+  }, parent);
+  svgEl('text', {
+    x: geo.labeler.x, y: 392, class: 'station-sub', 'text-anchor': 'middle',
+  }, parent).textContent = 'Etiquetado';
+
+  // Output lane heading north
+  lane(geo.labeler.x - 22, 120, 44, b.y - 120, layers.lanes);
+  chevrons(layers.lanes, geo.labeler.x, b.y - 8, geo.labeler.x, 130, 2);
+  svgEl('text', {
+    x: geo.output.x, y: 104, class: 'station-name', 'text-anchor': 'middle',
+  }, parent).textContent = 'Salida (N)';
+
+  return circle;
+}
+
 function buildScene() {
-  svg.setAttribute('viewBox', `${GEO.world.x} ${GEO.world.y} ${GEO.world.w} ${GEO.world.h}`);
   layers.floor = svgEl('g', {}, svg);
   layers.lanes = svgEl('g', {}, svg);
   layers.stations = svgEl('g', {}, svg);
   layers.car = svgEl('g', {}, svg);
   layers.pallets = svgEl('g', {}, svg);
 
-  const Y = GEO.laneY;
-
   // Compass
-  const comp = svgEl('g', { class: 'compass', transform: 'translate(52 120)' }, layers.floor);
+  const comp = svgEl('g', { class: 'compass', transform: 'translate(60 130)' }, layers.floor);
   svgEl('line', { x1: 0, y1: 18, x2: 0, y2: -14, class: 'compass-line' }, comp);
   svgEl('polygon', { points: '-6,-8 0,-22 6,-8', class: 'compass-n' }, comp);
   svgEl('text', { x: 0, y: 38, 'text-anchor': 'middle', class: 'station-name' }, comp).textContent = 'N';
 
-  // Lanes
-  lane(GEO.entryX - 24, Y - 22, 48, GEO.entrySouth - Y + 80, layers.lanes);      // entry conveyor
-  lane(GEO.b1.entrance - 32, Y - 22, GEO.b1.rect.x - GEO.b1.entrance + 32, 44, layers.lanes); // B1 lane
-  lane(GEO.b2.rect.x + GEO.b2.rect.w, Y - 22, GEO.b2.slots[4] + 60 - (GEO.b2.rect.x + GEO.b2.rect.w), 44, layers.lanes); // B2 lane
-  lane(GEO.b1.circle.x - 22, 120, 44, Y - 34 - 120, layers.lanes);               // B1 exit north
-  lane(GEO.b2.circle.x - 22, 120, 44, Y - 34 - 120, layers.lanes);               // B2 exit north
+  // Entry conveyor (south → north) and the approach to Bocedi 1
+  lane(GEO.entryX - 24, Y - 22, 48, GEO.entrySouth - Y + 100, layers.lanes);
+  lane(GEO.entryX + 24, Y - 22, GEO.b1.box.x - GEO.entryX - 24, 44, layers.lanes);
+  chevrons(layers.lanes, GEO.entryX, GEO.entrySouth + 40, GEO.entryX, Y + 16, 5);
+  chevrons(layers.lanes, GEO.entryX + 40, Y, GEO.b1.box.x - 10, Y, 2);
 
-  chevrons(layers.lanes, GEO.entryX, GEO.entrySouth + 30, GEO.entryX, Y + 10, 5);
-  chevrons(layers.lanes, GEO.b1.entrance, Y, GEO.b1.rect.x - 10, Y, 4);
-  chevrons(layers.lanes, GEO.b2.slots[4] + 40, Y, GEO.b2.rect.x + GEO.b2.rect.w + 10, Y, 4);
-  chevrons(layers.lanes, GEO.b1.circle.x, Y - 40, GEO.b1.circle.x, 130, 3);
-  chevrons(layers.lanes, GEO.b2.circle.x, Y - 40, GEO.b2.circle.x, 130, 3);
-
-  // Car rail
+  // Car rail (junction ← west → Bocedi 2 entrance)
   svgEl('line', {
-    x1: GEO.car.inB2 - 40, y1: Y, x2: GEO.car.inB1 + 40, y2: Y, class: 'rail',
+    x1: GEO.b2.box.x + GEO.b2.box.w, y1: Y, x2: GEO.car.inB1 + 46, y2: Y, class: 'rail',
   }, layers.lanes);
-  for (let x = GEO.car.inB2 - 40; x <= GEO.car.inB1 + 40; x += 26) {
+  for (let x = GEO.b2.box.x + GEO.b2.box.w + 6; x <= GEO.car.inB1 + 44; x += 26) {
     svgEl('line', { x1: x, y1: Y - 9, x2: x, y2: Y + 9, class: 'rail-tie' }, layers.lanes);
   }
 
-  // Stations
-  station(GEO.b1.rect, 'Bocedi 1', layers.stations);
-  station(GEO.b2.rect, 'Bocedi 2', layers.stations);
-  labelCircle1 = svgEl('circle', {
-    cx: GEO.b1.circle.x, cy: GEO.b1.circle.y, r: GEO.b1.circle.r, class: 'labeling-circle',
-  }, layers.stations);
-  labelCircle2 = svgEl('circle', {
-    cx: GEO.b2.circle.x, cy: GEO.b2.circle.y, r: GEO.b2.circle.r, class: 'labeling-circle',
-  }, layers.stations);
-  svgEl('text', {
-    x: GEO.b1.circle.x, y: GEO.b1.rect.y + GEO.b1.rect.h + 20, class: 'station-sub', 'text-anchor': 'middle',
-  }, layers.stations).textContent = 'Etiquetado';
-  svgEl('text', {
-    x: GEO.b2.circle.x, y: GEO.b2.rect.y + GEO.b2.rect.h + 20, class: 'station-sub', 'text-anchor': 'middle',
-  }, layers.stations).textContent = 'Etiquetado';
+  // Bocedis
+  labelCircle1 = buildBocedi(GEO.b1, 'Bocedi 1', layers.stations);
+  labelCircle2 = buildBocedi(GEO.b2, 'Bocedi 2', layers.stations);
 
-  // QR reader beside the entry conveyor
-  qrBoxEl = svgEl('g', { class: 'qr-station', transform: `translate(${GEO.entryX + 44} ${GEO.qrY - 24})` }, layers.stations);
+  // QR reader at the north end of the entry conveyor
+  qrBoxEl = svgEl('g', {
+    class: 'qr-station', transform: `translate(${GEO.entryX + 44} ${GEO.qrY - 24})`,
+  }, layers.stations);
   svgEl('rect', { x: 0, y: 0, width: 52, height: 48, rx: 8, class: 'qr-box' }, qrBoxEl);
   svgEl('text', { x: 26, y: 30, 'text-anchor': 'middle', class: 'qr-text' }, qrBoxEl).textContent = 'QR';
   svgEl('line', { x1: 0, y1: 24, x2: -18, y2: 24, class: 'qr-beam' }, qrBoxEl);
 
-  // Text labels
+  // Tags
   const tag = (x, y, text) => {
     svgEl('text', { x, y, class: 'station-name', 'text-anchor': 'middle' }, layers.floor).textContent = text;
   };
-  tag(GEO.entryX, GEO.entrySouth + 66, 'Entrada (S)');
-  tag(GEO.b1.circle.x, 104, 'Salida (N)');
-  tag(GEO.b2.circle.x, 104, 'Salida (N)');
-  tag((GEO.car.inB1 + GEO.car.inB2) / 2, Y + 46, 'Carro de transferencia');
+  tag(GEO.entryX, GEO.entrySouth + 86, 'Entrada (S)');
+  tag((GEO.car.inB1 + GEO.car.inB2) / 2, Y + 52, 'Carro');
 
   // The car
   carEl = svgEl('g', { class: 'car-body' }, layers.car);
@@ -170,14 +188,14 @@ function buildScene() {
 
 function moveCar(x, seconds) {
   carEl.style.transitionDuration = `${seconds}s`;
-  carEl.style.transform = `translate(${x}px, ${GEO.laneY}px)`;
+  carEl.style.transform = `translate(${x}px, ${Y}px)`;
 }
 
 // ---------------------------------------------------------------------------
 // Pallets: create/move/remove by QR identity
 // ---------------------------------------------------------------------------
 
-const palletEls = new Map(); // qr -> { g, riding }
+const palletEls = new Map(); // qr -> { g, label }
 
 function palletLabelText(p) {
   return [p.Qr, [p.Id && p.Id !== '0' ? `Id ${p.Id}` : '', p.Injector].filter(Boolean).join(' · ')];
@@ -228,13 +246,33 @@ function entryPalletTarget(st) {
   const p = st.EntryPallet;
   if (!p || !p.Qr) return null;
   const s = st.MachineState.PalletEntry;
-  const X = GEO.entryX;
-  if (s >= PE.ReadingQR && s <= PE.SendingID) return { x: X, y: GEO.qrY };
-  if (s === PE.ReadingQrInError) return { x: X, y: GEO.qrY };
-  if (s === PE.WaitForBocedi1 || s === PE.WaitForCar) return { x: X, y: GEO.approachY };
-  if (s === PE.WaitEnterBocedi) return { x: GEO.b1.entrance, y: GEO.laneY };
-  if (s === PE.WaitEnterCar) return { x: GEO.car.inB1, y: GEO.laneY };
+  if ((s >= PE.ReadingQR && s <= PE.SendingID) || s === PE.ReadingQrInError) {
+    return { x: GEO.entryX, y: GEO.qrY };
+  }
+  if (s === PE.WaitForBocedi1 || s === PE.WaitForCar) return { x: GEO.entryX, y: Y };
+  if (s === PE.WaitEnterBocedi) return { x: GEO.b1.entrance, y: Y };
+  if (s === PE.WaitEnterCar) return { x: GEO.car.inB1, y: Y };
   return null; // Waiting / update states / Paused: shown elsewhere or gone
+}
+
+function packagerTargets(pk, geo, labelState, add) {
+  const q = pk.Queue || [];
+  const firstAdvanced = q.length >= 2; // someone arrived behind: queue[0] is processing
+  q.forEach((p, i) => {
+    let pos;
+    if (i === 0 && firstAdvanced) {
+      pos = geo.processing;
+    } else {
+      const j = firstAdvanced ? i - 1 : i; // index within the entry queue
+      pos = geo.entryQueue[j] || geo.approach[j - geo.entryQueue.length];
+    }
+    if (pos) add(p, pos.x, pos.y ?? Y, { labelHigh: i % 2 === 1 });
+  });
+  if (pk.LabelPallet) {
+    const pos = AT_LABELER_STATES.includes(labelState) ? geo.labeler : geo.measurement;
+    add(pk.LabelPallet, pos.x, Y);
+  }
+  if (pk.ExitPallet) add(pk.ExitPallet, geo.output.x, geo.output.y);
 }
 
 function collectTargets(st) {
@@ -244,18 +282,12 @@ function collectTargets(st) {
     targets.set(pallet.Qr, { pallet, x, y, ...opts });
   };
 
-  for (const [pk, geo] of [[st.Packager1, GEO.b1], [st.Packager2, GEO.b2]]) {
-    if (!pk) continue;
-    (pk.Queue || []).forEach((p, i) => {
-      if (i < geo.slots.length) add(p, geo.slots[i], GEO.laneY, { labelHigh: i % 2 === 1 });
-    });
-    add(pk.LabelPallet, geo.circle.x, geo.circle.y);
-    add(pk.ExitPallet, geo.circle.x, geo.exitY);
-  }
+  if (st.Packager1) packagerTargets(st.Packager1, GEO.b1, st.MachineState.PalletLabel1, add);
+  if (st.Packager2) packagerTargets(st.Packager2, GEO.b2, st.MachineState.PalletLabel2, add);
 
   if (st.Car && st.Car.HasPallet && st.Car.Pallet) {
     const t = carTarget(st.Car.CarPosition);
-    add(st.Car.Pallet, t.x, GEO.laneY, { seconds: t.seconds });
+    add(st.Car.Pallet, t.x, Y, { seconds: t.seconds });
   }
 
   const et = entryPalletTarget(st);
@@ -297,21 +329,18 @@ function handleStatus(st) {
     chip.classList.toggle('on', !!st.Connections[key]);
   }
 
-  // Car
   const ct = carTarget(st.Car ? st.Car.CarPosition : 0);
   moveCar(ct.x, ct.seconds);
   carEl.classList.toggle('unknown', !st.Car || st.Car.CarPosition === 0);
 
-  // QR reader status (mirrors the dashboard camera logic)
   const s = st.MachineState.PalletEntry;
   qrBoxEl.setAttribute('class', 'qr-station');
   if (s === PE.ReadingQrInError) qrBoxEl.classList.add('bad', 'blink');
   else if (s === PE.ReadingQR || s === PE.Paused) qrBoxEl.classList.add('ok', 'blink');
   else if (s !== undefined && s !== PE.Waiting) qrBoxEl.classList.add('ok');
 
-  // Labeling circles pulse while labeling
-  labelCircle1.classList.toggle('active', st.MachineState.PalletLabel1 === LABELING_STATE);
-  labelCircle2.classList.toggle('active', st.MachineState.PalletLabel2 === LABELING_STATE);
+  labelCircle1.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel1));
+  labelCircle2.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel2));
 
   setPalletTargets(collectTargets(st));
 
@@ -341,7 +370,7 @@ function clientToWorld(cx, cy) {
 
 function zoomAt(cx, cy, factor) {
   const p = clientToWorld(cx, cy);
-  const w = Math.min(Math.max(vb.w * factor, 220), GEO.world.w * 2.2);
+  const w = Math.min(Math.max(vb.w * factor, 260), GEO.world.w * 2.2);
   const scale = w / vb.w;
   vb.x = p.x - (p.x - vb.x) * scale;
   vb.y = p.y - (p.y - vb.y) * scale;
@@ -407,6 +436,7 @@ $('zoomFitBtn').addEventListener('click', () => {
   applyViewBox();
 });
 
+applyViewBox();
 buildScene();
 
 // ---------------------------------------------------------------------------
