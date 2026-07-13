@@ -37,11 +37,12 @@ const GEO = {
   world: { x: 0, y: 40, w: 2000, h: 940 },
   entryX: 1050,
   entrySouth: 860,
-  qrY: 370,                       // reading position: north end of the conveyor
+  qrY: 330,                       // reading position: north end of the conveyor
   b1: {                           // flow west → east
+    dir: 1,
     box: { x: 1200, y: 240, w: 580, h: 160 },
     approach: [{ x: 1160 }, { x: 1104 }, { x: 1048 }],  // backlog outside, toward the junction
-    entryQueue: [{ x: 1262 }],
+    entryQueue: [{ x: 1262 }],   // front-first (nearest processing)
     processing: { x: 1392 },
     measurement: { x: 1524 },
     labeler: { x: 1662, r: 36 },
@@ -49,13 +50,14 @@ const GEO = {
     entrance: 1226,
   },
   b2: {                           // mirrored: flow east → west
+    dir: -1,
     box: { x: 220, y: 240, w: 580, h: 160 },
     approach: [{ x: 830, y: 420 }, { x: 830, y: 486 }], // rare overflow, beside the dock
-    entryQueue: [{ x: 738 }, { x: 668 }],
-    processing: { x: 548 },
-    measurement: { x: 428 },
-    labeler: { x: 308, r: 36 },
-    output: { x: 308, y: 170 },
+    entryQueue: [{ x: 660 }, { x: 740 }], // front-first (nearest processing)
+    processing: { x: 540 },
+    measurement: { x: 420 },
+    labeler: { x: 300, r: 36 },
+    output: { x: 300, y: 170 },
   },
   car: { inB1: 990, inB2: 830, unknown: 910 },
 };
@@ -111,9 +113,25 @@ function buildBocedi(geo, name, parent) {
     x: b.x + b.w / 2, y: b.y - 14, class: 'station-name', 'text-anchor': 'middle',
   }, parent).textContent = name;
 
-  geo.entryQueue.forEach((s, i) => subStation(s.x, i === 0 ? 'Cola' : '', parent));
+  geo.entryQueue.forEach((s, i) => subStation(s.x, i === geo.entryQueue.length - 1 ? 'Cola' : '', parent));
   subStation(geo.processing.x, 'Embolsado', parent);
   subStation(geo.measurement.x, 'Medición', parent);
+
+  // Internal conveyors linking the stations, in flow order.
+  const entranceX = geo.dir === 1 ? b.x : b.x + b.w;
+  const seq = [
+    { x: entranceX, half: 0 },
+    ...geo.entryQueue.slice().reverse().map((s) => ({ x: s.x, half: 30 })),
+    { x: geo.processing.x, half: 30 },
+    { x: geo.measurement.x, half: 30 },
+    { x: geo.labeler.x, half: geo.labeler.r + 4 },
+  ];
+  for (let i = 0; i + 1 < seq.length; i++) {
+    const x1 = seq[i].x + geo.dir * seq[i].half;
+    const x2 = seq[i + 1].x - geo.dir * seq[i + 1].half;
+    svgEl('line', { x1, y1: Y, x2, y2: Y, class: 'conveyor-link' }, parent);
+    chevrons(parent, x1, Y, x2, Y, 1);
+  }
 
   const circle = svgEl('circle', {
     cx: geo.labeler.x, cy: Y, r: geo.labeler.r, class: 'labeling-circle',
@@ -163,13 +181,13 @@ function buildScene() {
   labelCircle1 = buildBocedi(GEO.b1, 'Bocedi 1', layers.stations);
   labelCircle2 = buildBocedi(GEO.b2, 'Bocedi 2', layers.stations);
 
-  // QR reader at the north end of the entry conveyor
+  // QR reader on the north face of the entry conveyor, beam pointing south
   qrBoxEl = svgEl('g', {
-    class: 'qr-station', transform: `translate(${GEO.entryX + 44} ${GEO.qrY - 24})`,
+    class: 'qr-station', transform: `translate(${GEO.entryX} 250)`,
   }, layers.stations);
-  svgEl('rect', { x: 0, y: 0, width: 52, height: 48, rx: 8, class: 'qr-box' }, qrBoxEl);
-  svgEl('text', { x: 26, y: 30, 'text-anchor': 'middle', class: 'qr-text' }, qrBoxEl).textContent = 'QR';
-  svgEl('line', { x1: 0, y1: 24, x2: -18, y2: 24, class: 'qr-beam' }, qrBoxEl);
+  svgEl('rect', { x: -26, y: -24, width: 52, height: 48, rx: 8, class: 'qr-box' }, qrBoxEl);
+  svgEl('text', { x: 0, y: 6, 'text-anchor': 'middle', class: 'qr-text' }, qrBoxEl).textContent = 'QR';
+  svgEl('line', { x1: 0, y1: 24, x2: 0, y2: 52, class: 'qr-beam' }, qrBoxEl);
 
   // Tags
   const tag = (x, y, text) => {
@@ -257,17 +275,35 @@ function entryPalletTarget(st) {
 
 function packagerTargets(pk, geo, labelState, add) {
   const q = pk.Queue || [];
-  const firstAdvanced = q.length >= 2; // someone arrived behind: queue[0] is processing
+  const labelBusy = !!(pk.LabelPallet && pk.LabelPallet.Qr);
+
+  // Chain of queue-occupiable stations, front-most first. Measurement is
+  // available to the queue only while the weighing pallet isn't there.
+  const chain = [
+    ...(labelBusy ? [] : [geo.measurement]),
+    geo.processing,
+    ...geo.entryQueue,
+  ];
+  const entryIdx = chain.length - 1; // pallets arrive at the last entry slot
+
+  // A pallet with s pallets behind it has provably advanced s stations from
+  // the entry slot; pack greedily from the front.
+  let nextFree = 0;
+  let outside = 0;
   q.forEach((p, i) => {
+    const behind = q.length - 1 - i;
+    const slot = Math.max(entryIdx - behind, nextFree);
     let pos;
-    if (i === 0 && firstAdvanced) {
-      pos = geo.processing;
+    if (slot < chain.length) {
+      pos = chain[slot];
+      nextFree = slot + 1;
     } else {
-      const j = firstAdvanced ? i - 1 : i; // index within the entry queue
-      pos = geo.entryQueue[j] || geo.approach[j - geo.entryQueue.length];
+      pos = geo.approach[Math.min(outside++, geo.approach.length - 1)];
+      nextFree = chain.length;
     }
     if (pos) add(p, pos.x, pos.y ?? Y, { labelHigh: i % 2 === 1 });
   });
+
   if (pk.LabelPallet) {
     const pos = AT_LABELER_STATES.includes(labelState) ? geo.labeler : geo.measurement;
     add(pk.LabelPallet, pos.x, Y);
