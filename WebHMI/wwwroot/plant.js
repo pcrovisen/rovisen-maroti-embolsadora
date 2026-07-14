@@ -384,113 +384,14 @@ function handleStatus(st) {
 }
 
 // ---------------------------------------------------------------------------
-// Pan & zoom (viewBox manipulation; mouse, wheel and touch/pinch)
+// Pan & zoom (shared Figma-style controls from common.js)
 // ---------------------------------------------------------------------------
 
-const vb = { ...GEO.world };
+const panZoom = setupPanZoom([floorSvg, svg], GEO.world);
+$('zoomInBtn').addEventListener('click', () => panZoom.zoomCenter(1 / 1.35));
+$('zoomOutBtn').addEventListener('click', () => panZoom.zoomCenter(1.35));
+$('zoomFitBtn').addEventListener('click', () => panZoom.reset());
 
-function applyViewBox() {
-  const box = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
-  svg.setAttribute('viewBox', box);
-  floorSvg.setAttribute('viewBox', box);
-}
-
-function clientToWorld(cx, cy) {
-  const r = svg.getBoundingClientRect();
-  return {
-    x: vb.x + ((cx - r.left) / r.width) * vb.w,
-    y: vb.y + ((cy - r.top) / r.height) * vb.h,
-  };
-}
-
-function zoomAt(cx, cy, factor) {
-  const p = clientToWorld(cx, cy);
-  const w = Math.min(Math.max(vb.w * factor, 900), GEO.world.w * 2.2);
-  const scale = w / vb.w;
-  vb.x = p.x - (p.x - vb.x) * scale;
-  vb.y = p.y - (p.y - vb.y) * scale;
-  vb.w = w;
-  vb.h *= scale;
-  applyViewBox();
-}
-
-// Figma-style navigation: scroll / two-finger drag pans, pinch (Ctrl+wheel
-// on trackpads) zooms. A single touch does nothing; mouse drag still pans.
-svg.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  if (e.ctrlKey || e.metaKey) {
-    zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * 0.01));
-  } else {
-    const r = svg.getBoundingClientRect();
-    vb.x += (e.deltaX / r.width) * vb.w;
-    vb.y += (e.deltaY / r.height) * vb.h;
-    applyViewBox();
-  }
-}, { passive: false });
-
-const pointers = new Map();
-
-const centroidAndDist = () => {
-  const [a, b] = [...pointers.values()];
-  return {
-    cx: (a.x + b.x) / 2,
-    cy: (a.y + b.y) / 2,
-    dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
-  };
-};
-let lastGesture = null;
-
-svg.addEventListener('pointerdown', (e) => {
-  svg.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
-  lastGesture = pointers.size === 2 ? centroidAndDist() : null;
-});
-
-svg.addEventListener('pointermove', (e) => {
-  const prev = pointers.get(e.pointerId);
-  if (!prev) return;
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
-
-  if (pointers.size === 2) {
-    // Two fingers: pan with the centroid, zoom with the distance.
-    const g = centroidAndDist();
-    if (lastGesture) {
-      const r = svg.getBoundingClientRect();
-      vb.x -= ((g.cx - lastGesture.cx) / r.width) * vb.w;
-      vb.y -= ((g.cy - lastGesture.cy) / r.height) * vb.h;
-      applyViewBox();
-      zoomAt(g.cx, g.cy, lastGesture.dist / g.dist);
-    }
-    lastGesture = g;
-  } else if (pointers.size === 1 && e.pointerType === 'mouse') {
-    const r = svg.getBoundingClientRect();
-    vb.x -= ((e.clientX - prev.x) / r.width) * vb.w;
-    vb.y -= ((e.clientY - prev.y) / r.height) * vb.h;
-    applyViewBox();
-  }
-});
-
-for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
-  svg.addEventListener(ev, (e) => {
-    pointers.delete(e.pointerId);
-    lastGesture = pointers.size === 2 ? centroidAndDist() : null;
-  });
-}
-
-$('zoomInBtn').addEventListener('click', () => {
-  const r = svg.getBoundingClientRect();
-  zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.35);
-});
-$('zoomOutBtn').addEventListener('click', () => {
-  const r = svg.getBoundingClientRect();
-  zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.35);
-});
-$('zoomFitBtn').addEventListener('click', () => {
-  Object.assign(vb, GEO.world);
-  applyViewBox();
-});
-
-applyViewBox();
 // fill="none" mirrors the original drawing's root attribute: its dashed
 // enclosure rects have no fill and must not default to black.
 layers.floor = svgEl('g', { fill: 'none' }, floorSvg);

@@ -14,7 +14,10 @@
       <h1>Diagnóstico — Máquinas de estado</h1>
     </div>
     <div class="conns"></div>
-    <a class="btn btn-ghost" href="index.html">← Vista principal</a>
+    <nav class="page-nav">
+      <a class="btn btn-ghost" href="index.html">Panel</a>
+      <a class="btn btn-ghost" href="planta.html">Planta</a>
+    </nav>
   </header>
 
   <!-- Shared SVG defs: arrowheads for the transition edges -->
@@ -49,7 +52,15 @@
           <h2 id="mvName">—</h2>
           <span class="machine-state" id="mvState"></span>
         </div>
-        <div id="mvGraph"></div>
+        <div class="mv-stage">
+          <svg id="mvSvg"></svg>
+          <div class="plant-toolbar">
+            <button class="btn" id="mvZoomIn" title="Acercar">+</button>
+            <button class="btn" id="mvZoomOut" title="Alejar">−</button>
+            <button class="btn" id="mvZoomFit" title="Vista completa">⤢</button>
+          </div>
+          <div class="plant-hint">Dos dedos / rueda: mover · Pellizco (Ctrl+rueda): zoom</div>
+        </div>
         <div class="mv-signals">
           <h3 class="signals-title">Señales de esta máquina</h3>
           <div class="signals" id="mvSignals"></div>

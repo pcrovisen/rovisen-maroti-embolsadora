@@ -298,24 +298,40 @@ body {
 
 /* ---------- Diagnostics page (state-machine graphs) ---------- */
 
-.diag-page { padding: 0.8rem; }
+/* Full-viewport app layout: the page never scrolls; the machine list does. */
+.diag-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 4.2rem);
+  padding: 0.8rem;
+  gap: 0.6rem;
+  overflow: hidden;
+}
 
 .diag-hint {
   color: var(--muted);
   font-size: 0.82rem;
-  margin: 0 0 0.8rem;
+  margin: 0;
+  flex: none;
 }
 .hint-warn { color: var(--warn); }
 
 .diag2 {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
   gap: 0.8rem;
-  align-items: start;
 }
-@media (max-width: 900px) { .diag2 { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .diag2 { grid-template-columns: 1fr; grid-template-rows: 13rem minmax(0, 1fr); }
+}
 
-.machine-list { padding: 0.4rem; }
+.machine-list {
+  padding: 0.4rem;
+  overflow-y: auto;
+  min-height: 0;
+}
 
 .machine-item {
   padding: 0.5rem 0.7rem;
@@ -327,26 +343,40 @@ body {
 }
 .machine-item:hover { background: var(--panel-2); }
 .machine-item.selected { background: var(--panel-2); outline: 1px solid var(--accent); }
-.machine-item .mi-name { font-size: 0.85rem; font-weight: 600; }
-.machine-item .mi-state { font-size: 0.74rem; color: var(--ok); }
+.machine-item .mi-name { font-size: 0.85rem; font-weight: 600; overflow-wrap: anywhere; }
+.machine-item .mi-state { font-size: 0.74rem; color: var(--ok); overflow-wrap: anywhere; }
 
 .machine-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.6rem;
+  flex: none;
 }
-.machine-head h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+.machine-head h2 { margin: 0; font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
 .machine-state { color: var(--ok); font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
 
-.machine-view { padding: 0.8rem 1.2rem; }
-.machine-view svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  max-width: 62rem;
-  margin: 0.4rem auto 0;
+.machine-view {
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
+
+.mv-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.4rem;
+}
+#mvSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+#mvSvg:active { cursor: grabbing; }
 .machine-view .st-label { font-size: 13px; }
 
 .edge-label { font-size: 11.5px; }

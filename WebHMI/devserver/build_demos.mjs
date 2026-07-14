@@ -57,6 +57,7 @@ const extractBody = (page) => {
 
 const body = extractBody(read(path.join(www, 'index.html')));
 const plantBody = extractBody(read(path.join(www, 'planta.html')));
+const diagBody = extractBody(read(path.join(www, 'diagnostico.html')));
 
 const fill = (template, parts) => {
   let out = template;
@@ -73,7 +74,7 @@ const fill = (template, parts) => {
 
 const outputs = {
   'diagnostico-demo.html': fill(read(path.join(here, 'demo', 'diag.template.html')), {
-    CSS: css, COMMON: common, TRANSITIONS: transitions, DIAG: diag, SIM: sim,
+    CSS: css, BODY: diagBody, COMMON: common, TRANSITIONS: transitions, DIAG: diag, SIM: sim,
   }),
   'hmi-demo.html': fill(read(path.join(here, 'demo', 'main.template.html')), {
     CSS: css, BODY: body, COMMON: common, TRANSITIONS: transitions, SIM: sim, APP: app,

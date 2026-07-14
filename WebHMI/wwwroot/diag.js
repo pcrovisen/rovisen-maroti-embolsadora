@@ -28,6 +28,12 @@ let selected = null;
 let view = null; // DOM refs for the selected machine's graph
 let lastStatus = null;
 
+const mvSvg = $('mvSvg');
+const panZoom = setupPanZoom([mvSvg], { x: 0, y: 0, w: DIMS.W, h: 300 });
+$('mvZoomIn').addEventListener('click', () => panZoom.zoomCenter(1 / 1.35));
+$('mvZoomOut').addEventListener('click', () => panZoom.zoomCenter(1.35));
+$('mvZoomFit').addEventListener('click', () => panZoom.reset());
+
 function svgEl(tag, attrs) {
   const el = document.createElementNS(SVGNS, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
@@ -221,11 +227,13 @@ function selectMachine(name) {
 
   $('mvName').textContent = name;
 
-  const svg = svgEl('svg', { viewBox: `0 0 ${DIMS.W} ${layout.H}` });
+  // Reuse the single stage svg: clear it and rebuild for this machine.
+  while (mvSvg.firstChild) mvSvg.firstChild.remove();
+  panZoom.setWorld({ x: 0, y: 0, w: DIMS.W, h: layout.H });
   const edgeLayer = svgEl('g', {});
   const labelLayer = svgEl('g', {});
   const nodeLayer = svgEl('g', {});
-  svg.append(edgeLayer, labelLayer, nodeLayer);
+  mvSvg.append(edgeLayer, labelLayer, nodeLayer);
 
   const nodes = meta.stateNames.map((sn, i) => {
     const p = layout.pos[i];
@@ -308,8 +316,6 @@ function selectMachine(name) {
     $('mvSignals').innerHTML = '<span class="mv-nosignals">Esta máquina no depende de señales del PLC.</span>';
   }
 
-  $('mvGraph').innerHTML = '';
-  $('mvGraph').appendChild(svg);
   view = { name, layout, nodes, edgeEls, edgeLayer, sigChips, activeEdge: null };
   if (lastStatus) refreshView(lastStatus);
 }
@@ -317,7 +323,7 @@ function selectMachine(name) {
 function refreshView(st) {
   if (!view) return;
   // Live coloring: edge-gate labels and the signal chips.
-  for (const tspan of $('mvGraph').querySelectorAll('.edge-label .sig[data-sig]')) {
+  for (const tspan of mvSvg.querySelectorAll('.edge-label .sig[data-sig]')) {
     const sigName = tspan.getAttribute('data-sig');
     if (!(sigName in SIG)) continue;
     const value = !!st.Signals[SIG[sigName]];
