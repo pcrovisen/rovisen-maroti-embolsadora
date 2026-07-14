@@ -113,9 +113,9 @@ function buildOverlays() {
     class: 'qr-tag-text', 'text-anchor': 'middle',
   }, layers.overlays).textContent = 'QR';
 
-  // Station title for the elevator, like the Bocedi titles in the drawing
+  // Station title for the elevator, inside its dashed box
   svgEl('text', {
-    x: GEO.elevBox.x + GEO.elevBox.w / 2, y: GEO.elevBox.y - 40,
+    x: GEO.elevBox.x + GEO.elevBox.w / 2, y: GEO.elevBox.y + 110,
     class: 'station-title', 'text-anchor': 'middle',
   }, layers.overlays).textContent = 'Elevador';
 
@@ -163,15 +163,21 @@ function createPallet(t) {
   const label = svgEl('text', { class: 'pallet-data', 'text-anchor': 'middle' }, g);
   if (t.ghost) {
     svgEl('tspan', { x: 0, y: 20 }, label).textContent = '· · ·'; // identity unknown until read
-  } else {
-    const qr = svgEl('tspan', { x: 0, y: -50, class: 'pallet-qr' }, label);
-    qr.textContent = t.pallet.Qr;
-    svgEl('tspan', { x: 0, y: 25 }, label).textContent =
-      t.pallet.Id && t.pallet.Id !== '0' ? `ID: ${t.pallet.Id}` : '';
-    svgEl('tspan', { x: 0, y: 95 }, label).textContent =
-      t.pallet.Injector ? `Maq: ${t.pallet.Injector}` : '';
+    return { g, mode: 'world', ghost: true };
   }
-  return { g, mode: 'world' };
+  const tspans = [
+    svgEl('tspan', { x: 0, y: -50, class: 'pallet-qr' }, label),
+    svgEl('tspan', { x: 0, y: 25 }, label),
+    svgEl('tspan', { x: 0, y: 95 }, label),
+  ];
+  return { g, mode: 'world', tspans };
+}
+
+function refreshPalletLabel(entry, p) {
+  // The data can complete after creation (the DB assigns the Id later).
+  entry.tspans[0].textContent = p.Qr;
+  entry.tspans[1].textContent = p.Id && p.Id !== '0' ? `ID: ${p.Id}` : '';
+  entry.tspans[2].textContent = p.Injector ? `Maq: ${p.Injector}` : '';
 }
 
 function setPalletTargets(targets) {
@@ -182,6 +188,7 @@ function setPalletTargets(targets) {
       palletEls.set(key, entry);
       entry.g.getBoundingClientRect(); // paint the spawn position first
     }
+    if (!entry.ghost) refreshPalletLabel(entry, t.pallet);
     if (t.ride) {
       // Riding the car: parent the pallet into the car group so they move
       // as one rigid body.
@@ -207,9 +214,15 @@ function setPalletTargets(targets) {
   for (const [key, entry] of palletEls) {
     if (targets.has(key)) continue;
     palletEls.delete(key);
+    if (entry.ghost) {
+      // The elevator released the pallet: slide it right onto the conveyor
+      // while it fades (its identity appears once the QR is read).
+      entry.g.style.transitionDuration = '1.1s';
+      entry.g.style.transform = `translate(${GEO.entryX}px, ${GEO.elevator.y}px)`;
+    }
     entry.g.classList.add('leaving');
     const node = entry.g;
-    setTimeout(() => node.remove(), 700);
+    setTimeout(() => node.remove(), 1200);
   }
 }
 
@@ -309,9 +322,25 @@ for (const [key, label] of Object.entries(CONN_LABELS)) {
   connChips[key] = chip;
 }
 
-function setBanner(el, message) {
-  el.classList.toggle('empty', !message);
-  el.textContent = message || '';
+// Errors as floating notifications over the stage (they don't move the layout)
+const NOTICE_LABELS = { entry: 'Entrada', bcd1: 'Bocedi 1', bcd2: 'Bocedi 2', car: 'Carro' };
+const noticeEls = new Map();
+
+function setNotice(key, message) {
+  let el = noticeEls.get(key);
+  if (!message) {
+    if (el) { el.remove(); noticeEls.delete(key); }
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'plant-notice';
+    el.innerHTML = '<strong></strong><span></span>';
+    $('plantNotices').appendChild(el);
+    noticeEls.set(key, el);
+  }
+  el.querySelector('strong').textContent = NOTICE_LABELS[key];
+  el.querySelector('span').textContent = message;
 }
 
 function handleStatus(st) {
@@ -348,10 +377,10 @@ function handleStatus(st) {
 
   setPalletTargets(collectTargets(st));
 
-  setBanner($('entryError'), st.ErrorMessages.EntryError);
-  setBanner($('bcd1Error'), st.ErrorMessages.BDC1Error);
-  setBanner($('bcd2Error'), st.ErrorMessages.BDC2Error);
-  setBanner($('carError'), st.ErrorMessages.CarError);
+  setNotice('entry', st.ErrorMessages.EntryError);
+  setNotice('bcd1', st.ErrorMessages.BDC1Error);
+  setNotice('bcd2', st.ErrorMessages.BDC2Error);
+  setNotice('car', st.ErrorMessages.CarError);
 }
 
 // ---------------------------------------------------------------------------
