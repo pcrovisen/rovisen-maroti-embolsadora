@@ -39,6 +39,10 @@ const GEO = {
   elevator: { x: 6743, y: 3806 },
   qrTag: { x: 7224, y: 1621, w: 62, h: 99 },
   elevQrTag: { x: 6696, y: 3427, w: 62, h: 99 },
+  // Dashed enclosures in the drawing (painted by the availability signals)
+  b1Box: { x: 7483.5, y: 1650.5, w: 2222, h: 657 },
+  b2Box: { x: 864.5, y: 1650.5, w: 2703, h: 653 },
+  elevBox: { x: 6442.5, y: 3260.5, w: 569, h: 783 },
   b1: {
     stations: [{ x: 7745 }, { x: 8395 }, { x: 9031 }, { x: 9486 }], // entry, processing, post1, post2
     entrySlots: 1,
@@ -71,6 +75,8 @@ let qrLiveEl;
 let elevQrLiveEl;
 let labelRing1;
 let labelRing2;
+let availBox1;
+let availBox2;
 let lastCarX = GEO.car.inB1;
 
 function injectFloor(markup) {
@@ -101,6 +107,24 @@ function buildOverlays() {
     x2: GEO.qrTag.x + GEO.qrTag.w / 2, y2: Y - PAL_H / 2 - 20, class: 'qr-beam',
   }, layers.overlays);
   elevQrLiveEl = tagFrame(GEO.elevQrTag);
+  // The elevator's QR tag lacks its lettering in the drawing
+  svgEl('text', {
+    x: GEO.elevQrTag.x + GEO.elevQrTag.w / 2, y: GEO.elevQrTag.y + 66,
+    class: 'qr-tag-text', 'text-anchor': 'middle',
+  }, layers.overlays).textContent = 'QR';
+
+  // Station title for the elevator, like the Bocedi titles in the drawing
+  svgEl('text', {
+    x: GEO.elevBox.x + GEO.elevBox.w / 2, y: GEO.elevBox.y - 40,
+    class: 'station-title', 'text-anchor': 'middle',
+  }, layers.overlays).textContent = 'Elevador';
+
+  // Availability of each Bocedi painted on its dashed enclosure
+  const availFrame = (b) => svgEl('rect', {
+    x: b.x, y: b.y, width: b.w, height: b.h, class: 'avail-box',
+  }, layers.overlays);
+  availBox1 = availFrame(GEO.b1Box);
+  availBox2 = availFrame(GEO.b2Box);
 
   // The transfer car: roller platform (the striped deck from the drawing)
   // under the red frame, so the rollers travel with the car.
@@ -138,7 +162,7 @@ function createPallet(t) {
   // Data written on the pallet, like the sample in the drawing.
   const label = svgEl('text', { class: 'pallet-data', 'text-anchor': 'middle' }, g);
   if (t.ghost) {
-    svgEl('tspan', { x: 0, y: 20 }, label).textContent = 'Elevador';
+    svgEl('tspan', { x: 0, y: 20 }, label).textContent = '· · ·'; // identity unknown until read
   } else {
     const qr = svgEl('tspan', { x: 0, y: -50, class: 'pallet-qr' }, label);
     qr.textContent = t.pallet.Qr;
@@ -314,6 +338,13 @@ function handleStatus(st) {
 
   labelRing1.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel1));
   labelRing2.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel2));
+
+  const avail = (el, on) => {
+    el.classList.toggle('ok', !!on);
+    el.classList.toggle('bad', !on);
+  };
+  avail(availBox1, st.Signals[SIG.bcd1Avaliable]);
+  avail(availBox2, st.Signals[SIG.bcd2Avaliable]);
 
   setPalletTargets(collectTargets(st));
 

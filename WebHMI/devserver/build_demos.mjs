@@ -29,7 +29,7 @@ if (diagCut < 0) throw new Error('diag.js startup marker not found');
 diag = diag.slice(0, diagCut);
 
 const dummy = read(path.join(here, 'dummy_server.mjs'));
-const simStart = dummy.indexOf('const MAX_QUEUE');
+const simStart = dummy.indexOf('const B1_MAX');
 const simEnd = dummy.indexOf('// Auth + delete');
 if (simStart < 0 || simEnd < 0) throw new Error('dummy_server sim markers not found');
 const sim = dummy.slice(simStart, simEnd);

@@ -474,6 +474,14 @@ body {
 }
 @keyframes labeling-spin { to { stroke-dashoffset: -108; } }
 
+.station-title { fill: #dfe6f0; font-size: 96px; font-weight: 600; }
+.qr-tag-text { fill: #ffffff; font-size: 46px; font-weight: 700; }
+
+/* Bocedi availability painted on the dashed enclosures */
+.avail-box { fill: none; stroke: transparent; stroke-width: 10; stroke-dasharray: 42 26; }
+.avail-box.ok { stroke: var(--ok); }
+.avail-box.bad { stroke: var(--bad); }
+
 .qr-live { fill: none; stroke: transparent; stroke-width: 16; }
 .qr-live.ok { stroke: var(--ok); }
 .qr-live.bad { stroke: var(--bad); }

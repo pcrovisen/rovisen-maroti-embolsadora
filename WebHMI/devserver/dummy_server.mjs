@@ -66,7 +66,11 @@ const MACHINE_STATES = {
 // Simulated plant state
 // ---------------------------------------------------------------------------
 
-const MAX_QUEUE = 5;
+// Physical capacity of each Bocedi's stations (entry queue + processing +
+// two-slot queue); Bocedi 2 has one more entry slot. The DB never routes a
+// pallet to a full or unavailable machine.
+const B1_MAX = 4;
+const B2_MAX = 5;
 
 // Pallets arrive faster than the packagers process them on slow cycles,
 // so queues realistically build up to several pallets.
@@ -94,6 +98,8 @@ const state = {
   packager1: { Queue: [], LabelPallet: null, ExitPallet: null },
   packager2: { Queue: [], LabelPallet: null, ExitPallet: null },
   car: { CarPosition: CAR_POSITION.InB1, HasPallet: false, Pallet: null },
+  up1: true, // Bocedi 1 machine available (occasionally drops)
+  up2: true,
   machineState: {
     FatekPLCCommunication: 4, // Working
     PalletEntry: PE.Waiting,
@@ -184,15 +190,21 @@ function stepEntry(t) {
       break;
     case 'availability':
       ms.PalletEntry = PE.WaitingAvailability;
-      if (t > entryPhase.until) go('askingDb', 1200);
+      // The pallet waits at the reader until some Bocedi is available; when
+      // none is, the QR is effectively re-read until the DB can route it.
+      if (t > entryPhase.until
+          && (state.signals[SIG.bcd1Avaliable] || state.signals[SIG.bcd2Avaliable])) {
+        go('askingDb', 1200);
+      }
       break;
-    case 'askingDb':
+    case 'askingDb': {
       ms.PalletEntry = PE.AskingDB;
       if (t > entryPhase.until) {
-        // Mostly route to Bocedi 1 (the direct line) even if it has a
-        // backlog, like the plant DB does; the car line is the overflow.
-        const toB1 = state.packager1.Queue.length < MAX_QUEUE
-          && (Math.random() < 0.7 || state.packager2.Queue.length >= MAX_QUEUE);
+        const b1ok = state.signals[SIG.bcd1Avaliable];
+        const b2ok = state.signals[SIG.bcd2Avaliable];
+        if (!b1ok && !b2ok) { go('availability', 800); break; }
+        // Prefer Bocedi 1 (the direct line) when it's available.
+        const toB1 = b1ok && (Math.random() < 0.7 || !b2ok);
         if (toB1) {
           state.entryPallet.Id = String(nextId1);
           nextId1 = nextId1 % 7 + 1;
@@ -203,13 +215,14 @@ function stepEntry(t) {
         go('sendingId', 500, { toB1 });
       }
       break;
+    }
     case 'sendingId':
       ms.PalletEntry = PE.SendingID;
       if (t > entryPhase.until) go(entryPhase.toB1 ? 'waitBocedi1' : 'waitCar', 600);
       break;
     case 'waitBocedi1':
       ms.PalletEntry = PE.WaitForBocedi1;
-      if (t > entryPhase.until && state.packager1.Queue.length < MAX_QUEUE) {
+      if (t > entryPhase.until && state.packager1.Queue.length < B1_MAX) {
         go('enterBocedi', 2500);
       }
       break;
@@ -277,7 +290,7 @@ function stepCar(t) {
       car.CarPosition = CAR_POSITION.InB2;
       ms.CarMachine = 4; // WaitingCarEmpty
       if (car.HasPallet) {
-        if (t > carPhase.until && state.packager2.Queue.length < MAX_QUEUE) {
+        if (t > carPhase.until && state.packager2.Queue.length < B2_MAX) {
           state.packager2.Queue.push(car.Pallet);
           car.HasPallet = false;
           car.Pallet = null;
@@ -368,6 +381,19 @@ const stepPackager2 = makePackagerSim(() => state.packager2, 'PalletLabel2', SIG
 // --- random disturbances ----------------------------------------------------
 
 function stepDisturbances(t) {
+  // Machine availability: occasionally a Bocedi goes down for a while, and a
+  // full machine is not available either. The DB routes accordingly.
+  if (state.up1 && Math.random() < 0.002) {
+    state.up1 = false;
+    setTimeout(() => { state.up1 = true; }, 12000 + Math.random() * 18000);
+  }
+  if (state.up2 && Math.random() < 0.002) {
+    state.up2 = false;
+    setTimeout(() => { state.up2 = true; }, 12000 + Math.random() * 18000);
+  }
+  state.signals[SIG.bcd1Avaliable] = state.up1 && state.packager1.Queue.length < B1_MAX;
+  state.signals[SIG.bcd2Avaliable] = state.up2 && state.packager2.Queue.length < B2_MAX;
+
   if (Math.random() < 0.004) { // ~ every 2 min at 2 Hz
     const conns = ['WencoDB', 'Labeler1', 'Labeler2', 'QrReader'];
     const c = conns[Math.floor(Math.random() * conns.length)];
