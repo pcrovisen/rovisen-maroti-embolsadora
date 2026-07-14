@@ -44,6 +44,16 @@ const PE = Object.fromEntries(PALLET_ENTRY_STATES.map((n, i) => [n, i]));
 
 const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
 
+// Sub-machines: PalletLabel1/2 each create their own PrinterMachine and
+// device connections; identifiers (name suffix) are the printer id or the
+// device IP, like the real server.
+const PRINTER_STATES = ['Init', 'RetreivingWeightLen', 'RetreivingWeight', 'SendWeightOk',
+  'WeightOk', 'RetreivingLabels', 'WaitPallet', 'WaitLabelInstruction', 'Print1', 'Print2',
+  'WaitPrinter', 'WaitPLCConfirmation', 'WaitLabelLost', 'WaitApplicatorReady',
+  'Reset1', 'Reset2', 'Skipped', 'Completed'];
+const DEV_CONN_STATES = ['Connect', 'Connecting', 'Connected'];
+const QR_CONN_STATES = ['Init', 'Disconnected', 'Connected', 'Wait'];
+
 const MACHINE_STATES = {
   FatekPLCCommunication: ['Init', 'Starting', 'WaitingMemory', 'WaitingInit', 'Working'],
   PalletEntry: PALLET_ENTRY_STATES,
@@ -60,6 +70,14 @@ const MACHINE_STATES = {
   AcceptHMIs: ['Init', 'Listening', 'Connecting', 'Adding', 'Pause'],
   ElevatorAccess: ['WaitingRequest', 'ReadingQr', 'FailedQr', 'WaitingAuth',
     'WaitingLeave', 'Delay'],
+  PrinterMachineWolrdjet1: PRINTER_STATES,
+  PrinterMachineWolrdjet2: PRINTER_STATES,
+  'OmronConnection192.168.6.124': DEV_CONN_STATES,
+  'OmronConnection192.168.250.1': DEV_CONN_STATES,
+  'NetworkPrinterConnection192.168.6.122': DEV_CONN_STATES,
+  'NetworkPrinterConnection192.168.6.163': DEV_CONN_STATES,
+  'QrReaderConnection192.168.6.236': QR_CONN_STATES,
+  'QrReaderConnection192.168.6.241': QR_CONN_STATES,
 };
 
 // ---------------------------------------------------------------------------
@@ -110,6 +128,14 @@ const state = {
     DeletePalletEmb2: 0,
     AcceptHMIs: 1, // Listening
     ElevatorAccess: 0, // WaitingRequest
+    PrinterMachineWolrdjet1: 6, // WaitPallet
+    PrinterMachineWolrdjet2: 6,
+    'OmronConnection192.168.6.124': 2, // Connected
+    'OmronConnection192.168.250.1': 2,
+    'NetworkPrinterConnection192.168.6.122': 2,
+    'NetworkPrinterConnection192.168.6.163': 2,
+    'QrReaderConnection192.168.6.236': 2,
+    'QrReaderConnection192.168.6.241': 2,
   },
 };
 
@@ -151,8 +177,12 @@ function stepEntry(t) {
       state.signals[SIG.ReadQR] = false;
       // The elevator stages the next pallet: reads its QR, waits for the
       // authorization and holds it (WaitingLeave) until the conveyor is free.
+      // Advance at most one declared step per tick (0→1→3→4).
       const rem = entryPhase.until - t;
-      ms.ElevatorAccess = rem > 4200 ? 0 : rem > 3200 ? 1 : rem > 1600 ? 3 : 4;
+      const target = rem > 4200 ? 0 : rem > 3200 ? 1 : rem > 1600 ? 3 : 4;
+      const ladder = [0, 1, 3, 4];
+      const cur = ladder.indexOf(ms.ElevatorAccess);
+      ms.ElevatorAccess = ladder[Math.min(cur + 1, ladder.indexOf(target))] ?? 0;
       if (t > entryPhase.until) go('reading', 1500);
       break;
     }
@@ -321,11 +351,17 @@ function stepCar(t) {
 
 // Walks the declared PalletLabel chain: WaitingPallet → WaitUpdate →
 // Labeling → WaitUpdate2 → WaitAck → WaitLeaving → WaitingPallet.
-function makePackagerSim(pk, machineKey, labelSignal) {
+// Its PrinterMachine follows the declared label loop while labeling:
+// WaitLabelInstruction → Print1 → Reset1 → Reset2 → Print2 → WaitPrinter
+// → WaitPLCConfirmation.
+const PRINT_SEQUENCE = [7, 8, 14, 15, 9, 10, 11];
+
+function makePackagerSim(pk, machineKey, labelSignal, printerKey) {
   let phase = { name: 'waiting', until: 0 };
   const go = (name, dwell, t) => { phase = { name, until: t + dwell }; };
   return function step(t) {
     const ms = state.machineState;
+    ms[printerKey] = 6; // WaitPallet unless printing below
     switch (phase.name) {
       case 'waiting':
         ms[machineKey] = 0; // WaitingPallet
@@ -344,20 +380,25 @@ function makePackagerSim(pk, machineKey, labelSignal) {
           go('labeling', 4000, t);
         }
         break;
-      case 'labeling':
+      case 'labeling': {
         ms[machineKey] = 3; // Labeling
         state.signals[labelSignal] = true;
+        const progress = Math.min(Math.max(1 - (phase.until - t) / 4000, 0), 0.999);
+        ms[printerKey] = PRINT_SEQUENCE[Math.floor(progress * PRINT_SEQUENCE.length)];
         if (t > phase.until) {
           state.signals[labelSignal] = false;
           go('waitUpdate2', 400, t);
         }
         break;
+      }
       case 'waitUpdate2':
         ms[machineKey] = 4; // WaitUpdate2
+        ms[printerKey] = 11; // WaitPLCConfirmation
         if (t > phase.until) go('waitAck', 600, t);
         break;
       case 'waitAck':
         ms[machineKey] = 5; // WaitAck
+        ms[printerKey] = 11;
         if (t > phase.until) {
           pk().ExitPallet = pk().LabelPallet;
           pk().LabelPallet = null;
@@ -375,8 +416,8 @@ function makePackagerSim(pk, machineKey, labelSignal) {
   };
 }
 
-const stepPackager1 = makePackagerSim(() => state.packager1, 'PalletLabel1', SIG.PLCLabeling1);
-const stepPackager2 = makePackagerSim(() => state.packager2, 'PalletLabel2', SIG.PLCLabeling2);
+const stepPackager1 = makePackagerSim(() => state.packager1, 'PalletLabel1', SIG.PLCLabeling1, 'PrinterMachineWolrdjet1');
+const stepPackager2 = makePackagerSim(() => state.packager2, 'PalletLabel2', SIG.PLCLabeling2, 'PrinterMachineWolrdjet2');
 
 // --- random disturbances ----------------------------------------------------
 
@@ -395,11 +436,26 @@ function stepDisturbances(t) {
   state.signals[SIG.bcd2Avaliable] = state.up2 && state.packager2.Queue.length < B2_MAX;
 
   if (Math.random() < 0.004) { // ~ every 2 min at 2 Hz
-    const conns = ['WencoDB', 'Labeler1', 'Labeler2', 'QrReader'];
+    const conns = ['WencoDB', 'Labeler1', 'Labeler2', 'QrReader', 'Packager1', 'Packager2'];
     const c = conns[Math.floor(Math.random() * conns.length)];
     state.connections[c] = false;
     setTimeout(() => { state.connections[c] = true; }, 5000);
   }
+
+  // Connection sub-machines mirror the connection flags, walking the
+  // declared ramp: Connect → Connecting → Connected (and back to Connect
+  // when the device drops).
+  const ms = state.machineState;
+  const ramp = (key, up) => {
+    ms[key] = up ? Math.min((ms[key] ?? 0) + 1, 2) : 0;
+  };
+  ramp('OmronConnection192.168.6.124', state.connections.Packager1);
+  ramp('OmronConnection192.168.250.1', state.connections.Packager2);
+  ramp('NetworkPrinterConnection192.168.6.122', state.connections.Labeler1);
+  ramp('NetworkPrinterConnection192.168.6.163', state.connections.Labeler2);
+  // QrReaderConnection states: Init(0) Disconnected(1) Connected(2) Wait(3)
+  ms['QrReaderConnection192.168.6.236'] = state.connections.QrReader ? 2 : 1;
+  ms['QrReaderConnection192.168.6.241'] = 2; // elevator reader: always up in the sim
   if (Math.random() < 0.003) {
     state.signals[SIG.WaitCorrection1] = true;
     state.errors.BDC1Error = 'Peso fuera de rango. Corrija el último palet de la cola.';

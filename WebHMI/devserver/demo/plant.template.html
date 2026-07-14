@@ -32,9 +32,16 @@ const TRANSITIONS = /*__TRANSITIONS__*/;
 
 const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
 const MACHINE_STATES = Object.fromEntries([
-  'FatekPLCCommunication', 'PalletEntry', 'PalletLabel1', 'PalletLabel2',
-  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs', 'ElevatorAccess',
-].map((n) => [n, TRANSITIONS[n].states]));
+  // [instance name, class in transitions.json (when the name has an identifier)]
+  ['FatekPLCCommunication'], ['PalletEntry'], ['PalletLabel1'], ['PalletLabel2'],
+  ['CarMachine'], ['DeletePalletEmb1'], ['DeletePalletEmb2'], ['AcceptHMIs'], ['ElevatorAccess'],
+  ['PrinterMachineWolrdjet1', 'PrinterMachine'], ['PrinterMachineWolrdjet2', 'PrinterMachine'],
+  ['OmronConnection192.168.6.124', 'OmronConnection'], ['OmronConnection192.168.250.1', 'OmronConnection'],
+  ['NetworkPrinterConnection192.168.6.122', 'NetworkPrinterConnection'],
+  ['NetworkPrinterConnection192.168.6.163', 'NetworkPrinterConnection'],
+  ['QrReaderConnection192.168.6.236', 'QrReaderConnection'],
+  ['QrReaderConnection192.168.6.241', 'QrReaderConnection'],
+].map(([n, cls]) => [n, TRANSITIONS[cls || n].states]));
 
 /*__SIM__*/
 
