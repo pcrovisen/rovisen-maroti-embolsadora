@@ -417,13 +417,17 @@ body {
   overflow: hidden;
 }
 
-#plantSvg {
+/* Two stacked SVGs sharing one viewBox: the heavy drawing repaints only on
+   pan/zoom, while animations run in the light overlay on top. */
+#plantFloorSvg, #plantSvg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
-  touch-action: none;
-  cursor: grab;
 }
+#plantFloorSvg { pointer-events: none; }
+#plantSvg { touch-action: none; cursor: grab; }
 #plantSvg:active { cursor: grabbing; }
 
 .plant-toolbar {
@@ -459,53 +463,49 @@ body {
 .plant-errors .error-banner { margin-top: 0; }
 @media (max-width: 900px) { .plant-errors { grid-template-columns: 1fr 1fr; } }
 
-/* SVG scene */
-.lane { fill: #ffffff07; stroke: var(--line); stroke-width: 1.5; }
-.chevron { fill: none; stroke: #3d4f70; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.rail { stroke: #3d4f70; stroke-width: 3; }
-.rail-tie { stroke: #2a3852; stroke-width: 2; }
+/* SVG overlays over the plant drawing (coordinate space: 10859 × 4923).
+   The floor is Pablo's drawing (plant_floor.svg): black/gray on white. */
 
-.station { fill: var(--panel-2); stroke: var(--line); stroke-width: 2; }
-.bocedi-box { fill: #ffffff06; stroke: var(--line); stroke-width: 2.5; }
-.sub-station { fill: none; stroke: #3d4f70; stroke-width: 1.5; stroke-dasharray: 6 5; }
-.conveyor-link { stroke: #3d4f70; stroke-width: 7; opacity: 0.55; stroke-linecap: round; }
-.station-name { fill: var(--text); font-size: 17px; font-weight: 600; }
-.station-sub { fill: var(--muted); font-size: 13px; }
-.compass-line { stroke: var(--muted); stroke-width: 2; }
-.compass-n { fill: var(--muted); }
-
-.labeling-circle { fill: none; stroke: var(--muted); stroke-width: 3; stroke-dasharray: 5 4; }
-.labeling-circle.active {
+.labeling-ring { fill: none; stroke: transparent; stroke-width: 24; }
+.labeling-ring.active {
   stroke: var(--accent);
+  stroke-dasharray: 62 46;
   animation: labeling-spin 1.4s linear infinite;
 }
-@keyframes labeling-spin { to { stroke-dashoffset: -27; } }
+@keyframes labeling-spin { to { stroke-dashoffset: -108; } }
 
-.qr-box { fill: var(--panel-2); stroke: var(--line); stroke-width: 2; }
-.qr-text { fill: var(--muted); font-size: 15px; font-weight: 700; }
-.qr-beam { stroke: var(--line); stroke-width: 2.5; stroke-dasharray: 3 3; }
-.qr-station.ok .qr-box, .qr-station.ok .qr-beam { stroke: var(--ok); }
-.qr-station.ok .qr-text { fill: var(--ok); }
-.qr-station.bad .qr-box, .qr-station.bad .qr-beam { stroke: var(--bad); }
-.qr-station.bad .qr-text { fill: var(--bad); }
-.qr-station.blink { animation: blink 0.8s step-start infinite; }
+.qr-live { fill: none; stroke: transparent; stroke-width: 16; }
+.qr-live.ok { stroke: var(--ok); }
+.qr-live.bad { stroke: var(--bad); }
+.qr-live.blink { animation: blink 0.8s step-start infinite; }
+.qr-beam { stroke: #9aa5b5; stroke-width: 10; stroke-dasharray: 28 28; }
 
 .car-body {
   transition-property: transform;
   transition-timing-function: linear;
 }
 .car-body.unknown { animation: blink 0.8s step-start infinite; }
-.car-rect { fill: var(--panel-2); stroke: var(--accent); stroke-width: 2.5; }
-.car-wheel { fill: #3d4f70; }
+.car-rect { fill: none; stroke: #940303; stroke-width: 20; }
+.car-pad { fill: #181616; }
 
 .pallet {
   transition-property: transform;
   transition-timing-function: ease-in-out;
 }
 .pallet.leaving { opacity: 0; transition: opacity 0.6s; }
-.pallet-box { fill: var(--pallet); stroke: #8a5a2b; stroke-width: 1.5; }
-.pallet-plank { stroke: #8a5a2b; stroke-width: 1.5; }
-.pallet-data { fill: var(--text); font-size: 12px; paint-order: stroke; stroke: #10151ccc; stroke-width: 3; }
+.pallet-box { fill: #b27916; stroke: #7a5210; stroke-width: 9; }
+.pallet-plank { stroke: #7a5210; stroke-width: 9; }
+.pallet-data {
+  fill: #16202e;
+  font-size: 96px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: #ffffffd9;
+  stroke-width: 28;
+}
+.pallet.ghost { opacity: 0.85; }
+.pallet.ghost .pallet-box { fill: #b9b9b9; stroke: #8a8a8a; }
+.pallet.ghost .pallet-plank { stroke: #8a8a8a; }
 
 /* ---------- Dialogs ---------- */
 

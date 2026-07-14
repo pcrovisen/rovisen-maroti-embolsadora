@@ -1,24 +1,23 @@
-// Vista de planta — SCADA-style synoptic of the bagging line.
+// Vista de planta — the operator's own plant drawing (plant_floor.svg,
+// generated from wenco_plant_5.svg) with live pallets, car and station
+// status overlaid. Coordinates are in the drawing's space (10859 × 4923,
+// north up): pallets rise from the elevator at the south along the vertical
+// conveyor, get their QR read at the junction, and go east into Bocedi 1 or
+// west onto the transfer car toward Bocedi 2.
 //
-// Plan view, north up. Pallets enter on a vertical conveyor (south → north);
-// the QR reader sits at the north end of the conveyor, and from there the
-// pallet moves sideways: right into Bocedi 1, or left onto the transfer car,
-// which runs a straight rail to Bocedi 2's entrance. The two Bocedis are
-// mirrored enclosures containing entry queue → processing (bagging) →
-// measurement → labeler (circle), discharging north.
-//
-// Pallet positions inside a Bocedi are educated guesses from the FIFO:
-// Queue[0] is shown at the processing station when another pallet is queued
-// behind it (its arrival proves the first advanced), otherwise in the entry
-// queue (1 slot in B1, 2 in B2; overflow waits on the approach outside).
-// LabelPallet sits at measurement, moving onto the labeler circle only while
-// the machine is in its labeling states. ExitPallet is at the output.
+// Queue model (minimum semantics): every new pallet entering a Bocedi pushes
+// the ones ahead to the next station. Stations per Bocedi, in flow order:
+// entry queue (1 slot in B1, 2 in B2) → processing (bagging) → two-slot
+// queue that packs toward the labeler → labeling circle (LabelPallet) →
+// output (ExitPallet). With 2 queued pallets that reads X X _ _; with 3,
+// X X _ X (the front one slides to the far slot of the two-space queue).
 
 'use strict';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 const svg = $('plantSvg');
+const floorSvg = $('plantFloorSvg');
 
 function svgEl(tag, attrs = {}, parent) {
   const el = document.createElementNS(SVGNS, tag);
@@ -28,231 +27,162 @@ function svgEl(tag, attrs = {}, parent) {
 }
 
 // ---------------------------------------------------------------------------
-// Geometry (viewBox units). North is up. Main east-west axis at y = 320.
+// Geometry: anchors taken from the sample pallets in the original drawing
 // ---------------------------------------------------------------------------
 
-const Y = 320;
+const Y = 2062;
 
 const GEO = {
-  world: { x: 0, y: 40, w: 2000, h: 940 },
-  entryX: 1050,
-  entrySouth: 860,
-  qrY: 330,                       // reading position: north end of the conveyor
-  b1: {                           // flow west → east
-    dir: 1,
-    box: { x: 1200, y: 240, w: 580, h: 160 },
-    approach: [{ x: 1160 }, { x: 1104 }, { x: 1048 }],  // backlog outside, toward the junction
-    entryQueue: [{ x: 1262 }],   // front-first (nearest processing)
-    processing: { x: 1392 },
-    measurement: { x: 1524 },
-    labeler: { x: 1662, r: 36 },
-    output: { x: 1662, y: 170 },
-    entrance: 1226,
+  world: { x: 0, y: 0, w: 10859, h: 4923 },
+  entryX: 7255,
+  spawn: { x: 7255, y: 3450 },          // appears at the south conveyor, glides north
+  elevator: { x: 6743, y: 3806 },
+  qrTag: { x: 7224, y: 1621, w: 62, h: 99 },
+  elevQrTag: { x: 6696, y: 3427, w: 62, h: 99 },
+  b1: {
+    stations: [{ x: 7745 }, { x: 8395 }, { x: 9031 }, { x: 9486 }], // entry, processing, post1, post2
+    entrySlots: 1,
+    labeler: { x: 9983, y: 2062, r: 275 },
+    output: { x: 9982, y: 1362 },
+    overflow: [{ x: 7255, y: 2560 }, { x: 7255, y: 2990 }], // backs up down the entry conveyor
   },
-  b2: {                           // mirrored: flow east → west
-    dir: -1,
-    box: { x: 220, y: 240, w: 580, h: 160 },
-    approach: [{ x: 830, y: 420 }, { x: 830, y: 486 }], // rare overflow, beside the dock
-    entryQueue: [{ x: 660 }, { x: 740 }], // front-first (nearest processing)
-    processing: { x: 540 },
-    measurement: { x: 420 },
-    labeler: { x: 300, r: 36 },
-    output: { x: 300, y: 170 },
+  b2: {
+    stations: [{ x: 3320 }, { x: 2830 }, { x: 2161 }, { x: 1544 }, { x: 1114 }],
+    entrySlots: 2,
+    labeler: { x: 592, y: 2062, r: 275 },
+    output: { x: 592, y: 1347 },
+    overflow: [{ x: 3822, y: 2560 }],
   },
-  car: { inB1: 990, inB2: 830, unknown: 910 },
+  car: { inB1: 6789, inB2: 3822, unknown: 5300 },
 };
 
-const PALLET_HALF = 22;
+const PAL_W = 400;
+const PAL_H = 333;
 const AT_LABELER_STATES = [3, 4, 5]; // PalletLabel: Labeling, WaitUpdate2, WaitAck
+const ELEVATOR_WAITING_LEAVE = 4;    // ElevatorAccess.States.WaitingLeave
 
 // ---------------------------------------------------------------------------
-// Static scene
+// Scene: the drawing as floor + live overlays
 // ---------------------------------------------------------------------------
 
 const layers = {};
-
-function lane(x, y, w, h, parent) {
-  svgEl('rect', { x, y, width: w, height: h, class: 'lane', rx: 6 }, parent);
-}
-
-function chevrons(parent, x0, y0, x1, y1, count) {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const len = Math.hypot(dx, dy);
-  const ux = dx / len;
-  const uy = dy / len;
-  for (let i = 1; i <= count; i++) {
-    const cx = x0 + (dx * i) / (count + 1);
-    const cy = y0 + (dy * i) / (count + 1);
-    const p1 = `${cx - ux * 7 - uy * 6},${cy - uy * 7 + ux * 6}`;
-    const p2 = `${cx + ux * 7},${cy + uy * 7}`;
-    const p3 = `${cx - ux * 7 + uy * 6},${cy - uy * 7 - ux * 6}`;
-    svgEl('polyline', { points: `${p1} ${p2} ${p3}`, class: 'chevron' }, parent);
-  }
-}
-
-function subStation(x, label, parent, labelBelowY = 392) {
-  svgEl('rect', {
-    x: x - 30, y: Y - 30, width: 60, height: 60, rx: 6, class: 'sub-station',
-  }, parent);
-  if (label) {
-    svgEl('text', { x, y: labelBelowY, class: 'station-sub', 'text-anchor': 'middle' }, parent)
-      .textContent = label;
-  }
-}
-
 let carEl;
-let qrBoxEl;
-let labelCircle1;
-let labelCircle2;
+let qrLiveEl;
+let elevQrLiveEl;
+let labelRing1;
+let labelRing2;
+let lastCarX = GEO.car.inB1;
 
-function buildBocedi(geo, name, parent) {
-  const b = geo.box;
-  svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 12, class: 'bocedi-box' }, parent);
-  svgEl('text', {
-    x: b.x + b.w / 2, y: b.y - 14, class: 'station-name', 'text-anchor': 'middle',
-  }, parent).textContent = name;
-
-  geo.entryQueue.forEach((s, i) => subStation(s.x, i === geo.entryQueue.length - 1 ? 'Cola' : '', parent));
-  subStation(geo.processing.x, 'Embolsado', parent);
-  subStation(geo.measurement.x, 'Medición', parent);
-
-  // Internal conveyors linking the stations, in flow order.
-  const entranceX = geo.dir === 1 ? b.x : b.x + b.w;
-  const seq = [
-    { x: entranceX, half: 0 },
-    ...geo.entryQueue.slice().reverse().map((s) => ({ x: s.x, half: 30 })),
-    { x: geo.processing.x, half: 30 },
-    { x: geo.measurement.x, half: 30 },
-    { x: geo.labeler.x, half: geo.labeler.r + 4 },
-  ];
-  for (let i = 0; i + 1 < seq.length; i++) {
-    const x1 = seq[i].x + geo.dir * seq[i].half;
-    const x2 = seq[i + 1].x - geo.dir * seq[i + 1].half;
-    svgEl('line', { x1, y1: Y, x2, y2: Y, class: 'conveyor-link' }, parent);
-    chevrons(parent, x1, Y, x2, Y, 1);
+function injectFloor(markup) {
+  const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+  const root = doc.documentElement;
+  for (const child of [...root.childNodes]) {
+    layers.floor.appendChild(document.importNode(child, true));
   }
-
-  const circle = svgEl('circle', {
-    cx: geo.labeler.x, cy: Y, r: geo.labeler.r, class: 'labeling-circle',
-  }, parent);
-  svgEl('text', {
-    x: geo.labeler.x, y: 392, class: 'station-sub', 'text-anchor': 'middle',
-  }, parent).textContent = 'Etiquetado';
-
-  // Output lane heading north
-  lane(geo.labeler.x - 22, 120, 44, b.y - 120, layers.lanes);
-  chevrons(layers.lanes, geo.labeler.x, b.y - 8, geo.labeler.x, 130, 2);
-  svgEl('text', {
-    x: geo.output.x, y: 104, class: 'station-name', 'text-anchor': 'middle',
-  }, parent).textContent = 'Salida (N)';
-
-  return circle;
+  buildOverlays();
 }
 
-function buildScene() {
-  layers.floor = svgEl('g', {}, svg);
-  layers.lanes = svgEl('g', {}, svg);
-  layers.stations = svgEl('g', {}, svg);
-  layers.car = svgEl('g', {}, svg);
-  layers.pallets = svgEl('g', {}, svg);
+function buildOverlays() {
+  // Labeling rings (pulse while labeling)
+  labelRing1 = svgEl('circle', {
+    cx: GEO.b1.labeler.x, cy: GEO.b1.labeler.y, r: GEO.b1.labeler.r + 26, class: 'labeling-ring',
+  }, layers.overlays);
+  labelRing2 = svgEl('circle', {
+    cx: GEO.b2.labeler.x, cy: GEO.b2.labeler.y, r: GEO.b2.labeler.r + 26, class: 'labeling-ring',
+  }, layers.overlays);
 
-  // Compass
-  const comp = svgEl('g', { class: 'compass', transform: 'translate(60 130)' }, layers.floor);
-  svgEl('line', { x1: 0, y1: 18, x2: 0, y2: -14, class: 'compass-line' }, comp);
-  svgEl('polygon', { points: '-6,-8 0,-22 6,-8', class: 'compass-n' }, comp);
-  svgEl('text', { x: 0, y: 38, 'text-anchor': 'middle', class: 'station-name' }, comp).textContent = 'N';
-
-  // Entry conveyor (south → north) and the approach to Bocedi 1
-  lane(GEO.entryX - 24, Y - 22, 48, GEO.entrySouth - Y + 100, layers.lanes);
-  lane(GEO.entryX + 24, Y - 22, GEO.b1.box.x - GEO.entryX - 24, 44, layers.lanes);
-  chevrons(layers.lanes, GEO.entryX, GEO.entrySouth + 40, GEO.entryX, Y + 16, 5);
-  chevrons(layers.lanes, GEO.entryX + 40, Y, GEO.b1.box.x - 10, Y, 2);
-
-  // Car rail (junction ← west → Bocedi 2 entrance)
+  // Live QR status: frame around the QR tags of the drawing
+  const tagFrame = (t) => svgEl('rect', {
+    x: t.x - 22, y: t.y - 22, width: t.w + 44, height: t.h + 44, rx: 18, class: 'qr-live',
+  }, layers.overlays);
+  qrLiveEl = tagFrame(GEO.qrTag);
   svgEl('line', {
-    x1: GEO.b2.box.x + GEO.b2.box.w, y1: Y, x2: GEO.car.inB1 + 46, y2: Y, class: 'rail',
-  }, layers.lanes);
-  for (let x = GEO.b2.box.x + GEO.b2.box.w + 6; x <= GEO.car.inB1 + 44; x += 26) {
-    svgEl('line', { x1: x, y1: Y - 9, x2: x, y2: Y + 9, class: 'rail-tie' }, layers.lanes);
-  }
+    x1: GEO.qrTag.x + GEO.qrTag.w / 2, y1: GEO.qrTag.y + GEO.qrTag.h + 24,
+    x2: GEO.qrTag.x + GEO.qrTag.w / 2, y2: Y - PAL_H / 2 - 20, class: 'qr-beam',
+  }, layers.overlays);
+  elevQrLiveEl = tagFrame(GEO.elevQrTag);
 
-  // Bocedis
-  labelCircle1 = buildBocedi(GEO.b1, 'Bocedi 1', layers.stations);
-  labelCircle2 = buildBocedi(GEO.b2, 'Bocedi 2', layers.stations);
-
-  // QR reader on the north face of the entry conveyor, beam pointing south
-  qrBoxEl = svgEl('g', {
-    class: 'qr-station', transform: `translate(${GEO.entryX} 250)`,
-  }, layers.stations);
-  svgEl('rect', { x: -26, y: -24, width: 52, height: 48, rx: 8, class: 'qr-box' }, qrBoxEl);
-  svgEl('text', { x: 0, y: 6, 'text-anchor': 'middle', class: 'qr-text' }, qrBoxEl).textContent = 'QR';
-  svgEl('line', { x1: 0, y1: 24, x2: 0, y2: 52, class: 'qr-beam' }, qrBoxEl);
-
-  // Tags
-  const tag = (x, y, text) => {
-    svgEl('text', { x, y, class: 'station-name', 'text-anchor': 'middle' }, layers.floor).textContent = text;
-  };
-  tag(GEO.entryX, GEO.entrySouth + 86, 'Entrada (S)');
-  tag((GEO.car.inB1 + GEO.car.inB2) / 2, Y + 52, 'Carro');
-
-  // The car
+  // The transfer car
   carEl = svgEl('g', { class: 'car-body' }, layers.car);
-  svgEl('rect', { x: -38, y: -22, width: 76, height: 44, rx: 6, class: 'car-rect' }, carEl);
-  svgEl('circle', { cx: -22, cy: 24, r: 6, class: 'car-wheel' }, carEl);
-  svgEl('circle', { cx: 22, cy: 24, r: 6, class: 'car-wheel' }, carEl);
+  svgEl('rect', { x: -240, y: -210, width: 480, height: 420, rx: 24, class: 'car-rect' }, carEl);
+  for (const [px, py] of [[-150, -232], [90, -232], [-150, 208], [90, 208]]) {
+    svgEl('rect', { x: px, y: py, width: 120, height: 26, class: 'car-pad' }, carEl);
+  }
   moveCar(GEO.car.inB1, 0);
 }
 
 function moveCar(x, seconds) {
+  lastCarX = x;
   carEl.style.transitionDuration = `${seconds}s`;
   carEl.style.transform = `translate(${x}px, ${Y}px)`;
 }
 
 // ---------------------------------------------------------------------------
-// Pallets: create/move/remove by QR identity
+// Pallets
 // ---------------------------------------------------------------------------
 
-const palletEls = new Map(); // qr -> { g, label }
+const palletEls = new Map(); // key -> { g, label, mode: 'world'|'car' }
 
-function palletLabelText(p) {
-  return [p.Qr, [p.Id && p.Id !== '0' ? `Id ${p.Id}` : '', p.Injector].filter(Boolean).join(' · ')];
-}
-
-function createPallet(p, x, y) {
-  const g = svgEl('g', { class: 'pallet' }, layers.pallets);
-  g.style.transform = `translate(${x}px, ${y}px)`;
+function createPallet(t) {
+  const g = svgEl('g', { class: 'pallet' + (t.ghost ? ' ghost' : '') }, layers.pallets);
+  const x0 = t.spawnAt ? t.spawnAt.x : t.x;
+  const y0 = t.spawnAt ? t.spawnAt.y : t.y;
+  g.style.transform = `translate(${x0}px, ${y0}px)`;
   svgEl('rect', {
-    x: -PALLET_HALF, y: -PALLET_HALF, width: PALLET_HALF * 2, height: PALLET_HALF * 2, rx: 4, class: 'pallet-box',
+    x: -PAL_W / 2, y: -PAL_H / 2, width: PAL_W, height: PAL_H, rx: 24, class: 'pallet-box',
   }, g);
-  for (const off of [-8, 0, 8]) {
-    svgEl('line', { x1: -PALLET_HALF + 4, y1: off, x2: PALLET_HALF - 4, y2: off, class: 'pallet-plank' }, g);
+  for (const off of [-70, 0, 70]) {
+    svgEl('line', { x1: -PAL_W / 2 + 36, y1: off, x2: PAL_W / 2 - 36, y2: off, class: 'pallet-plank' }, g);
   }
   const label = svgEl('text', { class: 'pallet-data', 'text-anchor': 'middle' }, g);
-  const [l1, l2] = palletLabelText(p);
-  svgEl('tspan', { x: 0 }, label).textContent = l1;
-  svgEl('tspan', { x: 0, dy: 13 }, label).textContent = l2;
-  return { g, label };
+  if (t.ghost) {
+    svgEl('tspan', { x: 0 }, label).textContent = 'Palet en elevador';
+  } else {
+    svgEl('tspan', { x: 0 }, label).textContent = t.pallet.Qr;
+    const l2 = [t.pallet.Id && t.pallet.Id !== '0' ? `Id ${t.pallet.Id}` : '', t.pallet.Injector]
+      .filter(Boolean).join(' · ');
+    svgEl('tspan', { x: 0, dy: 108 }, label).textContent = l2;
+  }
+  return { g, label, mode: 'world' };
 }
 
 function setPalletTargets(targets) {
-  for (const [qr, t] of targets) {
-    let entry = palletEls.get(qr);
+  for (const [key, t] of targets) {
+    let entry = palletEls.get(key);
     if (!entry) {
-      entry = createPallet(t.pallet, t.x, t.y);
-      palletEls.set(qr, entry);
-      // Force a frame at the spawn position so the first move animates.
-      entry.g.getBoundingClientRect();
+      entry = createPallet(t);
+      palletEls.set(key, entry);
+      entry.g.getBoundingClientRect(); // paint the spawn position first
     }
-    entry.g.style.transitionDuration = `${t.seconds ?? 0.7}s`;
-    entry.g.style.transform = `translate(${t.x}px, ${t.y}px)`;
-    entry.label.setAttribute('transform', `translate(0 ${t.labelHigh ? -58 : -32})`);
+    if (t.ride) {
+      // Riding the car: parent the pallet into the car group so they move
+      // as one rigid body.
+      if (entry.mode !== 'car') {
+        carEl.appendChild(entry.g);
+        entry.g.style.transitionDuration = '0s';
+        entry.g.style.transform = 'translate(0px, 0px)';
+        entry.mode = 'car';
+      }
+    } else {
+      if (entry.mode === 'car') {
+        // Dismount where the car currently is, then glide to the target.
+        layers.pallets.appendChild(entry.g);
+        entry.g.style.transitionDuration = '0s';
+        entry.g.style.transform = `translate(${lastCarX}px, ${Y}px)`;
+        entry.g.getBoundingClientRect();
+        entry.mode = 'world';
+      }
+      entry.g.style.transitionDuration = `${t.seconds ?? 0.8}s`;
+      entry.g.style.transform = `translate(${t.x}px, ${t.y}px)`;
+    }
+    entry.label.setAttribute('transform', `translate(0 ${t.labelHigh ? -480 : -230})`);
   }
-  for (const [qr, entry] of palletEls) {
-    if (targets.has(qr)) continue;
-    palletEls.delete(qr);
+  for (const [key, entry] of palletEls) {
+    if (targets.has(key)) continue;
+    palletEls.delete(key);
     entry.g.classList.add('leaving');
-    setTimeout(() => entry.g.remove(), 700);
+    const node = entry.g;
+    setTimeout(() => node.remove(), 700);
   }
 }
 
@@ -265,50 +195,37 @@ function entryPalletTarget(st) {
   if (!p || !p.Qr) return null;
   const s = st.MachineState.PalletEntry;
   if ((s >= PE.ReadingQR && s <= PE.SendingID) || s === PE.ReadingQrInError) {
-    return { x: GEO.entryX, y: GEO.qrY };
+    // Read at the junction; newly created pallets glide up from the south.
+    return { x: GEO.entryX, y: Y, spawnAt: GEO.spawn, seconds: 1.6 };
   }
   if (s === PE.WaitForBocedi1 || s === PE.WaitForCar) return { x: GEO.entryX, y: Y };
-  if (s === PE.WaitEnterBocedi) return { x: GEO.b1.entrance, y: Y };
+  if (s === PE.WaitEnterBocedi) return { x: GEO.b1.stations[0].x - 340, y: Y };
   if (s === PE.WaitEnterCar) return { x: GEO.car.inB1, y: Y };
-  return null; // Waiting / update states / Paused: shown elsewhere or gone
+  return null;
 }
 
-function packagerTargets(pk, geo, labelState, add) {
-  const q = pk.Queue || [];
-  const labelBusy = !!(pk.LabelPallet && pk.LabelPallet.Qr);
-
-  // Chain of queue-occupiable stations, front-most first. Measurement is
-  // available to the queue only while the weighing pallet isn't there.
-  const chain = [
-    ...(labelBusy ? [] : [geo.measurement]),
-    geo.processing,
-    ...geo.entryQueue,
-  ];
-  const entryIdx = chain.length - 1; // pallets arrive at the last entry slot
-
-  // A pallet with s pallets behind it has provably advanced s stations from
-  // the entry slot; pack greedily from the front.
-  let nextFree = 0;
+// Push semantics: a pallet's station index (from the entry slot, in flow
+// order) equals the number of pallets that entered after it. Pallets landing
+// in the two-slot queue before the labeler pack toward the far slot.
+function packQueue(q, geo, add) {
+  const S = geo.stations;
+  const postStart = S.length - 2;
+  const inPost = []; // front-most first
+  let next = S.length - 1; // deepest station still free
   let outside = 0;
   q.forEach((p, i) => {
-    const behind = q.length - 1 - i;
-    const slot = Math.max(entryIdx - behind, nextFree);
-    let pos;
-    if (slot < chain.length) {
-      pos = chain[slot];
-      nextFree = slot + 1;
-    } else {
-      pos = geo.approach[Math.min(outside++, geo.approach.length - 1)];
-      nextFree = chain.length;
+    const idx = Math.min(q.length - 1 - i, next); // pushes, capped by pallets ahead
+    if (idx < 0) {
+      // The machine is full: the newest arrivals wait outside.
+      const o = geo.overflow[Math.min(outside++, geo.overflow.length - 1)];
+      add(p, o.x, o.y ?? Y, { labelHigh: i % 2 === 1 });
+      return;
     }
-    if (pos) add(p, pos.x, pos.y ?? Y, { labelHigh: i % 2 === 1 });
+    next = idx - 1;
+    if (idx >= postStart) inPost.push(p);
+    else add(p, S[idx].x, Y, { labelHigh: i % 2 === 1 });
   });
-
-  if (pk.LabelPallet) {
-    const pos = AT_LABELER_STATES.includes(labelState) ? geo.labeler : geo.measurement;
-    add(pk.LabelPallet, pos.x, Y);
-  }
-  if (pk.ExitPallet) add(pk.ExitPallet, geo.output.x, geo.output.y);
+  inPost.forEach((p, k) => add(p, S[S.length - 1 - k].x, Y, { labelHigh: k % 2 === 1 }));
 }
 
 function collectTargets(st) {
@@ -318,16 +235,26 @@ function collectTargets(st) {
     targets.set(pallet.Qr, { pallet, x, y, ...opts });
   };
 
-  if (st.Packager1) packagerTargets(st.Packager1, GEO.b1, st.MachineState.PalletLabel1, add);
-  if (st.Packager2) packagerTargets(st.Packager2, GEO.b2, st.MachineState.PalletLabel2, add);
+  for (const [pk, geo, labelState] of [
+    [st.Packager1, GEO.b1, st.MachineState.PalletLabel1],
+    [st.Packager2, GEO.b2, st.MachineState.PalletLabel2],
+  ]) {
+    if (!pk) continue;
+    packQueue(pk.Queue || [], geo, add);
+    if (pk.LabelPallet) add(pk.LabelPallet, geo.labeler.x, geo.labeler.y);
+    if (pk.ExitPallet) add(pk.ExitPallet, geo.output.x, geo.output.y);
+  }
 
   if (st.Car && st.Car.HasPallet && st.Car.Pallet) {
-    const t = carTarget(st.Car.CarPosition);
-    add(st.Car.Pallet, t.x, Y, { seconds: t.seconds });
+    add(st.Car.Pallet, 0, 0, { ride: true });
   }
 
   const et = entryPalletTarget(st);
-  if (et) add(st.EntryPallet, et.x, et.y);
+  if (et) add(st.EntryPallet, et.x, et.y, et);
+
+  if (st.MachineState.ElevatorAccess === ELEVATOR_WAITING_LEAVE) {
+    targets.set('__elevator__', { ghost: true, x: GEO.elevator.x, y: GEO.elevator.y });
+  }
 
   return targets;
 }
@@ -361,6 +288,7 @@ function setBanner(el, message) {
 }
 
 function handleStatus(st) {
+  if (!carEl) return; // floor not injected yet
   for (const [key, chip] of Object.entries(connChips)) {
     chip.classList.toggle('on', !!st.Connections[key]);
   }
@@ -370,13 +298,19 @@ function handleStatus(st) {
   carEl.classList.toggle('unknown', !st.Car || st.Car.CarPosition === 0);
 
   const s = st.MachineState.PalletEntry;
-  qrBoxEl.setAttribute('class', 'qr-station');
-  if (s === PE.ReadingQrInError) qrBoxEl.classList.add('bad', 'blink');
-  else if (s === PE.ReadingQR || s === PE.Paused) qrBoxEl.classList.add('ok', 'blink');
-  else if (s !== undefined && s !== PE.Waiting) qrBoxEl.classList.add('ok');
+  qrLiveEl.setAttribute('class', 'qr-live');
+  if (s === PE.ReadingQrInError) qrLiveEl.classList.add('bad', 'blink');
+  else if (s === PE.ReadingQR || s === PE.Paused) qrLiveEl.classList.add('ok', 'blink');
+  else if (s !== undefined && s !== PE.Waiting) qrLiveEl.classList.add('ok');
 
-  labelCircle1.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel1));
-  labelCircle2.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel2));
+  const e = st.MachineState.ElevatorAccess;
+  elevQrLiveEl.setAttribute('class', 'qr-live');
+  if (e === 2) elevQrLiveEl.classList.add('bad', 'blink');      // FailedQr
+  else if (e === 1) elevQrLiveEl.classList.add('ok', 'blink');  // ReadingQr
+  else if (e === ELEVATOR_WAITING_LEAVE) elevQrLiveEl.classList.add('ok');
+
+  labelRing1.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel1));
+  labelRing2.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel2));
 
   setPalletTargets(collectTargets(st));
 
@@ -393,7 +327,9 @@ function handleStatus(st) {
 const vb = { ...GEO.world };
 
 function applyViewBox() {
-  svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const box = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
+  svg.setAttribute('viewBox', box);
+  floorSvg.setAttribute('viewBox', box);
 }
 
 function clientToWorld(cx, cy) {
@@ -406,7 +342,7 @@ function clientToWorld(cx, cy) {
 
 function zoomAt(cx, cy, factor) {
   const p = clientToWorld(cx, cy);
-  const w = Math.min(Math.max(vb.w * factor, 260), GEO.world.w * 2.2);
+  const w = Math.min(Math.max(vb.w * factor, 900), GEO.world.w * 2.2);
   const scale = w / vb.w;
   vb.x = p.x - (p.x - vb.x) * scale;
   vb.y = p.y - (p.y - vb.y) * scale;
@@ -447,8 +383,7 @@ svg.addEventListener('pointermove', (e) => {
     const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
     const cx = (a.x + b.x) / 2;
     const cy = (a.y + b.y) / 2;
-    const targetW = pinchStart.w * (pinchStart.dist / dist);
-    zoomAt(cx, cy, targetW / vb.w);
+    zoomAt(cx, cy, (pinchStart.w * (pinchStart.dist / dist)) / vb.w);
   }
 });
 
@@ -473,7 +408,20 @@ $('zoomFitBtn').addEventListener('click', () => {
 });
 
 applyViewBox();
-buildScene();
+layers.floor = svgEl('g', {}, floorSvg);
+layers.overlays = svgEl('g', {}, svg);
+layers.car = svgEl('g', {}, svg);
+layers.pallets = svgEl('g', {}, svg);
+
+// Floor: inlined by the demo build, fetched on the real page.
+const inlineFloor = document.getElementById('plantFloorInline');
+if (inlineFloor) {
+  injectFloor(inlineFloor.innerHTML);
+} else {
+  fetch('plant_floor.svg')
+    .then((r) => r.text())
+    .then(injectFloor);
+}
 
 // ---------------------------------------------------------------------------
 // Startup: connect to the server (replaced by the local sim in demos)

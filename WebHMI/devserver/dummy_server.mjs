@@ -58,6 +58,8 @@ const MACHINE_STATES = {
   DeletePalletEmb2: ['Waiting', 'Validating', 'ValidatingPLC', 'WaitingWrite',
     'SendingFIFO', 'Completed', 'Failed'],
   AcceptHMIs: ['Init', 'Listening', 'Connecting', 'Adding', 'Pause'],
+  ElevatorAccess: ['WaitingRequest', 'ReadingQr', 'FailedQr', 'WaitingAuth',
+    'WaitingLeave', 'Delay'],
 };
 
 // ---------------------------------------------------------------------------
@@ -101,6 +103,7 @@ const state = {
     DeletePalletEmb1: 0,
     DeletePalletEmb2: 0,
     AcceptHMIs: 1, // Listening
+    ElevatorAccess: 0, // WaitingRequest
   },
 };
 
@@ -114,7 +117,8 @@ function makePallet(idCounter) {
   idCounter.value = idCounter.value % 7 + 1; // queue ids cycle 1..7
   palletSeq++;
   return {
-    Qr: `018509WE${String(palletSeq).padStart(6, '0')}`,
+    // Short code like the real reads, e.g. S1232F23
+    Qr: `S${1000 + ((palletSeq * 37) % 9000)}F${10 + (palletSeq % 90)}`,
     Id: String(labeling ? id + 8 : id), // +8 encodes the label flag like the PLC ids
     Recipe: `R-${(palletSeq % 9) + 1}`,
     Injector: `INY-${String((palletSeq % 12) + 1).padStart(2, '0')}`,
@@ -135,14 +139,20 @@ function stepEntry(t) {
   const ms = state.machineState;
   const go = (name, dwell, extra) => { entryPhase = { name, until: t + dwell, ...extra }; };
   switch (entryPhase.name) {
-    case 'idle':
+    case 'idle': {
       ms.PalletEntry = PE.Waiting;
       state.entryPallet = null;
       state.signals[SIG.ReadQR] = false;
+      // The elevator stages the next pallet: reads its QR, waits for the
+      // authorization and holds it (WaitingLeave) until the conveyor is free.
+      const rem = entryPhase.until - t;
+      ms.ElevatorAccess = rem > 4200 ? 0 : rem > 3200 ? 1 : rem > 1600 ? 3 : 4;
       if (t > entryPhase.until) go('reading', 1500);
       break;
+    }
     case 'reading':
       ms.PalletEntry = PE.ReadingQR;
+      ms.ElevatorAccess = 0; // WaitingRequest
       state.signals[SIG.ReadQR] = true;
       if (t > entryPhase.until) {
         // 1 in 8 pallets arrives with an unreadable QR

@@ -19,6 +19,8 @@
 
 /*__BODY__*/
 
+<template id="plantFloorInline">/*__FLOOR__*/</template>
+
 <script>
 /*__COMMON__*/
 
@@ -31,7 +33,7 @@ const TRANSITIONS = /*__TRANSITIONS__*/;
 const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
 const MACHINE_STATES = Object.fromEntries([
   'FatekPLCCommunication', 'PalletEntry', 'PalletLabel1', 'PalletLabel2',
-  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs',
+  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs', 'ElevatorAccess',
 ].map((n) => [n, TRANSITIONS[n].states]));
 
 /*__SIM__*/

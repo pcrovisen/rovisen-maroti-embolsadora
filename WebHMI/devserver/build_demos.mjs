@@ -80,6 +80,7 @@ const outputs = {
   }),
   'planta-demo.html': fill(read(path.join(here, 'demo', 'plant.template.html')), {
     CSS: css, BODY: plantBody, COMMON: common, TRANSITIONS: transitions, SIM: sim, PLANT: plant,
+    FLOOR: read(path.join(www, 'plant_floor.svg')),
   }),
 };
 
