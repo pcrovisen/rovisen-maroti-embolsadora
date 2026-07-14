@@ -102,8 +102,12 @@ function buildOverlays() {
   }, layers.overlays);
   elevQrLiveEl = tagFrame(GEO.elevQrTag);
 
-  // The transfer car
+  // The transfer car: roller platform (the striped deck from the drawing)
+  // under the red frame, so the rollers travel with the car.
   carEl = svgEl('g', { class: 'car-body' }, layers.car);
+  for (let rx = -228; rx <= 208; rx += 36) {
+    svgEl('rect', { x: rx, y: -205, width: 20, height: 410, class: 'car-roller' }, carEl);
+  }
   svgEl('rect', { x: -240, y: -210, width: 480, height: 420, rx: 24, class: 'car-rect' }, carEl);
   for (const [px, py] of [[-150, -232], [90, -232], [-150, 208], [90, 208]]) {
     svgEl('rect', { x: px, y: py, width: 120, height: 26, class: 'car-pad' }, carEl);
@@ -129,21 +133,21 @@ function createPallet(t) {
   const y0 = t.spawnAt ? t.spawnAt.y : t.y;
   g.style.transform = `translate(${x0}px, ${y0}px)`;
   svgEl('rect', {
-    x: -PAL_W / 2, y: -PAL_H / 2, width: PAL_W, height: PAL_H, rx: 24, class: 'pallet-box',
+    x: -PAL_W / 2, y: -PAL_H / 2, width: PAL_W, height: PAL_H, rx: 16, class: 'pallet-box',
   }, g);
-  for (const off of [-70, 0, 70]) {
-    svgEl('line', { x1: -PAL_W / 2 + 36, y1: off, x2: PAL_W / 2 - 36, y2: off, class: 'pallet-plank' }, g);
-  }
+  // Data written on the pallet, like the sample in the drawing.
   const label = svgEl('text', { class: 'pallet-data', 'text-anchor': 'middle' }, g);
   if (t.ghost) {
-    svgEl('tspan', { x: 0 }, label).textContent = 'Palet en elevador';
+    svgEl('tspan', { x: 0, y: 20 }, label).textContent = 'Elevador';
   } else {
-    svgEl('tspan', { x: 0 }, label).textContent = t.pallet.Qr;
-    const l2 = [t.pallet.Id && t.pallet.Id !== '0' ? `Id ${t.pallet.Id}` : '', t.pallet.Injector]
-      .filter(Boolean).join(' · ');
-    svgEl('tspan', { x: 0, dy: 108 }, label).textContent = l2;
+    const qr = svgEl('tspan', { x: 0, y: -50, class: 'pallet-qr' }, label);
+    qr.textContent = t.pallet.Qr;
+    svgEl('tspan', { x: 0, y: 25 }, label).textContent =
+      t.pallet.Id && t.pallet.Id !== '0' ? `ID: ${t.pallet.Id}` : '';
+    svgEl('tspan', { x: 0, y: 95 }, label).textContent =
+      t.pallet.Injector ? `Maq: ${t.pallet.Injector}` : '';
   }
-  return { g, label, mode: 'world' };
+  return { g, mode: 'world' };
 }
 
 function setPalletTargets(targets) {
@@ -175,7 +179,6 @@ function setPalletTargets(targets) {
       entry.g.style.transitionDuration = `${t.seconds ?? 0.8}s`;
       entry.g.style.transform = `translate(${t.x}px, ${t.y}px)`;
     }
-    entry.label.setAttribute('transform', `translate(0 ${t.labelHigh ? -480 : -230})`);
   }
   for (const [key, entry] of palletEls) {
     if (targets.has(key)) continue;
@@ -351,46 +354,66 @@ function zoomAt(cx, cy, factor) {
   applyViewBox();
 }
 
+// Figma-style navigation: scroll / two-finger drag pans, pinch (Ctrl+wheel
+// on trackpads) zooms. A single touch does nothing; mouse drag still pans.
 svg.addEventListener('wheel', (e) => {
   e.preventDefault();
-  zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 1.18 : 1 / 1.18);
+  if (e.ctrlKey || e.metaKey) {
+    zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * 0.01));
+  } else {
+    const r = svg.getBoundingClientRect();
+    vb.x += (e.deltaX / r.width) * vb.w;
+    vb.y += (e.deltaY / r.height) * vb.h;
+    applyViewBox();
+  }
 }, { passive: false });
 
 const pointers = new Map();
-let pinchStart = null;
+
+const centroidAndDist = () => {
+  const [a, b] = [...pointers.values()];
+  return {
+    cx: (a.x + b.x) / 2,
+    cy: (a.y + b.y) / 2,
+    dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+  };
+};
+let lastGesture = null;
 
 svg.addEventListener('pointerdown', (e) => {
   svg.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    pinchStart = { dist: Math.hypot(a.x - b.x, a.y - b.y), w: vb.w };
-  }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+  lastGesture = pointers.size === 2 ? centroidAndDist() : null;
 });
 
 svg.addEventListener('pointermove', (e) => {
   const prev = pointers.get(e.pointerId);
   if (!prev) return;
-  if (pointers.size === 1) {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+
+  if (pointers.size === 2) {
+    // Two fingers: pan with the centroid, zoom with the distance.
+    const g = centroidAndDist();
+    if (lastGesture) {
+      const r = svg.getBoundingClientRect();
+      vb.x -= ((g.cx - lastGesture.cx) / r.width) * vb.w;
+      vb.y -= ((g.cy - lastGesture.cy) / r.height) * vb.h;
+      applyViewBox();
+      zoomAt(g.cx, g.cy, lastGesture.dist / g.dist);
+    }
+    lastGesture = g;
+  } else if (pointers.size === 1 && e.pointerType === 'mouse') {
     const r = svg.getBoundingClientRect();
     vb.x -= ((e.clientX - prev.x) / r.width) * vb.w;
     vb.y -= ((e.clientY - prev.y) / r.height) * vb.h;
     applyViewBox();
-  }
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 2 && pinchStart) {
-    const [a, b] = [...pointers.values()];
-    const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
-    const cx = (a.x + b.x) / 2;
-    const cy = (a.y + b.y) / 2;
-    zoomAt(cx, cy, (pinchStart.w * (pinchStart.dist / dist)) / vb.w);
   }
 });
 
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
   svg.addEventListener(ev, (e) => {
     pointers.delete(e.pointerId);
-    if (pointers.size < 2) pinchStart = null;
+    lastGesture = pointers.size === 2 ? centroidAndDist() : null;
   });
 }
 
@@ -408,7 +431,9 @@ $('zoomFitBtn').addEventListener('click', () => {
 });
 
 applyViewBox();
-layers.floor = svgEl('g', {}, floorSvg);
+// fill="none" mirrors the original drawing's root attribute: its dashed
+// enclosure rects have no fill and must not default to black.
+layers.floor = svgEl('g', { fill: 'none' }, floorSvg);
 layers.overlays = svgEl('g', {}, svg);
 layers.car = svgEl('g', {}, svg);
 layers.pallets = svgEl('g', {}, svg);

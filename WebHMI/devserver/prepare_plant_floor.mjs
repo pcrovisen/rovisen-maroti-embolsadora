@@ -31,16 +31,32 @@ const inRegion = (el, x0, x1, y0, y1) => {
 const CAR_REGIONS = [[6400, 7000, 1800, 2350], [3550, 4100, 1800, 2350]];
 const LABEL_REGION = [6450, 7050, 3250, 4050];
 
-let removed = { pallets: 0, car: 0, label: 0 };
+let removed = { pallets: 0, car: 0, label: 0, bg: 0 };
 
 svg = svg.replace(/<(rect|path)[^>]*\/>/g, (el) => {
+  if (el.includes('width="10859" height="4923"')) { removed.bg++; return ''; }
   if (el.includes('fill="#B27916"')) { removed.pallets++; return ''; }
-  if ((el.includes('fill="#940303"') || el.includes('fill="black"'))
+  if ((el.includes('fill="#940303"') || el.includes('fill="black"') || el.includes('fill="#D9D9D9"'))
       && CAR_REGIONS.some((r) => inRegion(el, ...r))) { removed.car++; return ''; }
   if (el.startsWith('<path') && el.includes('fill="white"')
       && inRegion(el, ...LABEL_REGION)) { removed.label++; return ''; }
   return el;
 });
+
+// Recolor the drawing for the dark theme (blacks/grays -> light tones;
+// the orange chevrons and red machine/QR accents stay as drawn).
+const RECOLOR = {
+  'fill="#D9D9D9"': 'fill="#39445C"',
+  'fill="#7A7A7A"': 'fill="#93A1B8"',
+  'fill="black"': 'fill="#DFE6F0"',
+  'fill="#181616"': 'fill="#8FA0B8"',
+  'fill="#0C0B0B"': 'fill="#2E3A52"',
+  'fill="#B9B9B9"': 'fill="#55617A"',
+  'fill="#655D5D"': 'fill="#6B7891"',
+  'fill="#022B56"': 'fill="#5B8BC9"',
+  'stroke="black"': 'stroke="#9AA5B5"',
+};
+for (const [from, to] of Object.entries(RECOLOR)) svg = svg.split(from).join(to);
 
 fs.writeFileSync(OUT, svg);
 console.log(`removed: ${removed.pallets} sample pallets, ${removed.car} car shapes, ${removed.label} label paths`);

@@ -486,26 +486,20 @@ body {
 }
 .car-body.unknown { animation: blink 0.8s step-start infinite; }
 .car-rect { fill: none; stroke: #940303; stroke-width: 20; }
-.car-pad { fill: #181616; }
+.car-pad { fill: #dfe6f0; }
+.car-roller { fill: #39445c; }
 
 .pallet {
   transition-property: transform;
   transition-timing-function: ease-in-out;
 }
 .pallet.leaving { opacity: 0; transition: opacity 0.6s; }
-.pallet-box { fill: #b27916; stroke: #7a5210; stroke-width: 9; }
-.pallet-plank { stroke: #7a5210; stroke-width: 9; }
-.pallet-data {
-  fill: #16202e;
-  font-size: 96px;
-  font-weight: 600;
-  paint-order: stroke;
-  stroke: #ffffffd9;
-  stroke-width: 28;
-}
+.pallet-box { fill: #b27916; }
+/* Data written on the pallet, like the drawing's sample */
+.pallet-data { fill: #ffffff; font-size: 58px; }
+.pallet-data .pallet-qr { font-weight: 700; font-size: 62px; }
 .pallet.ghost { opacity: 0.85; }
-.pallet.ghost .pallet-box { fill: #b9b9b9; stroke: #8a8a8a; }
-.pallet.ghost .pallet-plank { stroke: #8a8a8a; }
+.pallet.ghost .pallet-box { fill: #55617a; }
 
 /* ---------- Dialogs ---------- */
 
