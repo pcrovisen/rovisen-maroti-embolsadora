@@ -38,7 +38,7 @@ A legacy direct TCP link to the car (`CarConnection`/`CarCommunication`, port 51
 
 The PC hosts a **Modbus TCP server** (EasyModbus); the Fatek master PLC is the client that polls/writes it. Wrapper: `Devices/FatekPLC.cs`.
 
-- **Coils** = boolean signals (`FatekPLC.Signals`). Convention: **1–20 are written by the PC**, **21+ are written by the PLC**. `HMIConnection` sends coils 21–48 (`ReadSignals(Signals.ReadQR, 28)`) to HMIs.
+- **Coils** = boolean signals (`FatekPLC.Signals`). Convention: **1–20 are written by the PC**, **21+ are written by the PLC**. `HMIConnection` sends both ranges to HMIs: coils 21+ as `Signals` (`ReadQR..WaitLabel2`) and coils 1–20 as `PcSignals` (`ReadingPallet..ElevatorFailedQr`); both lengths are computed from the enum, so appending new signals needs no count change.
 - **Holding registers** = data (`FatekPLC.Memory`): entry QR/ID, the four FIFOs (FIFO1/2 = Bocedi1 queue QRs/IDs, FIFO3/4 = Bocedi2), label/exit slots, car pallet, and the deletion scratch area (`DEL*`).
 - **Connectivity watchdog**: `IsConnected` = at least one Modbus client and some register/coil write within the last 5 s (any PLC write restarts a stopwatch).
 - **Startup handshake** (`FatekPLCCommunication`): PLC raises `PLCStarting` → PC raises `Alive` → PLC raises `SendingFIFOs` → PC raises `ReceivingFIFOs`, PLC dumps FIFOs and raises `Ready` → PC re-reads queues into `Status` → `Working`. Losing `Ready` or the watchdog sends it back to `Init`.
@@ -84,7 +84,7 @@ HMI sends `del{json DeletePallet}` → `HMIConnection` calls `DeletePalletEmb{1,
 `AcceptHMIs` accepts clients (one per source IP; a reconnect replaces the old one). Request/response, UTF-8, every message prefixed with its byte length as a 4-byte little-endian int (`TcpDevice` on the server, `HMIClient.ReadMessage`/`Request` on the client — both sides must change together):
 
 - `init` → full JSON snapshot; `update` (or anything else) → snapshot where `Packager1/2`, `Car`, `States` are `null` unless changed since that client's last message; `del…` → deletion (answer `OK`/`NOK`); `terminate` → close.
-- Snapshot keys: `Config`, `Signals` (coils 21–48 as bool[28], indexed by the client's `SignalsNames` enum which starts at `ReadQR`), `Connections`, `EntryPallet`, `ErrorMessages`, `Packager1`, `Packager2`, `Car`, `MachineState` (name → state ordinal), `States` (name → ordinal → state name).
+- Snapshot keys: `Config`, `Signals` (coils 21+ as bool[37], indexed by the client's `SignalsNames` enum which starts at `ReadQR`), `PcSignals` (coils 1–20 as bool[20], indexed by `PcSignalsNames`), `Connections`, `EntryPallet`, `ErrorMessages`, `Packager1`, `Packager2`, `Car`, `MachineState` (name → state ordinal), `States` (name → ordinal → state name).
 - A client silent for 10 s is dropped. The client (`TcpHMIClient/HMIClient.cs`) polls every 100 ms from a `BackgroundWorker` and mirrors the server's DTOs/enums by hand — **if you touch `Status` DTOs, `Signals` order, or any `States` enum used by the HMI, update `HMIClient.cs` to match** (`PalletEntryStates`, `SignalsNames`, DTO classes).
 
 ## Database (SQL Server, schema `[maroti]`)

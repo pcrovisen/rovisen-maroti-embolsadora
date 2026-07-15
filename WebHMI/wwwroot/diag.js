@@ -13,15 +13,17 @@
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 
+// Generous spacing: pan & zoom handles navigation, so the layout favors
+// legibility over fitting the initial viewport. The layered layout flows
+// left→right because machines are deep (many layers) but narrow (1-2 states
+// per layer), which matches the wide stage.
 const DIMS = {
-  W: 780,
-  rowGap: 80,
-  topPad: 46,
-  bottomPad: 40,
+  W: 1150, // circle-fallback canvas width
   nodeR: 10,
-  circleH: 620,
-  circleR: 240,
+  circleH: 860,
+  circleR: 340,
 };
+const FLOW = { colGap: 230, slotGap: 180, hPad: 130, vPad: 120 };
 
 const metas = new Map(); // machine name -> persistent info
 let selected = null;
@@ -64,7 +66,7 @@ function circleLayout(n) {
       angle: a,
     });
   }
-  return { H, pos, circle: true, edges: [] };
+  return { W: DIMS.W, H, pos, circle: true, edges: [] };
 }
 
 function layeredLayout(stateNames, decl) {
@@ -80,7 +82,7 @@ function layeredLayout(stateNames, decl) {
     out[ia].push(ib);
   }
 
-  // Layer = BFS distance from the initial state along declared edges.
+  // Column = BFS distance from the initial state along declared edges.
   const layer = Array(n).fill(-1);
   const start = Math.max(0, idx(decl.init));
   layer[start] = 0;
@@ -94,32 +96,35 @@ function layeredLayout(stateNames, decl) {
       }
     }
   }
-  // States never reached via declared edges go to a bottom row.
+  // States never reached via declared edges go to a last column.
   const maxLayer = Math.max(...layer);
   for (let i = 0; i < n; i++) if (layer[i] === -1) layer[i] = maxLayer + 1;
 
-  const rows = new Map();
+  const cols = new Map();
   for (let i = 0; i < n; i++) {
-    if (!rows.has(layer[i])) rows.set(layer[i], []);
-    rows.get(layer[i]).push(i);
+    if (!cols.has(layer[i])) cols.set(layer[i], []);
+    cols.get(layer[i]).push(i);
   }
 
-  const numRows = Math.max(...layer) + 1;
-  const H = DIMS.topPad + (numRows - 1) * DIMS.rowGap + DIMS.bottomPad;
+  const numCols = Math.max(...layer) + 1;
+  const maxCol = Math.max(...[...cols.values()].map((m) => m.length));
+  const W = 2 * FLOW.hPad + (numCols - 1) * FLOW.colGap;
+  const H = 2 * FLOW.vPad + (maxCol - 1) * FLOW.slotGap;
 
   const pos = Array(n);
-  for (const [l, members] of rows) {
+  for (const [l, members] of cols) {
     members.sort((a, b) => a - b);
     members.forEach((m, j) => {
       pos[m] = {
-        x: (DIMS.W * (j + 1)) / (members.length + 1),
-        y: DIMS.topPad + l * DIMS.rowGap,
+        x: FLOW.hPad + l * FLOW.colGap,
+        y: H / 2 + (j - (members.length - 1) / 2) * FLOW.slotGap,
+        col: l,
         slot: j,
-        rowSize: members.length,
+        colSize: members.length,
       };
     });
   }
-  return { H, pos, layers: layer, edges, circle: false };
+  return { W, H, pos, layers: layer, edges, circle: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +137,7 @@ function edgeGeom(layout, a, b) {
   let c;
   if (layout.circle) {
     c = {
-      x: ((A.x + B.x) / 2) * 0.62 + (DIMS.W / 2) * 0.38,
+      x: ((A.x + B.x) / 2) * 0.62 + (layout.W / 2) * 0.38,
       y: ((A.y + B.y) / 2) * 0.62 + (layout.H / 2) * 0.38,
     };
   } else if (layout.layers[b] > layout.layers[a]) {
@@ -141,13 +146,21 @@ function edgeGeom(layout, a, b) {
     const dx = B.x - A.x;
     const dy = B.y - A.y;
     const len = Math.hypot(dx, dy) || 1;
-    const bend = layout.layers[b] - layout.layers[a] > 1 ? 46 : 18;
+    const bend = layout.layers[b] - layout.layers[a] > 1 ? 90 : 32;
     c = { x: (A.x + B.x) / 2 + (dy / len) * bend, y: (A.y + B.y) / 2 - (dx / len) * bend };
   } else {
-    // Back edge (or same layer): arc out to the nearest side.
-    const side = (A.x + B.x) / 2 <= DIMS.W / 2 ? -1 : 1;
-    const mag = Math.min(60 + 26 * Math.abs(layout.layers[a] - layout.layers[b]), 190);
-    c = { x: (A.x + B.x) / 2 + side * mag, y: (A.y + B.y) / 2 };
+    // Back edge (or same column): arc out perpendicular to the edge, away
+    // from the canvas center; longer jumps arc wider.
+    const dx = B.x - A.x;
+    const dy = B.y - A.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = dy / len;
+    const py = -dx / len;
+    const mx = (A.x + B.x) / 2;
+    const my = (A.y + B.y) / 2;
+    const side = px * (mx - layout.W / 2) + py * (my - layout.H / 2) >= 0 ? 1 : -1;
+    const mag = Math.min(100 + 44 * Math.abs(layout.layers[a] - layout.layers[b]), 340);
+    c = { x: mx + px * side * mag, y: my + py * side * mag };
   }
   const trim = (p, q, d) => {
     const len = Math.hypot(q.x - p.x, q.y - p.y) || 1;
@@ -229,7 +242,6 @@ function selectMachine(name) {
 
   // Reuse the single stage svg: clear it and rebuild for this machine.
   while (mvSvg.firstChild) mvSvg.firstChild.remove();
-  panZoom.setWorld({ x: 0, y: 0, w: DIMS.W, h: layout.H });
   const edgeLayer = svgEl('g', {});
   const labelLayer = svgEl('g', {});
   const nodeLayer = svgEl('g', {});
@@ -246,14 +258,13 @@ function selectMachine(name) {
       lx = p.x + cos * (DIMS.nodeR + 9);
       ly = p.y + Math.sin(p.angle) * (DIMS.nodeR + 9);
       anchor = Math.abs(cos) < 0.35 ? 'middle' : cos > 0 ? 'start' : 'end';
-    } else if (p.rowSize > 3) {
+    } else {
+      // Above/below the node, alternating along the flow so neighboring
+      // labels never sit on the same line.
       anchor = 'middle';
       lx = p.x;
-      ly = p.y + (p.slot % 2 ? DIMS.nodeR + 14 : -(DIMS.nodeR + 8));
-    } else {
-      anchor = p.x > DIMS.W - 130 ? 'end' : 'start';
-      lx = p.x + (anchor === 'start' ? DIMS.nodeR + 6 : -(DIMS.nodeR + 6));
-      ly = p.y - DIMS.nodeR - 6;
+      const above = p.colSize === 1 ? p.col % 2 === 0 : p.slot % 2 === 0;
+      ly = p.y + (above ? -(DIMS.nodeR + 14) : DIMS.nodeR + 22);
     }
     const label = svgEl('text', {
       x: lx, y: ly, class: 'st-label',
@@ -294,6 +305,11 @@ function selectMachine(name) {
     nodes[meta.current]?.label.classList.add('current');
   }
 
+  // Fit the initial view to what was actually drawn (side arcs and labels
+  // included) rather than the nominal canvas.
+  const bb = mvSvg.getBBox();
+  panZoom.setWorld({ x: bb.x - 40, y: bb.y - 30, w: bb.width + 80, h: bb.height + 60 });
+
   // Signals panel: every signal referenced by this machine's transitions.
   const sigNames = [...new Set(
     layout.edges.flatMap(([, , g]) => (g || [])
@@ -305,9 +321,11 @@ function selectMachine(name) {
     const el = document.createElement('div');
     el.className = 'signal';
     el.textContent = sn;
-    if (!(sn in SIG)) {
+    if (sn in PSIG) {
+      el.title = 'Señal escrita por el PC (coils 1–20)';
+    } else if (!(sn in SIG)) {
       el.classList.add('unknown');
-      el.title = 'Señal escrita por el PC (coils 1–20): sin estado visible';
+      el.title = 'Señal desconocida: sin estado visible';
     }
     $('mvSignals').appendChild(el);
     return { el, name: sn };
@@ -324,14 +342,14 @@ function refreshView(st) {
   if (!view) return;
   // Live coloring: edge-gate labels and the signal chips.
   for (const tspan of mvSvg.querySelectorAll('.edge-label .sig[data-sig]')) {
-    const sigName = tspan.getAttribute('data-sig');
-    if (!(sigName in SIG)) continue;
-    const value = !!st.Signals[SIG[sigName]];
+    const value = signalValue(st, tspan.getAttribute('data-sig'));
+    if (value === null) continue;
     const satisfied = tspan.hasAttribute('data-neg') ? !value : value;
     tspan.classList.toggle('on', satisfied);
   }
   for (const { el, name } of view.sigChips) {
-    if (name in SIG) el.classList.toggle('on', !!st.Signals[SIG[name]]);
+    const value = signalValue(st, name);
+    if (value !== null) el.classList.toggle('on', value);
   }
 }
 

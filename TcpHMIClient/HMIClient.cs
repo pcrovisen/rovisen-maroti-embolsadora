@@ -80,7 +80,41 @@ namespace TcpHMIClient
             WaitCorrection1,
             WaitCorrection2,
             BCD2EntryError,
-        } 
+            CarEntryError,
+            BCD1OK,
+            BCD2OK,
+            Pause,
+            ElevatorRequest,
+            LabelNull1,
+            LabelNull2,
+            WaitLabel1,
+            WaitLabel2,
+        }
+
+        // Mirror of FatekPLC.Signals coils 1-20 (written by the PC), received as PcSignals.
+        public enum PcSignalsNames
+        {
+            ReadingPallet,
+            SendingQR,
+            Labeling1,
+            Labeling2,
+            ToEmb1,
+            ToEmb2,
+            ReceivingFIFOs,
+            Alive,
+            DelEmb1,
+            DelEmb2,
+            ConfirmUpdate,
+            ConfirmUpdate2,
+            WeightOk1,
+            WeightOk2,
+            PalletLeave1,
+            PalletLeave2,
+            ErrorQr,
+            Waiting,
+            ElevatorAuth,
+            ElevatorFailedQr,
+        }
 
 
         public class SystemStatus
@@ -92,6 +126,7 @@ namespace TcpHMIClient
             public Car Car { get; set; }
             public Dictionary<string, int> MachineState { get; set; }
             public bool[] Signals { get; set; }
+            public bool[] PcSignals { get; set; }
             public Connections Connections { get; set; }
             public Dictionary<string, Dictionary<int, string>> States { get; set; }
             public ErrorMessages ErrorMessages { get; set; }

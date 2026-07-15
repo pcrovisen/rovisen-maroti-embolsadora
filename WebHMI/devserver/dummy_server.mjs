@@ -30,8 +30,20 @@ const SIGNAL_NAMES = [
   'WaitBocedi', 'WaitCar', 'SlaveConnected', 'WaitingPallet',
   'PLCStarting', 'PLCLabeling1', 'PLCLabeling2',
   'WaitCorrection1', 'WaitCorrection2', 'BCD2EntryError',
+  'CarEntryError', 'BCD1OK', 'BCD2OK', 'Pause', 'ElevatorRequest',
+  'LabelNull1', 'LabelNull2', 'WaitLabel1', 'WaitLabel2',
 ];
 const SIG = Object.fromEntries(SIGNAL_NAMES.map((n, i) => [n, i]));
+
+// Coils 1-20, written by the PC, sent as PcSignals.
+const PC_SIGNAL_NAMES = [
+  'ReadingPallet', 'SendingQR', 'Labeling1', 'Labeling2',
+  'ToEmb1', 'ToEmb2', 'ReceivingFIFOs', 'Alive',
+  'DelEmb1', 'DelEmb2', 'ConfirmUpdate', 'ConfirmUpdate2',
+  'WeightOk1', 'WeightOk2', 'PalletLeave1', 'PalletLeave2',
+  'ErrorQr', 'Waiting', 'ElevatorAuth', 'ElevatorFailedQr',
+];
+const PSIG = Object.fromEntries(PC_SIGNAL_NAMES.map((n, i) => [n, i]));
 
 const PALLET_ENTRY_STATES = [
   'Waiting', 'ReadingQR', 'WaitingSetQr', 'WaitingSetEntryPallet',
@@ -112,6 +124,7 @@ const state = {
   },
   errors: { BDC1Error: '', BDC2Error: '', EntryError: '', CarError: '' },
   signals: SIGNAL_NAMES.map(() => false),
+  pcSignals: PC_SIGNAL_NAMES.map(() => false),
   entryPallet: null,
   packager1: { Queue: [], LabelPallet: null, ExitPallet: null },
   packager2: { Queue: [], LabelPallet: null, ExitPallet: null },
@@ -434,6 +447,8 @@ function stepDisturbances(t) {
   }
   state.signals[SIG.bcd1Avaliable] = state.up1 && state.packager1.Queue.length < B1_MAX;
   state.signals[SIG.bcd2Avaliable] = state.up2 && state.packager2.Queue.length < B2_MAX;
+  state.signals[SIG.BCD1OK] = state.up1;
+  state.signals[SIG.BCD2OK] = state.up2;
 
   if (Math.random() < 0.004) { // ~ every 2 min at 2 Hz
     const conns = ['WencoDB', 'Labeler1', 'Labeler2', 'QrReader', 'Packager1', 'Packager2'];
@@ -464,6 +479,52 @@ function stepDisturbances(t) {
       state.errors.BDC1Error = '';
     }, 9000);
   }
+
+  stepPcSignals();
+}
+
+// --- PC-written coils ---------------------------------------------------------
+
+// Derived every tick from the machine states the other steps just set;
+// called from stepDisturbances because that's the last step of the tick,
+// both here and in the demo builds (which splice this file's sim section).
+function stepPcSignals() {
+  const ms = state.machineState;
+  const ps = state.pcSignals;
+  const ph = entryPhase.name;
+  ps.fill(false);
+
+  ps[PSIG.Alive] = Math.floor(now() / 1000) % 2 === 0; // watchdog heartbeat
+  ps[PSIG.Waiting] = ph === 'idle';
+  ps[PSIG.ReadingPallet] = ph === 'reading';
+  ps[PSIG.ErrorQr] = ph === 'qrError';
+  ps[PSIG.SendingQR] = ph === 'setQr' || ph === 'setEntryPallet' || ph === 'sendingId';
+  ps[PSIG.ToEmb1] = (ph === 'sendingId' && entryPhase.toB1)
+    || ph === 'waitBocedi1' || ph === 'enterBocedi';
+  ps[PSIG.ToEmb2] = (ph === 'sendingId' && !entryPhase.toB1)
+    || ph === 'waitCar' || ph === 'enterCar';
+  ps[PSIG.ReceivingFIFOs] = ['waitUpdateFifo', 'updateFifo', 'waitUpdateCar', 'updateCar'].includes(ph);
+  ps[PSIG.ElevatorAuth] = ms.ElevatorAccess === 4; // WaitingLeave: auth granted
+
+  // PalletLabel states: 1 WaitUpdate, 3 Labeling, 4 WaitUpdate2, 6 WaitLeaving
+  const lane = (mk, labeling, weightOk, confirm, leave) => {
+    const s = ms[mk];
+    ps[labeling] = s === 3;
+    ps[weightOk] = s === 1 || s === 3;
+    ps[confirm] = s === 1 || s === 4;
+    ps[leave] = s === 6;
+  };
+  lane('PalletLabel1', PSIG.Labeling1, PSIG.WeightOk1, PSIG.ConfirmUpdate, PSIG.PalletLeave1);
+  lane('PalletLabel2', PSIG.Labeling2, PSIG.WeightOk2, PSIG.ConfirmUpdate2, PSIG.PalletLeave2);
+
+  // DeletePalletEmb states 1-4: Validating .. SendingFIFO
+  ps[PSIG.DelEmb1] = ms.DeletePalletEmb1 >= 1 && ms.DeletePalletEmb1 <= 4;
+  ps[PSIG.DelEmb2] = ms.DeletePalletEmb2 >= 1 && ms.DeletePalletEmb2 <= 4;
+
+  // Newer PLC coils that also follow directly from the simulated states.
+  state.signals[SIG.ElevatorRequest] = ms.ElevatorAccess === 1 || ms.ElevatorAccess === 3;
+  state.signals[SIG.WaitLabel1] = ms.PrinterMachineWolrdjet1 === 7; // WaitLabelInstruction
+  state.signals[SIG.WaitLabel2] = ms.PrinterMachineWolrdjet2 === 7;
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +539,7 @@ function buildStatus() {
   return {
     Config: state.config,
     Signals: state.signals,
+    PcSignals: state.pcSignals,
     Connections: state.connections,
     EntryPallet: state.entryPallet,
     ErrorMessages: state.errors,

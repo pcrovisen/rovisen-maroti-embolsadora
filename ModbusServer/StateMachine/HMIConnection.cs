@@ -206,7 +206,8 @@ namespace ModbusServer.StateMachine
             var message = new Dictionary<string, object>
             {
                 ["Config"] = Config.Instance,
-                ["Signals"] = FatekPLC.ReadSignals(FatekPLC.Signals.ReadQR, 28),
+                ["Signals"] = FatekPLC.ReadSignals(FatekPLC.Signals.ReadQR, FatekPLC.Signals.WaitLabel2 - FatekPLC.Signals.ReadQR + 1),
+                ["PcSignals"] = FatekPLC.ReadSignals(FatekPLC.Signals.ReadingPallet, FatekPLC.Signals.ElevatorFailedQr - FatekPLC.Signals.ReadingPallet + 1),
                 ["Connections"] = Status.Instance.Connections,
                 ["EntryPallet"] = Status.Instance.EntryPallet,
                 ["ErrorMessages"] = Status.Instance.ErrorMessages,

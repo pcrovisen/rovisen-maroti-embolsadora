@@ -534,6 +534,21 @@ body {
 .avail-box.ok { stroke: var(--ok); }
 .avail-box.bad { stroke: var(--bad); }
 
+/* Direction chevrons: routing intent at the junction and car travel.
+   The pallet/car only moves on confirmed data; the chevrons say where it is
+   headed — lighting in sequence while it's actually being moved (.go),
+   pulsing gently while it waits (.wait). */
+.route-intent { opacity: 0; transition: opacity 0.25s; }
+.route-intent.on { opacity: 1; }
+.route-chevron {
+  fill: none; stroke: var(--accent); stroke-width: 17;
+  stroke-linecap: round; stroke-linejoin: round; opacity: 0.25;
+}
+.go .route-chevron { animation: chevron-march 0.9s linear infinite; }
+.wait .route-chevron { animation: chevron-wait 1.8s ease-in-out infinite; }
+@keyframes chevron-march { 0%, 60%, 100% { opacity: 0.25; } 20%, 35% { opacity: 1; } }
+@keyframes chevron-wait { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.85; } }
+
 .qr-live { fill: none; stroke: transparent; stroke-width: 16; }
 .qr-live.ok { stroke: var(--ok); }
 .qr-live.bad { stroke: var(--bad); }
@@ -545,6 +560,12 @@ body {
   transition-timing-function: linear;
 }
 .car-body.unknown { animation: blink 0.8s step-start infinite; }
+/* Traveling: the drawn position is an estimate (held mid-rail), shown by the
+   dashed dimmed frame; the chevrons give the direction. */
+.car-body.traveling .car-rect { stroke-dasharray: 56 34; opacity: 0.65; }
+.car-chev { opacity: 0; transition: opacity 0.25s; }
+.car-chev.on { opacity: 1; }
+.car-chev .route-chevron { stroke-width: 16; }
 .car-rect { fill: none; stroke: #940303; stroke-width: 20; }
 .car-pad { fill: #dfe6f0; }
 .car-roller { fill: #39445c; }

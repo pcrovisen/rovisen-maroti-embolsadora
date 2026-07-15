@@ -46,7 +46,8 @@ never null).
 ```jsonc
 {
   "Config":        { "QrRetries": 1, "ContinueIfNoQr": false, "ContinueIfNoDB": false, "DefaultRecipe": 1 },
-  "Signals":       [ /* 28 bools, FatekPLC.Signals.ReadQR .. BCD2EntryError */ ],
+  "Signals":       [ /* 37 bools, coils 21+: FatekPLC.Signals.ReadQR .. WaitLabel2 */ ],
+  "PcSignals":     [ /* 20 bools, coils 1-20 (written by the PC): ReadingPallet .. ElevatorFailedQr */ ],
   "Connections":   { "QrReader": true, "MasterPLC": true, "SlavePLC": true, "WencoDB": true,
                      "Packager1": true, "Packager2": true, "Labeler1": true, "Labeler2": true },
   "EntryPallet":   { "Qr": "…", "Id": "…", "Recipe": "…", "Injector": "…", "Labeling": false }, // or null

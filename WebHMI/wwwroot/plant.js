@@ -62,6 +62,7 @@ const GEO = {
 
 const PAL_W = 400;
 const PAL_H = 333;
+const INTENT_Y = 1795; // routing arrows: above the pallets, clear of the QR tag
 const AT_LABELER_STATES = [3, 4, 5]; // PalletLabel: Labeling, WaitUpdate2, WaitAck
 const ELEVATOR_WAITING_LEAVE = 4;    // ElevatorAccess.States.WaitingLeave
 
@@ -77,6 +78,10 @@ let labelRing1;
 let labelRing2;
 let availBox1;
 let availBox2;
+let routeIntent1;
+let routeIntent2;
+let carChevE;
+let carChevW;
 let lastCarX = GEO.car.inB1;
 
 function injectFloor(markup) {
@@ -126,6 +131,12 @@ function buildOverlays() {
   availBox1 = availFrame(GEO.b1Box);
   availBox2 = availFrame(GEO.b2Box);
 
+  // Routing intent: chevrons above the junction lighting up in sequence
+  // toward where the entry pallet wants to go (the pallet itself only moves
+  // once it's in the FIFO/car).
+  routeIntent1 = chevronRow(layers.overlays, GEO.entryX + 170, INTENT_Y, 1, 40); // east, into Bocedi 1
+  routeIntent2 = chevronRow(layers.overlays, GEO.entryX - 170, INTENT_Y, -1, 40); // west, onto the car
+
   // The transfer car: roller platform (the striped deck from the drawing)
   // under the red frame, so the rollers travel with the car.
   carEl = svgEl('g', { class: 'car-body' }, layers.car);
@@ -136,7 +147,23 @@ function buildOverlays() {
   for (const [px, py] of [[-150, -232], [90, -232], [-150, 208], [90, 208]]) {
     svgEl('rect', { x: px, y: py, width: 120, height: 26, class: 'car-pad' }, carEl);
   }
+  // Travel-direction chevrons riding with the car (shown while GoingToB1/B2)
+  carChevE = chevronRow(carEl, 330, 0, 1, 42, 'car-chev');
+  carChevW = chevronRow(carEl, -330, 0, -1, 42, 'car-chev');
   moveCar(GEO.car.inB1, 0);
+}
+
+// A row of three chevrons pointing toward dir (+1 east, -1 west), lighting
+// up in sequence away from the start like a conveyor direction indicator.
+function chevronRow(parent, x, y, dir, size, cls = 'route-intent') {
+  const g = svgEl('g', { class: cls }, parent);
+  for (let i = 0; i < 3; i++) {
+    svgEl('path', {
+      d: `M ${x + dir * i * size * 1.65} ${y - size} l ${dir * size} ${size} l ${-dir * size} ${size}`,
+      class: 'route-chevron', style: `animation-delay:${i * 0.15}s`,
+    }, g);
+  }
+  return g;
 }
 
 function moveCar(x, seconds) {
@@ -238,9 +265,17 @@ function entryPalletTarget(st) {
     // Read at the junction; newly created pallets glide up from the south.
     return { x: GEO.entryX, y: Y, spawnAt: GEO.spawn, seconds: 1.6 };
   }
-  if (s === PE.WaitForBocedi1 || s === PE.WaitForCar) return { x: GEO.entryX, y: Y };
-  if (s === PE.WaitEnterBocedi) return { x: GEO.b1.stations[0].x - 340, y: Y };
-  if (s === PE.WaitEnterCar) return { x: GEO.car.inB1, y: Y };
+  // Once routed, the physical pallet holds at the junction until it actually
+  // shows up in the FIFO or on the car — those targets win the QR dedupe in
+  // collectTargets, and the glide there is the arrival animation. The
+  // route-intent arrows say where it wants to go meanwhile. One exception:
+  // with the car docked in B1 the PLC is rolling the pallet onto it, so
+  // glide to the car spot to make the mount (Car.HasPallet) seamless.
+  if (s >= PE.WaitEnterCar && s <= PE.UpdateCar
+      && st.Car && st.Car.CarPosition === 2 /* InB1 */) {
+    return { x: GEO.car.inB1, y: Y, seconds: 1.4 };
+  }
+  if (s >= PE.WaitForBocedi1 && s <= PE.UpdateCar) return { x: GEO.entryX, y: Y };
   return null;
 }
 
@@ -299,12 +334,16 @@ function collectTargets(st) {
   return targets;
 }
 
+const CAR_MID = (GEO.car.inB1 + GEO.car.inB2) / 2;
+
 function carTarget(pos) {
   switch (pos) {
     case 2: return { x: GEO.car.inB1, seconds: 0.7 };
     case 4: return { x: GEO.car.inB2, seconds: 0.7 };
-    case 3: return { x: GEO.car.inB2, seconds: 4 };  // traveling to B2
-    case 1: return { x: GEO.car.inB1, seconds: 4 };  // traveling to B1
+    // Traveling: the PLC only reports the direction, and the real travel
+    // time varies (the safety sensor pauses the car near people), so hold
+    // mid-rail with the traveling look until arrival is confirmed.
+    case 1: case 3: return { x: CAR_MID, seconds: 2 };
     default: return { x: GEO.car.unknown, seconds: 1 };
   }
 }
@@ -349,9 +388,15 @@ function handleStatus(st) {
     chip.classList.toggle('on', !!st.Connections[key]);
   }
 
-  const ct = carTarget(st.Car ? st.Car.CarPosition : 0);
+  const carPos = st.Car ? st.Car.CarPosition : 0;
+  const ct = carTarget(carPos);
   moveCar(ct.x, ct.seconds);
-  carEl.classList.toggle('unknown', !st.Car || st.Car.CarPosition === 0);
+  carEl.classList.toggle('unknown', carPos === 0);
+  carEl.classList.toggle('traveling', carPos === 1 || carPos === 3);
+  carChevE.classList.toggle('on', carPos === 1); // B1 is the east dock
+  carChevE.classList.toggle('go', carPos === 1);
+  carChevW.classList.toggle('on', carPos === 3);
+  carChevW.classList.toggle('go', carPos === 3);
 
   const s = st.MachineState.PalletEntry;
   qrLiveEl.setAttribute('class', 'qr-live');
@@ -374,6 +419,21 @@ function handleStatus(st) {
   };
   avail(availBox1, st.Signals[SIG.bcd1Avaliable]);
   avail(availBox2, st.Signals[SIG.bcd2Avaliable]);
+
+  // Routing intent: primarily the ToEmb1/ToEmb2 coils (the actual command
+  // sent to the PLC), with the entry states as fallback for older servers.
+  const hasEntry = !!(st.EntryPallet && st.EntryPallet.Qr);
+  const toB1 = signalValue(st, 'ToEmb1') || (s >= PE.WaitForBocedi1 && s <= PE.UpdateFIFO1);
+  const toB2 = signalValue(st, 'ToEmb2') || (s >= PE.WaitForCar && s <= PE.UpdateCar);
+  const moving = (s >= PE.WaitEnterBocedi && s <= PE.UpdateFIFO1)
+    || (s >= PE.WaitEnterCar && s <= PE.UpdateCar);
+  const setIntent = (el, on) => {
+    el.classList.toggle('on', on);
+    el.classList.toggle('go', on && moving);
+    el.classList.toggle('wait', on && !moving);
+  };
+  setIntent(routeIntent1, hasEntry && !!toB1);
+  setIntent(routeIntent2, hasEntry && !!toB2);
 
   setPalletTargets(collectTargets(st));
 

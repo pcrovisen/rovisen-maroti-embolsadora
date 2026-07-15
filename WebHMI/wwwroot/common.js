@@ -11,8 +11,28 @@ const SIGNAL_NAMES = [
   'WaitBocedi', 'WaitCar', 'SlaveConnected', 'WaitingPallet',
   'PLCStarting', 'PLCLabeling1', 'PLCLabeling2',
   'WaitCorrection1', 'WaitCorrection2', 'BCD2EntryError',
+  'CarEntryError', 'BCD1OK', 'BCD2OK', 'Pause', 'ElevatorRequest',
+  'LabelNull1', 'LabelNull2', 'WaitLabel1', 'WaitLabel2',
 ];
 const SIG = Object.fromEntries(SIGNAL_NAMES.map((n, i) => [n, i]));
+
+// Coils 1-20, written by the PC, sent as PcSignals.
+const PC_SIGNAL_NAMES = [
+  'ReadingPallet', 'SendingQR', 'Labeling1', 'Labeling2',
+  'ToEmb1', 'ToEmb2', 'ReceivingFIFOs', 'Alive',
+  'DelEmb1', 'DelEmb2', 'ConfirmUpdate', 'ConfirmUpdate2',
+  'WeightOk1', 'WeightOk2', 'PalletLeave1', 'PalletLeave2',
+  'ErrorQr', 'Waiting', 'ElevatorAuth', 'ElevatorFailedQr',
+];
+const PSIG = Object.fromEntries(PC_SIGNAL_NAMES.map((n, i) => [n, i]));
+
+// Value of a coil by name, whichever side writes it; null if the name is
+// unknown or the server predates PcSignals.
+function signalValue(st, name) {
+  if (name in SIG) return !!st.Signals[SIG[name]];
+  if (name in PSIG) return st.PcSignals ? !!st.PcSignals[PSIG[name]] : null;
+  return null;
+}
 
 const PE = {
   Waiting: 0, ReadingQR: 1, WaitingSetQr: 2, WaitingSetEntryPallet: 3,

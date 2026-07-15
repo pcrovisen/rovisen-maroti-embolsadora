@@ -35,6 +35,7 @@ const els = {
   carError: $('carError'),
   machinesTable: $('machinesTable').querySelector('tbody'),
   signalsGrid: $('signalsGrid'),
+  pcSignalsGrid: $('pcSignalsGrid'),
   toasts: $('toasts'),
   loginBtn: $('loginBtn'),
   logoutBtn: $('logoutBtn'),
@@ -69,13 +70,15 @@ for (let pk = 0; pk < 2; pk++) {
   }
 }
 
-const signalEls = SIGNAL_NAMES.map((name) => {
+const makeSignalEls = (names, grid) => names.map((name) => {
   const el = document.createElement('div');
   el.className = 'signal';
   el.textContent = name;
-  els.signalsGrid.appendChild(el);
+  grid.appendChild(el);
   return el;
 });
+const signalEls = makeSignalEls(SIGNAL_NAMES, els.signalsGrid);
+const pcSignalEls = makeSignalEls(PC_SIGNAL_NAMES, els.pcSignalsGrid);
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -195,6 +198,7 @@ function renderDiagnostics(st) {
   els.machinesTable.innerHTML = rows.join('');
 
   signalEls.forEach((el, i) => el.classList.toggle('on', !!st.Signals[i]));
+  pcSignalEls.forEach((el, i) => el.classList.toggle('on', !!(st.PcSignals && st.PcSignals[i])));
 }
 
 // ---------------------------------------------------------------------------
