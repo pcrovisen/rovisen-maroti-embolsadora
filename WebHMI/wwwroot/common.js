@@ -69,21 +69,48 @@ function escapeHtml(s) {
 
 // Figma-style pan & zoom over one or more stacked SVGs sharing a viewBox:
 // wheel / two-finger scroll pans, pinch (Ctrl+wheel on trackpads) zooms,
-// two-finger touch drag pans+zooms, mouse drag pans, single touch is ignored.
+// dragging with mouse or one finger pans, two-finger touch drag pans+zooms,
+// double-tap zooms in on the tapped point.
 function setupPanZoom(svgs, world) {
   const top = svgs[svgs.length - 1];
   let w0 = { ...world };
   const vb = { ...world };
+
+  // iOS Safari: touch-action + pointer events alone don't stop the native
+  // gestures — pinch still zooms the page and vertical drags rubber-band the
+  // document (which is why panning felt horizontal-only). Cancel the touch
+  // defaults and Safari's proprietary gesture events on the stage itself.
+  for (const ev of ['touchstart', 'touchmove', 'touchend']) {
+    top.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+  }
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {
+    top.addEventListener(ev, (e) => e.preventDefault());
+  }
 
   const apply = () => {
     const box = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
     for (const s of svgs) s.setAttribute('viewBox', box);
   };
 
-  const zoomAt = (cx, cy, factor) => {
+  // The SVG renders the viewBox with ONE uniform scale (preserveAspectRatio
+  // xMidYMid meet), so px ↔ viewBox conversion must use that same factor on
+  // both axes. Mapping each axis separately made vertical pans crawl
+  // whenever the stage and viewBox aspect ratios differ (portrait phone vs
+  // the wide plant drawing).
+  const metrics = () => {
     const r = top.getBoundingClientRect();
-    const px = vb.x + ((cx - r.left) / r.width) * vb.w;
-    const py = vb.y + ((cy - r.top) / r.height) * vb.h;
+    const s = Math.max(vb.w / r.width, vb.h / r.height); // viewBox units per px
+    return {
+      s,
+      ox: r.left + (r.width - vb.w / s) / 2,
+      oy: r.top + (r.height - vb.h / s) / 2,
+    };
+  };
+
+  const zoomAt = (cx, cy, factor) => {
+    const m = metrics();
+    const px = vb.x + (cx - m.ox) * m.s;
+    const py = vb.y + (cy - m.oy) * m.s;
     const w = Math.min(Math.max(vb.w * factor, w0.w / 12), w0.w * 2.5);
     const scale = w / vb.w;
     vb.x = px - (px - vb.x) * scale;
@@ -98,9 +125,9 @@ function setupPanZoom(svgs, world) {
     if (e.ctrlKey || e.metaKey) {
       zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * 0.01));
     } else {
-      const r = top.getBoundingClientRect();
-      vb.x += (e.deltaX / r.width) * vb.w;
-      vb.y += (e.deltaY / r.height) * vb.h;
+      const { s } = metrics();
+      vb.x += e.deltaX * s;
+      vb.y += e.deltaY * s;
       apply();
     }
   }, { passive: false });
@@ -116,10 +143,26 @@ function setupPanZoom(svgs, world) {
     };
   };
 
+  // Double-tap zoom (touch/pen): a tap only counts if the finger didn't
+  // drag, so quick successive pan flicks never trigger a false zoom.
+  let lastTap = { t: 0, x: 0, y: 0 };
+  let tapCandidate = null;
   top.addEventListener('pointerdown', (e) => {
     top.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     lastGesture = pointers.size === 2 ? gesture() : null;
+    if (e.pointerType !== 'mouse' && pointers.size === 1) {
+      if (Date.now() - lastTap.t < 350
+          && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) {
+        zoomAt(e.clientX, e.clientY, 1 / 1.8);
+        lastTap.t = 0;
+        tapCandidate = null;
+      } else {
+        tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      }
+    } else {
+      tapCandidate = null; // a second finger means gesture, not tap
+    }
   });
 
   top.addEventListener('pointermove', (e) => {
@@ -129,17 +172,23 @@ function setupPanZoom(svgs, world) {
     if (pointers.size === 2) {
       const g = gesture();
       if (lastGesture) {
-        const r = top.getBoundingClientRect();
-        vb.x -= ((g.cx - lastGesture.cx) / r.width) * vb.w;
-        vb.y -= ((g.cy - lastGesture.cy) / r.height) * vb.h;
+        const { s } = metrics();
+        vb.x -= (g.cx - lastGesture.cx) * s;
+        vb.y -= (g.cy - lastGesture.cy) * s;
         apply();
         zoomAt(g.cx, g.cy, lastGesture.dist / g.dist);
       }
       lastGesture = g;
-    } else if (pointers.size === 1 && e.pointerType === 'mouse') {
-      const r = top.getBoundingClientRect();
-      vb.x -= ((e.clientX - prev.x) / r.width) * vb.w;
-      vb.y -= ((e.clientY - prev.y) / r.height) * vb.h;
+    } else if (pointers.size === 1) {
+      // One pointer pans, mouse and touch alike (the stage never scrolls
+      // the page: touch-action none).
+      if (tapCandidate && e.pointerId === tapCandidate.id
+          && Math.hypot(e.clientX - tapCandidate.x, e.clientY - tapCandidate.y) > 12) {
+        tapCandidate = null; // it's a drag, not a tap
+      }
+      const { s } = metrics();
+      vb.x -= (e.clientX - prev.x) * s;
+      vb.y -= (e.clientY - prev.y) * s;
       apply();
     }
   });
@@ -148,6 +197,10 @@ function setupPanZoom(svgs, world) {
     top.addEventListener(ev, (e) => {
       pointers.delete(e.pointerId);
       lastGesture = pointers.size === 2 ? gesture() : null;
+      if (tapCandidate && e.pointerId === tapCandidate.id) {
+        lastTap = { t: ev === 'pointerup' ? Date.now() : 0, x: tapCandidate.x, y: tapCandidate.y };
+        tapCandidate = null;
+      }
     });
   }
 

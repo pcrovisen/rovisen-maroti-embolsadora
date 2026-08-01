@@ -40,7 +40,8 @@ if (plantCut < 0) throw new Error('plant.js startup marker not found');
 plant = plant.slice(0, plantCut);
 
 const extractBody = (page) => {
-  let body = page.slice(page.indexOf('<body>') + 6, page.indexOf('</body>'));
+  const open = page.indexOf('<body'); // the tag may carry attributes
+  let body = page.slice(page.indexOf('>', open) + 1, page.indexOf('</body>'));
   body = body.replace(/\s*<script src="[^"]*"><\/script>/g, '');
   body = body.replace(/<a class="diag-open"[\s\S]*?<\/a>/, '');
   body = body.replace(/<nav class="page-nav">[\s\S]*?<\/nav>/, '');

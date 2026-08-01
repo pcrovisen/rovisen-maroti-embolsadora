@@ -28,6 +28,20 @@ body {
   min-height: 100vh;
 }
 
+/* Pages with a full-viewport stage fill the screen exactly, whatever height
+   the (wrapping) topbar takes — the old fixed calc(100vh - 4.2rem) broke on
+   phones where the chips wrap onto extra rows. The explicit .stage-page
+   class covers browsers without :has(); overscroll-behavior stops
+   pull-to-refresh / rubber-banding from eating vertical pans. */
+body.stage-page, body:has(.plant-page), body:has(.diag-page) {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .hidden { display: none !important; }
 
 /* ---------- Top bar ---------- */
@@ -302,7 +316,8 @@ body {
 .diag-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 4.2rem);
+  flex: 1;
+  min-height: 0;
   padding: 0.8rem;
   gap: 0.6rem;
   overflow: hidden;
@@ -375,6 +390,9 @@ body {
   display: block;
   touch-action: none;
   cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 #mvSvg:active { cursor: grabbing; }
 .machine-view .st-label { font-size: 13px; }
@@ -432,7 +450,8 @@ body {
 .plant-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 4.2rem);
+  flex: 1;
+  min-height: 0;
   padding: 0.8rem;
   gap: 0.6rem;
 }
@@ -457,7 +476,13 @@ body {
   display: block;
 }
 #plantFloorSvg { pointer-events: none; }
-#plantSvg { touch-action: none; cursor: grab; }
+#plantSvg {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 #plantSvg:active { cursor: grabbing; }
 
 .plant-toolbar {
@@ -656,3 +681,51 @@ body {
 
 @keyframes blink { 50% { opacity: 0.25; } }
 @keyframes fade-in { from { opacity: 0; transform: translateY(0.4rem); } }
+
+/* ---------- Mobile ---------- */
+
+/* Comfortable touch targets on any touch device */
+@media (pointer: coarse) {
+  .plant-toolbar .btn { width: 3rem; height: 3rem; font-size: 1.4rem; }
+  .machine-item { padding: 0.65rem 0.7rem; }
+}
+
+@media (max-width: 700px) {
+  /* Topbar: brand + buttons on the first row, connection chips as one
+     horizontally-scrollable row below (instead of wrapping over everything
+     and pushing the buttons around). */
+  .topbar { gap: 0.5rem; padding: 0.5rem 0.8rem; }
+  .brand { flex: 1; }
+  .brand h1 { font-size: 1rem; }
+  .conns {
+    order: 10;
+    flex-basis: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .conns::-webkit-scrollbar { display: none; }
+  .chip { flex: none; }
+
+  /* Signal lists: tighter grid, capped height with internal scroll so the
+     diagnostics panel doesn't swallow the page. */
+  .signals {
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    font-size: 0.72rem;
+  }
+  #signalsGrid, #pcSignalsGrid { max-height: 10rem; overflow-y: auto; }
+  .mv-signals { max-height: 6rem; overflow-y: auto; }
+
+  /* Diagnostics page: the long help paragraph goes, and the machine list
+     becomes a horizontal strip so the graph keeps most of the height. */
+  .diag-hint { display: none; }
+  .diag2 { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .machine-list { display: flex; gap: 0.3rem; overflow-x: auto; overflow-y: hidden; }
+  .machine-item { flex: none; width: 10.5rem; }
+  .machine-view { padding: 0.6rem 0.8rem; }
+
+  /* Full-viewport stages: less chrome, more stage */
+  .plant-page, .diag-page { padding: 0.5rem; gap: 0.4rem; }
+  .plant-hint { display: none; }
+  .plant-notices { max-width: 70vw; }
+}
