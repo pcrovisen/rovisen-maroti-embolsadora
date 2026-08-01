@@ -88,6 +88,13 @@ build step: `index.html` + `app.js` (operator dashboard), `planta.html` +
 stations with their data), `diagnostico.html` + `diag.js` (live state-machine
 graphs), and `common.js` (shared enum mirrors) + `style.css`.
 
+Branding (Wenco wordmark in the topbar and the login dialog, favicon, azul
+`#0033A1` accents) is applied by `applyWencoBranding()` in `common.js`, which
+carries the wordmark paths inline (from Wenco's `wenco-logo-azul.svg`, the
+Illustrator export — no asset file is kept, the paths there are the original
+ones) so the single-file demos, which ship without assets, are branded too.
+Anywhere else a logo is wanted, add `data-wenco-logo` to an empty element.
+
 The diagnostics page lays each machine out as a flow (layers by distance from
 the initial state) using `wwwroot/transitions.json`, which is **generated from
 the C# sources** — never edit it by hand. After changing any state machine in
