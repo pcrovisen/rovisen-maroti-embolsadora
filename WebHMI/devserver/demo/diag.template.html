@@ -63,7 +63,9 @@ setInterval(() => {
     if (!statesDict) continue;
     setMachineState(name, ensureMeta(name, statesDict), idx);
   }
+  renderConnChips(st);
   refreshStateTexts();
   refreshView(st);
+  if (tablesDialog.open) renderTables(st);
 }, 500);
 </script>

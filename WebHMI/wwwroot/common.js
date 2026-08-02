@@ -118,6 +118,45 @@ function applyWencoBranding() {
 
 applyWencoBranding();
 
+// ---------- Connection chips ----------
+
+// The status strip under the header, on every page: one chip per device, big
+// enough to read from a couple of metres away. Pages call setupConnChips()
+// once and then renderConnChips() on each snapshot.
+let connChipEls = {};
+
+function setupConnChips(container = document.getElementById('connChips')) {
+  connChipEls = {};
+  if (!container) return connChipEls;
+  container.innerHTML = '';
+  for (const [key, label] of Object.entries(CONN_LABELS)) {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = label;
+    container.appendChild(chip);
+    connChipEls[key] = chip;
+  }
+  return connChipEls;
+}
+
+function renderConnChips(st) {
+  for (const [key, chip] of Object.entries(connChipEls)) {
+    chip.classList.toggle('on', !!st.Connections[key]);
+  }
+}
+
+function clearConnChips() {
+  for (const chip of Object.values(connChipEls)) chip.classList.remove('on');
+}
+
+// Human-readable state of a machine in a snapshot ("Waiting"), falling back
+// to the raw index when the server didn't send the name table.
+function machineStateName(st, machine) {
+  const idx = st.MachineState[machine];
+  const names = st.States && st.States[machine];
+  return (names && names[idx]) ?? (idx === undefined ? '' : String(idx));
+}
+
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -130,7 +169,20 @@ function escapeHtml(s) {
 // double-tap zooms in on the tapped point.
 function setupPanZoom(svgs, world) {
   const top = svgs[svgs.length - 1];
-  let w0 = { ...world };
+
+  // Everything is drawn inside these groups (see .roots) so the scene can be
+  // rotated without disturbing the pan/zoom math: the viewBox stays aligned
+  // with the screen and only the content turns inside it.
+  const roots = svgs.map((s) => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    while (s.firstChild) g.appendChild(s.firstChild);
+    s.appendChild(g);
+    return g;
+  });
+
+  let base = { ...world }; // world box as drawn
+  let rotation = 0;
+  let w0 = { ...world };   // world box as displayed (rotation applied)
   const vb = { ...world };
 
   // iOS Safari: touch-action + pointer events alone don't stop the native
@@ -147,6 +199,24 @@ function setupPanZoom(svgs, world) {
   const apply = () => {
     const box = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
     for (const s of svgs) s.setAttribute('viewBox', box);
+  };
+
+  // Turns the scene about the centre of its world box; a quarter turn swaps
+  // the box's width and height, so a wide drawing becomes a tall one that
+  // fills a phone screen. Refits the view, like the zoom-to-fit button.
+  const applyRotation = () => {
+    const cx = base.x + base.w / 2;
+    const cy = base.y + base.h / 2;
+    for (const g of roots) {
+      if (rotation) g.setAttribute('transform', `rotate(${rotation} ${cx} ${cy})`);
+      else g.removeAttribute('transform');
+    }
+    const quarter = rotation % 180 !== 0;
+    const w = quarter ? base.h : base.w;
+    const h = quarter ? base.w : base.h;
+    w0 = { x: cx - w / 2, y: cy - h / 2, w, h };
+    Object.assign(vb, w0);
+    apply();
   };
 
   // The SVG renders the viewBox with ONE uniform scale (preserveAspectRatio
@@ -263,10 +333,17 @@ function setupPanZoom(svgs, world) {
 
   apply();
   return {
+    // The groups every caller must draw into, or rotation would leave its
+    // content behind.
+    roots,
     setWorld(newWorld) {
-      w0 = { ...newWorld };
-      Object.assign(vb, w0);
-      apply();
+      base = { ...newWorld };
+      applyRotation();
+    },
+    rotate(deg = 90) {
+      rotation = (rotation + deg + 360) % 360;
+      applyRotation();
+      return rotation;
     },
     reset() {
       Object.assign(vb, w0);

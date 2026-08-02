@@ -33,9 +33,6 @@ const els = {
   carPallet: $('carPallet'),
   carStateText: $('carStateText'),
   carError: $('carError'),
-  machinesTable: $('machinesTable').querySelector('tbody'),
-  signalsGrid: $('signalsGrid'),
-  pcSignalsGrid: $('pcSignalsGrid'),
   toasts: $('toasts'),
   loginBtn: $('loginBtn'),
   logoutBtn: $('logoutBtn'),
@@ -47,17 +44,10 @@ const els = {
 let currentStatus = null;
 
 // ---------------------------------------------------------------------------
-// Static DOM setup (chips, queue slots, signal LEDs)
+// Static DOM setup (chips, queue slots)
 // ---------------------------------------------------------------------------
 
-const connChips = {};
-for (const [key, label] of Object.entries(CONN_LABELS)) {
-  const chip = document.createElement('span');
-  chip.className = 'chip';
-  chip.textContent = label;
-  els.connChips.appendChild(chip);
-  connChips[key] = chip;
-}
+setupConnChips(els.connChips);
 
 const queueSlots = [[], []];
 for (let pk = 0; pk < 2; pk++) {
@@ -69,16 +59,6 @@ for (let pk = 0; pk < 2; pk++) {
     queueSlots[pk].push(slot);
   }
 }
-
-const makeSignalEls = (names, grid) => names.map((name) => {
-  const el = document.createElement('div');
-  el.className = 'signal';
-  el.textContent = name;
-  grid.appendChild(el);
-  return el;
-});
-const signalEls = makeSignalEls(SIGNAL_NAMES, els.signalsGrid);
-const pcSignalEls = makeSignalEls(PC_SIGNAL_NAMES, els.pcSignalsGrid);
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -106,16 +86,11 @@ function renderSlot(el, pallet) {
 function render(st) {
   currentStatus = st;
 
-  // Connections
-  for (const [key, chip] of Object.entries(connChips)) {
-    chip.classList.toggle('on', !!st.Connections[key]);
-  }
-
+  renderConnChips(st);
   renderEntry(st);
   renderLane(st, 0);
   renderLane(st, 1);
   renderCar(st);
-  renderDiagnostics(st);
 
   setBanner(els.entryError, st.ErrorMessages.EntryError);
   setBanner(els.bcdErrors[0], st.ErrorMessages.BDC1Error);
@@ -179,26 +154,12 @@ function renderCar(st) {
   if (pos === 0) car.classList.add('unknown');
   else if (pos === 1 || pos === 3) car.classList.add('moving');
 
-  car.style.left = { 0: '', 1: '40%', 2: '0.3rem', 3: '40%', 4: 'calc(100% - 5.3rem)' }[pos] || '';
+  // Track ends match the floor: Bocedi 2 on the left, Bocedi 1 on the right.
+  car.style.left = { 0: '', 1: '40%', 2: 'calc(100% - 5.3rem)', 3: '40%', 4: '0.3rem' }[pos] || '';
 
   els.carStateText.textContent = CAR_POS_TEXT[pos] || '';
   els.carPalletMini.classList.toggle('hidden', !st.Car.HasPallet);
   renderSlot(els.carPallet, st.Car.HasPallet ? st.Car.Pallet : null);
-}
-
-function machineStateName(st, machine) {
-  const idx = st.MachineState[machine];
-  const names = st.States && st.States[machine];
-  return (names && names[idx]) ?? (idx === undefined ? '' : String(idx));
-}
-
-function renderDiagnostics(st) {
-  const rows = Object.keys(st.MachineState).map((m) =>
-    `<tr><td>${escapeHtml(m)}</td><td>${escapeHtml(machineStateName(st, m))}</td></tr>`);
-  els.machinesTable.innerHTML = rows.join('');
-
-  signalEls.forEach((el, i) => el.classList.toggle('on', !!st.Signals[i]));
-  pcSignalEls.forEach((el, i) => el.classList.toggle('on', !!(st.PcSignals && st.PcSignals[i])));
 }
 
 // ---------------------------------------------------------------------------
@@ -218,7 +179,7 @@ function connect() {
     // EventSource retries on its own; just show the state.
     els.serverDot.classList.remove('on');
     els.offline.classList.remove('hidden');
-    for (const chip of Object.values(connChips)) chip.classList.remove('on');
+    clearConnChips();
   };
 }
 

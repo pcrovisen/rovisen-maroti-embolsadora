@@ -10,15 +10,24 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-dot" id="serverDot"></span>
-      <h1>Diagnóstico — Máquinas de estado</h1>
+      <h1>Diagnóstico</h1>
     </div>
-    <div class="conns"></div>
     <nav class="page-nav">
-      <a class="btn btn-ghost" href="index.html">Panel</a>
-      <a class="btn btn-ghost" href="planta.html">Planta</a>
+      <a class="nav-link" href="index.html">Panel</a>
+      <a class="nav-link" href="planta.html">Planta</a>
+      <a class="nav-link" href="diagnostico.html" aria-current="page">Diagnóstico</a>
     </nav>
+    <div class="session">
+      <button class="btn btn-ghost" id="tablesBtn">Procesos y señales</button>
+    </div>
   </header>
+
+  <div class="statusbar">
+    <span class="statusbar-server">
+      <span class="brand-dot" id="serverDot"></span>Servidor
+    </span>
+    <div class="conns" id="connChips"></div>
+  </div>
 
   <!-- Shared SVG defs: arrowheads for the transition edges -->
   <svg width="0" height="0" style="position:absolute">
@@ -49,6 +58,9 @@
       <aside class="panel machine-list" id="machineList"></aside>
       <section class="panel machine-view">
         <div class="machine-head">
+          <button class="btn machine-picker" id="machinePickerBtn">
+            <span id="machinePickerName">—</span> ▾
+          </button>
           <h2 id="mvName">—</h2>
           <span class="machine-state" id="mvState"></span>
         </div>
@@ -58,6 +70,7 @@
             <button class="btn" id="mvZoomIn" title="Acercar">+</button>
             <button class="btn" id="mvZoomOut" title="Alejar">−</button>
             <button class="btn" id="mvZoomFit" title="Vista completa">⤢</button>
+            <button class="btn" id="mvRotate" title="Rotar 90°">⟳</button>
           </div>
           <div class="plant-hint">Arrastrar / rueda: mover · Pellizco (Ctrl+rueda): zoom</div>
         </div>
@@ -68,6 +81,39 @@
       </section>
     </div>
   </main>
+
+  <!-- Machine picker (phones/tablets: the sidebar list moves in here so it
+       costs no space while closed) -->
+  <dialog id="machineDialog" class="dialog dialog-list">
+    <h2>Máquinas</h2>
+    <div id="machineDialogBody"></div>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" id="machineDialogClose">Cerrar</button>
+    </div>
+  </dialog>
+
+  <!-- Processes + raw signals (used to live at the bottom of the dashboard) -->
+  <dialog id="tablesDialog" class="dialog dialog-wide">
+    <h2>Procesos y señales</h2>
+    <div class="diag-grid">
+      <div>
+        <h3>Procesos</h3>
+        <table class="diag-table" id="machinesTable">
+          <thead><tr><th>Proceso</th><th>Estado</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div>
+        <h3>Señales PLC → PC</h3>
+        <div class="signals" id="signalsGrid"></div>
+        <h3>Señales PC → PLC</h3>
+        <div class="signals" id="pcSignalsGrid"></div>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" id="tablesCloseBtn">Cerrar</button>
+    </div>
+  </dialog>
 
   <div class="offline-overlay hidden" id="offlineOverlay">
     <div>

@@ -48,22 +48,86 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
 
 /* ---------- Top bar ---------- */
 
+/* Classic dashboard chrome: one narrow bar with brand + navigation +
+   session, and a separate status strip below it for the device chips (they
+   used to fight the nav buttons for room inside the header). */
 .topbar {
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  padding: 0.6rem 1.2rem;
-  /* Brand wash behind the logo, fading out before the connection chips. */
+  padding: 0.45rem 1.2rem;
+  /* Fixed height, not content height: Planta carries no buttons, and without
+     this its bar is shorter, so the whole page jumps when switching views. */
+  min-height: 3.2rem;
+  /* Brand wash behind the logo, fading out under the navigation. */
   background:
     linear-gradient(90deg, rgba(0, 51, 161, 0.55) 0%, rgba(0, 51, 161, 0.12) 22%, transparent 46%),
     var(--panel);
   border-bottom: 1px solid var(--line);
-  box-shadow: inset 0 -2px 0 rgba(47, 108, 224, 0.35);
-  flex-wrap: wrap;
+  flex: none;
 }
 
-.brand { display: flex; align-items: center; gap: 0.6rem; }
-.brand h1 { font-size: 1.15rem; margin: 0; font-weight: 600; }
+.brand { display: flex; align-items: center; gap: 0.6rem; flex: none; }
+.brand h1 {
+  font-size: 1.05rem;
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Navigation: tabs anchored to the bottom edge of the bar, current page
+   underlined in brand blue. */
+.page-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+  flex: 1;
+  align-self: stretch;
+  margin: -0.45rem 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.page-nav::-webkit-scrollbar { display: none; }
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 0 0.95rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+.nav-link:hover { color: var(--text); background: #ffffff0a; }
+.nav-link[aria-current="page"] {
+  color: var(--text);
+  border-bottom-color: var(--brand-light);
+  background: #ffffff08;
+}
+
+/* ---------- Status strip ---------- */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.35rem 1.2rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.statusbar-server {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  flex: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-right: 0.8rem;
+  border-right: 1px solid var(--line);
+}
 
 /* Wordmark: white over the dark chrome (the corporate blue is unreadable
    there); inlined by applyWencoBranding() in common.js. */
@@ -86,20 +150,31 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
 }
 .brand-dot.on { background: var(--ok); }
 
-.conns { display: flex; gap: 0.4rem; flex-wrap: wrap; flex: 1; }
+/* One row, scrolling sideways if it doesn't fit: the strip must never grow
+   tall enough to push a full-viewport stage off-screen. */
+.conns {
+  display: flex;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.conns::-webkit-scrollbar { display: none; }
 
 .chip {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  padding: 0.2rem 0.55rem;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  flex: none;
+  padding: 0.25rem 0.7rem;
   border: 1px solid var(--line);
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   color: var(--muted);
   background: var(--panel-2);
 }
 .chip::before {
   content: "";
-  width: 0.55rem; height: 0.55rem; border-radius: 50%;
+  width: 0.6rem; height: 0.6rem; border-radius: 50%;
   background: var(--bad);
 }
 .chip.on { color: var(--text); }
@@ -134,8 +209,7 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
   grid-template-areas:
     "entry lane1"
     "entry car"
-    "entry lane2"
-    "diag  diag";
+    "entry lane2";
   gap: 0.8rem;
   padding: 0.8rem;
 }
@@ -144,12 +218,11 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
 #lane1 { grid-area: lane1; }
 .panel-car { grid-area: car; }
 #lane2 { grid-area: lane2; }
-.panel-diag { grid-area: diag; }
 
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
-    grid-template-areas: "entry" "lane1" "car" "lane2" "diag";
+    grid-template-areas: "entry" "lane1" "car" "lane2";
   }
 }
 
@@ -185,12 +258,18 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
 
 .routes { display: flex; flex-direction: column; gap: 0.4rem; }
 .route {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.45rem 0.6rem;
   border-radius: 0.4rem;
   border: 1px dashed var(--line);
   color: var(--muted);
   font-size: 0.85rem;
 }
+/* Each arrow hugs the edge it points to (app.js resets .className, so these
+   have to be id rules, not extra classes). */
+#routeB1 { justify-content: space-between; }
 .route.on { border-style: solid; border-color: var(--ok); color: var(--ok); }
 .route.blink { border-style: solid; border-color: var(--ok); color: var(--ok); animation: blink 0.8s step-start infinite; }
 
@@ -283,21 +362,8 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
 }
 .error-banner.empty { visibility: hidden; }
 
-/* ---------- Diagnostics ---------- */
+/* ---------- Processes + raw signals (dialog on the diagnostics page) ---------- */
 
-.panel-diag summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--muted);
-}
-.diag-open {
-  margin-left: 1rem;
-  font-weight: 400;
-  font-size: 0.82rem;
-  color: var(--accent);
-  text-decoration: none;
-}
-.diag-open:hover { text-decoration: underline; }
 .diag-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -360,8 +426,10 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
   grid-template-columns: 15rem minmax(0, 1fr);
   gap: 0.8rem;
 }
+/* Narrow screens: the list moves into #machineDialog (see diag.js), so the
+   graph gets the whole stage and the picker costs nothing while closed. */
 @media (max-width: 900px) {
-  .diag2 { grid-template-columns: 1fr; grid-template-rows: 13rem minmax(0, 1fr); }
+  .diag2 { grid-template-columns: minmax(0, 1fr); }
 }
 
 .machine-list {
@@ -391,6 +459,22 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
   flex: none;
 }
 .machine-head h2 { margin: 0; font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+
+/* Opens the machine list as a modal; only shown where the sidebar is gone. */
+.machine-picker {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .machine-picker { display: inline-flex; }
+  .machine-head h2 { display: none; }
+}
 .machine-state { color: var(--ok); font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
 
 .machine-view {
@@ -644,6 +728,15 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
   min-width: min(22rem, 90vw);
 }
 .dialog::backdrop { background: #000a; }
+.dialog-wide { min-width: min(56rem, 92vw); max-height: 85vh; overflow-y: auto; }
+.dialog-list { min-width: min(26rem, 92vw); }
+.dialog-list #machineList {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
 .dialog h2 { margin: 0 0 0.8rem; font-size: 1.05rem; }
 .dialog-brand { margin-bottom: 0.9rem; }
 .dialog-brand .wenco-logo { height: 1.7rem; color: #fff; opacity: 0.9; }
@@ -715,25 +808,20 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
 }
 
 @media (max-width: 700px) {
-  /* Topbar: brand + buttons on the first row, connection chips as one
-     horizontally-scrollable row below (instead of wrapping over everything
-     and pushing the buttons around). */
-  .topbar { gap: 0.5rem; padding: 0.5rem 0.8rem; }
-  .brand { flex: 1; }
-  .brand h1 { font-size: 1rem; }
+  /* Chrome gets tighter: the brand title yields to the navigation, which
+     scrolls sideways if the three tabs don't fit. */
+  .topbar { gap: 0.6rem; padding: 0.4rem 0.7rem; min-height: 2.9rem; }
+  .page-nav { margin: -0.4rem 0; }
+  .brand h1 { display: none; }
   .wenco-logo { height: 1.15rem; }
-  .conns {
-    order: 10;
-    flex-basis: 100%;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .conns::-webkit-scrollbar { display: none; }
-  .chip { flex: none; }
+  .brand-sep { display: none; }
+  .nav-link { padding: 0 0.7rem; font-size: 0.85rem; }
+  .statusbar { padding: 0.3rem 0.7rem; gap: 0.5rem; }
+  .statusbar-server { font-size: 0.7rem; padding-right: 0.5rem; }
+  .chip { font-size: 0.76rem; padding: 0.2rem 0.55rem; }
 
   /* Signal lists: tighter grid, capped height with internal scroll so the
-     diagnostics panel doesn't swallow the page. */
+     dialog doesn't swallow the page. */
   .signals {
     grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
     font-size: 0.72rem;
@@ -741,12 +829,9 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
   #signalsGrid, #pcSignalsGrid { max-height: 10rem; overflow-y: auto; }
   .mv-signals { max-height: 6rem; overflow-y: auto; }
 
-  /* Diagnostics page: the long help paragraph goes, and the machine list
-     becomes a horizontal strip so the graph keeps most of the height. */
+  /* Diagnostics page: the long help paragraph goes so the graph keeps the
+     height (the machine list is already a modal below 900px). */
   .diag-hint { display: none; }
-  .diag2 { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-  .machine-list { display: flex; gap: 0.3rem; overflow-x: auto; overflow-y: hidden; }
-  .machine-item { flex: none; width: 10.5rem; }
   .machine-view { padding: 0.6rem 0.8rem; }
 
   /* Full-viewport stages: less chrome, more stage */

@@ -10,15 +10,21 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-dot" id="serverDot"></span>
       <h1>Vista de planta</h1>
     </div>
-    <div class="conns" id="connChips"></div>
     <nav class="page-nav">
-      <a class="btn btn-ghost" href="index.html">Panel</a>
-      <a class="btn btn-ghost" href="diagnostico.html">Diagnóstico</a>
+      <a class="nav-link" href="index.html">Panel</a>
+      <a class="nav-link" href="planta.html" aria-current="page">Planta</a>
+      <a class="nav-link" href="diagnostico.html">Diagnóstico</a>
     </nav>
   </header>
+
+  <div class="statusbar">
+    <span class="statusbar-server">
+      <span class="brand-dot" id="serverDot"></span>Servidor
+    </span>
+    <div class="conns" id="connChips"></div>
+  </div>
 
   <main class="plant-page">
     <div class="plant-stage" id="plantStage">
@@ -28,6 +34,7 @@
         <button class="btn" id="zoomInBtn" title="Acercar">+</button>
         <button class="btn" id="zoomOutBtn" title="Alejar">−</button>
         <button class="btn" id="zoomFitBtn" title="Vista completa">⤢</button>
+        <button class="btn" id="rotateBtn" title="Rotar 90°">⟳</button>
       </div>
       <div class="plant-hint">Arrastrar / rueda: mover · Pellizco (Ctrl+rueda): zoom</div>
       <div class="plant-notices" id="plantNotices"></div>

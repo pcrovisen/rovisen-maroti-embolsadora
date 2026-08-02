@@ -352,14 +352,7 @@ function carTarget(pos) {
 // Render
 // ---------------------------------------------------------------------------
 
-const connChips = {};
-for (const [key, label] of Object.entries(CONN_LABELS)) {
-  const chip = document.createElement('span');
-  chip.className = 'chip';
-  chip.textContent = label;
-  $('connChips').appendChild(chip);
-  connChips[key] = chip;
-}
+setupConnChips($('connChips'));
 
 // Errors as floating notifications over the stage (they don't move the layout)
 const NOTICE_LABELS = { entry: 'Entrada', bcd1: 'Bocedi 1', bcd2: 'Bocedi 2', car: 'Carro' };
@@ -384,9 +377,7 @@ function setNotice(key, message) {
 
 function handleStatus(st) {
   if (!carEl) return; // floor not injected yet
-  for (const [key, chip] of Object.entries(connChips)) {
-    chip.classList.toggle('on', !!st.Connections[key]);
-  }
+  renderConnChips(st);
 
   const carPos = st.Car ? st.Car.CarPosition : 0;
   const ct = carTarget(carPos);
@@ -451,13 +442,15 @@ const panZoom = setupPanZoom([floorSvg, svg], GEO.world);
 $('zoomInBtn').addEventListener('click', () => panZoom.zoomCenter(1 / 1.35));
 $('zoomOutBtn').addEventListener('click', () => panZoom.zoomCenter(1.35));
 $('zoomFitBtn').addEventListener('click', () => panZoom.reset());
+$('rotateBtn').addEventListener('click', () => panZoom.rotate(90));
 
+// Inside the pan/zoom roots, so the rotate button turns the whole scene.
 // fill="none" mirrors the original drawing's root attribute: its dashed
 // enclosure rects have no fill and must not default to black.
-layers.floor = svgEl('g', { fill: 'none' }, floorSvg);
-layers.overlays = svgEl('g', {}, svg);
-layers.car = svgEl('g', {}, svg);
-layers.pallets = svgEl('g', {}, svg);
+layers.floor = svgEl('g', { fill: 'none' }, panZoom.roots[0]);
+layers.overlays = svgEl('g', {}, panZoom.roots[1]);
+layers.car = svgEl('g', {}, panZoom.roots[1]);
+layers.pallets = svgEl('g', {}, panZoom.roots[1]);
 
 // Floor: inlined by the demo build, fetched on the real page.
 const inlineFloor = document.getElementById('plantFloorInline');
@@ -484,5 +477,5 @@ source.addEventListener('status', (ev) => {
 source.onerror = () => {
   $('serverDot').classList.remove('on');
   $('offlineOverlay').classList.remove('hidden');
-  for (const chip of Object.values(connChips)) chip.classList.remove('on');
+  clearConnChips();
 };

@@ -10,12 +10,12 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-dot" id="serverDot"></span>
       <h1>Línea Embolsadora</h1>
     </div>
-    <div class="conns" id="connChips"></div>
     <nav class="page-nav">
-      <a class="btn btn-ghost" href="planta.html">Planta</a>
+      <a class="nav-link" href="index.html" aria-current="page">Panel</a>
+      <a class="nav-link" href="planta.html">Planta</a>
+      <a class="nav-link" href="diagnostico.html">Diagnóstico</a>
     </nav>
     <div class="session">
       <button id="loginBtn" class="btn btn-ghost">Iniciar sesión</button>
@@ -23,6 +23,13 @@
       <button id="logoutBtn" class="btn btn-ghost hidden">Salir</button>
     </div>
   </header>
+
+  <div class="statusbar">
+    <span class="statusbar-server">
+      <span class="brand-dot" id="serverDot"></span>Servidor
+    </span>
+    <div class="conns" id="connChips"></div>
+  </div>
 
   <main class="layout">
 
@@ -36,9 +43,11 @@
         <span class="lane-label">Palet leído</span>
         <div class="slot" id="entryPallet"></div>
       </div>
+      <!-- Arrows point at where each route leads on this page: Bocedi 1 to
+           the right, the car (and Bocedi 2) to the left. -->
       <div class="routes">
-        <div class="route" id="routeB1">▲ Bocedi 1</div>
-        <div class="route" id="routeCar">▼ Carro</div>
+        <div class="route" id="routeB1"><span>Bocedi 1</span><span>→</span></div>
+        <div class="route" id="routeCar"><span>←</span><span>Carro</span></div>
       </div>
       <div class="error-banner empty" id="entryError"></div>
     </section>
@@ -75,13 +84,13 @@
         <span class="lane-state" id="carStateText"></span>
       </div>
       <div class="car-track">
-        <span class="track-end">B1</span>
+        <span class="track-end">B2</span>
         <div class="track">
           <div class="car" id="carIcon">
             <div class="car-pallet hidden" id="carPalletMini"></div>
           </div>
         </div>
-        <span class="track-end">B2</span>
+        <span class="track-end">B1</span>
       </div>
       <div class="lane-group">
         <span class="lane-label">Palet en carro</span>
@@ -96,46 +105,25 @@
         <h2>Bocedi 2</h2>
         <span class="lane-state" id="lane2State"></span>
       </div>
+      <!-- Bocedi 2 runs the other way on the floor: exit on the left. -->
       <div class="lane">
-        <div class="lane-group">
-          <span class="lane-label">Cola</span>
-          <div class="slots" id="queue2"></div>
-        </div>
-        <div class="lane-arrow">→</div>
-        <div class="lane-group">
-          <span class="lane-label">Etiquetado</span>
-          <div class="slots"><div class="slot" id="label2"></div></div>
-        </div>
-        <div class="lane-arrow">→</div>
         <div class="lane-group">
           <span class="lane-label">Salida</span>
           <div class="slots"><div class="slot" id="exit2"></div></div>
         </div>
+        <div class="lane-arrow">←</div>
+        <div class="lane-group">
+          <span class="lane-label">Etiquetado</span>
+          <div class="slots"><div class="slot" id="label2"></div></div>
+        </div>
+        <div class="lane-arrow">←</div>
+        <div class="lane-group">
+          <span class="lane-label">Cola</span>
+          <div class="slots" id="queue2"></div>
+        </div>
       </div>
       <div class="error-banner empty" id="bcd2Error"></div>
     </section>
-
-    <!-- Diagnostics -->
-    <details class="panel panel-diag">
-      <summary>Diagnóstico
-        <a class="diag-open" href="diagnostico.html" target="_blank">Vista gráfica en pestaña nueva ↗</a>
-      </summary>
-      <div class="diag-grid">
-        <div>
-          <h3>Procesos</h3>
-          <table class="diag-table" id="machinesTable">
-            <thead><tr><th>Proceso</th><th>Estado</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div>
-          <h3>Señales PLC → PC</h3>
-          <div class="signals" id="signalsGrid"></div>
-          <h3>Señales PC → PLC</h3>
-          <div class="signals" id="pcSignalsGrid"></div>
-        </div>
-      </div>
-    </details>
 
   </main>
 

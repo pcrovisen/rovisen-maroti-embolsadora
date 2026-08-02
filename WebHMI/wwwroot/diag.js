@@ -35,6 +35,10 @@ const panZoom = setupPanZoom([mvSvg], { x: 0, y: 0, w: DIMS.W, h: 300 });
 $('mvZoomIn').addEventListener('click', () => panZoom.zoomCenter(1 / 1.35));
 $('mvZoomOut').addEventListener('click', () => panZoom.zoomCenter(1.35));
 $('mvZoomFit').addEventListener('click', () => panZoom.reset());
+$('mvRotate').addEventListener('click', () => panZoom.rotate(90));
+const mvRoot = panZoom.roots[0]; // graphs are drawn in here so rotation catches them
+
+setupConnChips();
 
 function svgEl(tag, attrs) {
   const el = document.createElementNS(SVGNS, tag);
@@ -175,6 +179,63 @@ function edgeGeom(layout, a, b) {
 }
 
 // ---------------------------------------------------------------------------
+// Machine list: sidebar on wide screens, modal below 900 px
+// ---------------------------------------------------------------------------
+
+// The very same list element is moved between the two places, so there is
+// never a second copy to keep in sync — and while it lives in the dialog it
+// costs no room next to the graph.
+const machineDialog = $('machineDialog');
+const wideEnoughForSidebar = window.matchMedia('(min-width: 901px)');
+
+function placeMachineList() {
+  const list = $('machineList');
+  if (wideEnoughForSidebar.matches) document.querySelector('.diag2').prepend(list);
+  else $('machineDialogBody').appendChild(list);
+}
+
+placeMachineList();
+wideEnoughForSidebar.addEventListener('change', () => {
+  machineDialog.close();
+  placeMachineList();
+});
+
+$('machinePickerBtn').addEventListener('click', () => machineDialog.showModal());
+$('machineDialogClose').addEventListener('click', () => machineDialog.close());
+
+// ---------------------------------------------------------------------------
+// Processes + raw signals (the block that used to sit under the dashboard)
+// ---------------------------------------------------------------------------
+
+const tablesDialog = $('tablesDialog');
+const machinesTableBody = $('machinesTable').querySelector('tbody');
+
+const makeSignalEls = (names, grid) => names.map((name) => {
+  const el = document.createElement('div');
+  el.className = 'signal';
+  el.textContent = name;
+  grid.appendChild(el);
+  return el;
+});
+const signalEls = makeSignalEls(SIGNAL_NAMES, $('signalsGrid'));
+const pcSignalEls = makeSignalEls(PC_SIGNAL_NAMES, $('pcSignalsGrid'));
+
+function renderTables(st) {
+  if (!st) return;
+  machinesTableBody.innerHTML = Object.keys(st.MachineState)
+    .map((m) => `<tr><td>${escapeHtml(m)}</td><td>${escapeHtml(machineStateName(st, m))}</td></tr>`)
+    .join('');
+  signalEls.forEach((el, i) => el.classList.toggle('on', !!st.Signals[i]));
+  pcSignalEls.forEach((el, i) => el.classList.toggle('on', !!(st.PcSignals && st.PcSignals[i])));
+}
+
+$('tablesBtn').addEventListener('click', () => {
+  renderTables(lastStatus);
+  tablesDialog.showModal();
+});
+$('tablesCloseBtn').addEventListener('click', () => tablesDialog.close());
+
+// ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
 
@@ -232,6 +293,8 @@ function gateTspans(label, gates, geomMid) {
 function selectMachine(name) {
   selected = name;
   for (const [n, m] of metas) m.item.classList.toggle('selected', n === name);
+  $('machinePickerName').textContent = name;
+  machineDialog.close(); // no-op unless the list was opened as a modal
 
   const meta = metas.get(name);
   const layout = meta.decl && meta.decl.edges.length
@@ -241,11 +304,11 @@ function selectMachine(name) {
   $('mvName').textContent = name;
 
   // Reuse the single stage svg: clear it and rebuild for this machine.
-  while (mvSvg.firstChild) mvSvg.firstChild.remove();
+  while (mvRoot.firstChild) mvRoot.firstChild.remove();
   const edgeLayer = svgEl('g', {});
   const labelLayer = svgEl('g', {});
   const nodeLayer = svgEl('g', {});
-  mvSvg.append(edgeLayer, labelLayer, nodeLayer);
+  mvRoot.append(edgeLayer, labelLayer, nodeLayer);
 
   const nodes = meta.stateNames.map((sn, i) => {
     const p = layout.pos[i];
@@ -306,8 +369,9 @@ function selectMachine(name) {
   }
 
   // Fit the initial view to what was actually drawn (side arcs and labels
-  // included) rather than the nominal canvas.
-  const bb = mvSvg.getBBox();
+  // included) rather than the nominal canvas. Measuring the root group, not
+  // the svg, keeps this in un-rotated coordinates — setWorld rotates it.
+  const bb = mvRoot.getBBox();
   panZoom.setWorld({ x: bb.x - 40, y: bb.y - 30, w: bb.width + 80, h: bb.height + 60 });
 
   // Signals panel: every signal referenced by this machine's transitions.
@@ -427,12 +491,15 @@ fetch('transitions.json')
         if (!statesDict) continue;
         setMachineState(name, ensureMeta(name, statesDict), idx);
       }
+      renderConnChips(st);
       refreshStateTexts();
       refreshView(st);
+      if (tablesDialog.open) renderTables(st);
     });
 
     source.onerror = () => {
       $('serverDot').classList.remove('on');
       $('offlineOverlay').classList.remove('hidden');
+      clearConnChips();
     };
   });
