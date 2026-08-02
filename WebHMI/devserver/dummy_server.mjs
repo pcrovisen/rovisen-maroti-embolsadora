@@ -629,7 +629,15 @@ const MIME = {
 const sseClients = new Set();
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  // A malformed request target ("//", a bare authority…) must not take the
+  // whole dev server down with an unhandled ERR_INVALID_URL.
+  let url;
+  try {
+    url = new URL(req.url, `http://${req.headers.host}`);
+  } catch {
+    res.writeHead(400).end('Bad Request');
+    return;
+  }
 
   if (url.pathname === '/api/events') {
     res.writeHead(200, {
