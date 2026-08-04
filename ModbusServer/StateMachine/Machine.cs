@@ -31,6 +31,9 @@ namespace ModbusServer.StateMachine
         {
             State = initState;
             StateTime.Restart();
+            // Same publication as NextState: without it the HMIs kept showing the
+            // state the machine was in before the reset until its next transition.
+            Status.Instance.StateMachine.Machines[Name] = State;
         }
 
         protected void NextState(object nextState)

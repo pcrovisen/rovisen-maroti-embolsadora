@@ -23,9 +23,24 @@ namespace ModbusServer.StateMachine
             Failed,
         }
 
+        // A result nobody collects would wedge the machine — and with it every
+        // later deletion — because only the requesting HMIConnection calls Reset().
+        const int AbandonedResultMs = 10000;
+
+        // The PLC answers DelEmb2 with Del2Valid/Del2Error within a scan.
+        const int PlcAnswerTimeoutMs = 10000;
+
         Task queueWrite;
+
+        // Set by StartDelete once every DEL* register is written, read by Step()
+        // on the step thread: this is the handshake that publishes a request.
+        bool needDel = false;
+
+        // Claimed synchronously by StartDelete, before its first await, so two
+        // HMIs cannot both pass the "is it free?" check in the same cycle.
+        bool requestInFlight = false;
+
         public static DeletePalletEmb2 Instance { get; set; }
-        public bool needDel = false;
         public bool Completed
         {
             get { return (States)State == States.Completed; }
@@ -80,6 +95,14 @@ namespace ModbusServer.StateMachine
                         NextState(States.WaitingWrite);
                         break;
                     }
+                    if (StateTime.ElapsedMilliseconds > PlcAnswerTimeoutMs)
+                    {
+                        // The PLC answers Del2Valid/Del2Error within a scan. Without
+                        // this the machine waits forever when the PLC is stopped or
+                        // the link drops mid-deletion.
+                        Log.Error("The PLC did not answer the deletion request");
+                        NextState(States.Failed);
+                    }
                     break;
                 case States.WaitingWrite:
                     if(queueWrite.IsCompleted)
@@ -102,6 +125,7 @@ namespace ModbusServer.StateMachine
                     break;
                 case States.Failed:
                     FatekPLC.ResetBit(FatekPLC.Signals.DelEmb2);
+                    ResetIfAbandoned();
                     break;
                 case States.SendingFIFO:
                     FatekPLC.ResetBit(FatekPLC.Signals.DelEmb2);
@@ -109,9 +133,30 @@ namespace ModbusServer.StateMachine
                     Log.Info("Deletion success");
                     break;
                 case States.Completed:
+                    ResetIfAbandoned();
                     break;
             }
         }
+
+        public override void Reset()
+        {
+            base.Reset();
+            needDel = false;
+            requestInFlight = false;
+        }
+
+        // The requester reads Completed/Failed on its next step (100 ms later) and
+        // resets the machine. If it disconnected before that, nothing else would,
+        // and every later deletion would be refused.
+        private void ResetIfAbandoned()
+        {
+            if (StateTime.ElapsedMilliseconds > AbandonedResultMs)
+            {
+                Log.Warn("Deletion result was never collected. Returning to idle");
+                Reset();
+            }
+        }
+
         private bool Validate()
         {
             int index = (int)FatekPLC.Memory.FIFO31a + FatekPLC.ReadMemory(FatekPLC.Memory.DEL2Pos1);
@@ -163,14 +208,36 @@ namespace ModbusServer.StateMachine
             FatekPLC.SetMemory(FatekPLC.Memory.FIFO4Len, (short)(len2 - 1));
         }
 
+        // Called from HMIConnection.Step(). Only the part before the first await
+        // runs on the step thread: SetQrAndId awaits a SQL round trip (QR string ->
+        // id) and resumes on a thread-pool thread. So the machine must not be moved
+        // to Validating here — it used to be, and Step() then ran Validate() against
+        // DEL* registers that had not been written yet. The registers are written
+        // first and the request is published last, with needDel.
+        //
+        // Returns false when the request could not be started; the caller decides
+        // whether to retry or to answer NOK.
         public async Task<bool> StartDelete(DeletePallet pallet)
         {
+            if (requestInFlight || (States)State != States.Waiting)
+            {
+                return false;
+            }
+            requestInFlight = true;
+
             Log.Info($"Start to delete pallet {pallet.Pallet.Qr}, in position {pallet.Position} from packager {pallet.Packager}");
-            NextState(States.Validating);
             FatekPLC.SetMemory(FatekPLC.Memory.DEL2Pos1, (short)(2 * pallet.Position));
             FatekPLC.SetMemory(FatekPLC.Memory.DEL2Pos2, (short)pallet.Position);
 
-            return await FatekPLC.SetQrAndId(FatekPLC.Memory.DEL2a, FatekPLC.Memory.DEL2ID, pallet.Pallet);
+            if (!await FatekPLC.SetQrAndId(FatekPLC.Memory.DEL2a, FatekPLC.Memory.DEL2ID, pallet.Pallet))
+            {
+                Log.Error("Could not write the pallet to delete");
+                requestInFlight = false;
+                return false;
+            }
+
+            needDel = true;
+            return true;
         }
     }
 }

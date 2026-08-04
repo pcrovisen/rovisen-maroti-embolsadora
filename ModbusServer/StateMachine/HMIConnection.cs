@@ -26,6 +26,12 @@ namespace ModbusServer.StateMachine
             Terminated,
         }
 
+        // The deletion machines are singletons shared by every connection, so a
+        // request can have to wait for another operator's deletion — but not
+        // forever, and not without the operator being told.
+        const int DeleteStartTimeoutMs = 15000;
+        const int DeleteTimeoutMs = 30000;
+
         readonly TcpDevice tcpHMI;
         Task<string> receiveTask;
         Task<bool> sendTask;
@@ -118,14 +124,21 @@ namespace ModbusServer.StateMachine
                 case States.WaitingDelStart:
                     if (startDel.IsCompleted)
                     {
-                        if (startDel.Result)
+                        if (!startDel.IsFaulted && startDel.Result)
                         {
                             NextState(pallet.Packager == 1 ? States.WaitingDeletion1 : States.WaitingDeletion2);
                         }
+                        else if (StateTime.ElapsedMilliseconds > DeleteStartTimeoutMs)
+                        {
+                            Log.WarnFormat("HMI {0}: the deletion could not be started", Name);
+                            NextState(States.Responding);
+                            sendTask = tcpHMI.Send("NOK", Cts.Token);
+                        }
                         else
                         {
+                            // Retry without a transition, so StateTime keeps measuring
+                            // the whole wait instead of restarting on every attempt.
                             startDel = StartDelete(pallet);
-                            NextState(States.WaitingDelStart);
                         }
                     }
                     break;
@@ -158,6 +171,14 @@ namespace ModbusServer.StateMachine
                         DeletePalletEmb1.Instance.Reset();
                         break;
                     }
+                    if (StateTime.ElapsedMilliseconds > DeleteTimeoutMs)
+                    {
+                        // Leave the machine alone — it recovers on its own — but stop
+                        // holding the operator on a dialog that will never close.
+                        Log.WarnFormat("HMI {0}: timeout waiting for the deletion in packager 1", Name);
+                        sendTask = tcpHMI.Send("NOK", Cts.Token);
+                        NextState(States.Responding);
+                    }
                     break;
                 case States.WaitingDeletion2:
                     if (DeletePalletEmb2.Instance.Completed)
@@ -173,6 +194,12 @@ namespace ModbusServer.StateMachine
                         NextState(States.Responding);
                         DeletePalletEmb2.Instance.Reset();
                         break;
+                    }
+                    if (StateTime.ElapsedMilliseconds > DeleteTimeoutMs)
+                    {
+                        Log.WarnFormat("HMI {0}: timeout waiting for the deletion in packager 2", Name);
+                        sendTask = tcpHMI.Send("NOK", Cts.Token);
+                        NextState(States.Responding);
                     }
                     break;
                 case States.Terminated:
