@@ -149,6 +149,7 @@
     <Compile Include="StateMachine\PrinterMachine.cs" />
     <Compile Include="StateMachine\QrReadMachine.cs" />
     <Compile Include="StateMachine\FatekPLCCommunication.cs" />
+    <Compile Include="StateMachine\FaultStateAttribute.cs" />
     <Compile Include="StateMachine\QrReaderConnection.cs" />
     <Compile Include="StateMachine\DeletePalletEmb.cs" />
     <Compile Include="StateMachine\PackagerBinding.cs" />
