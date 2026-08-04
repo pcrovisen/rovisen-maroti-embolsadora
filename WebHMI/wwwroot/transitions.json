@@ -188,7 +188,6 @@
   "states": [
    "WaitingRequest",
    "ReadingQr",
-   "FailedQr",
    "WaitingAuth",
    "WaitingLeave",
    "Delay"
@@ -238,12 +237,7 @@
     ]
    ]
   ],
-  "flags": {
-   "FailedQr": {
-    "terminal": true,
-    "fault": true
-   }
-  }
+  "flags": {}
  },
  "FatekPLCCommunication": {
   "init": "Init",

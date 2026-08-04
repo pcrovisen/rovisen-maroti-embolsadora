@@ -64,7 +64,6 @@ const PAL_W = 400;
 const PAL_H = 333;
 const INTENT_Y = 1795; // routing arrows: above the pallets, clear of the QR tag
 const AT_LABELER_STATES = [3, 4, 5]; // PalletLabel: Labeling, WaitUpdate2, WaitAck
-const ELEVATOR_WAITING_LEAVE = 4;    // ElevatorAccess.States.WaitingLeave
 
 // ---------------------------------------------------------------------------
 // Scene: the drawing as floor + live overlays
@@ -327,7 +326,7 @@ function collectTargets(st) {
   const et = entryPalletTarget(st);
   if (et) add(st.EntryPallet, et.x, et.y, et);
 
-  if (st.MachineState.ElevatorAccess === ELEVATOR_WAITING_LEAVE) {
+  if (st.MachineState.ElevatorAccess === EA.WaitingLeave) {
     targets.set('__elevator__', { ghost: true, x: GEO.elevator.x, y: GEO.elevator.y });
   }
 
@@ -397,9 +396,11 @@ function handleStatus(st) {
 
   const e = st.MachineState.ElevatorAccess;
   elevQrLiveEl.setAttribute('class', 'qr-live');
-  if (e === 2) elevQrLiveEl.classList.add('bad', 'blink');      // FailedQr
-  else if (e === 1) elevQrLiveEl.classList.add('ok', 'blink');  // ReadingQr
-  else if (e === ELEVATOR_WAITING_LEAVE) elevQrLiveEl.classList.add('ok');
+  // A failed elevator read is the ElevatorFailedQr coil, not a state:
+  // ElevatorAccess handles the failure inside ReadingQr and stays there.
+  if (signalValue(st, 'ElevatorFailedQr')) elevQrLiveEl.classList.add('bad', 'blink');
+  else if (e === EA.ReadingQr) elevQrLiveEl.classList.add('ok', 'blink');
+  else if (e === EA.WaitingLeave) elevQrLiveEl.classList.add('ok');
 
   labelRing1.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel1));
   labelRing2.classList.toggle('active', AT_LABELER_STATES.includes(st.MachineState.PalletLabel2));

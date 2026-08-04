@@ -80,7 +80,7 @@ const MACHINE_STATES = {
   DeletePalletEmb2: ['Waiting', 'Validating', 'ValidatingPLC', 'WaitingWrite',
     'SendingFIFO', 'Completed', 'Failed'],
   AcceptHMIs: ['Init', 'Listening', 'Connecting', 'Adding', 'Pause'],
-  ElevatorAccess: ['WaitingRequest', 'ReadingQr', 'FailedQr', 'WaitingAuth',
+  ElevatorAccess: ['WaitingRequest', 'ReadingQr', 'WaitingAuth',
     'WaitingLeave', 'Delay'],
   PrinterMachineWolrdjet1: PRINTER_STATES,
   PrinterMachineWolrdjet2: PRINTER_STATES,

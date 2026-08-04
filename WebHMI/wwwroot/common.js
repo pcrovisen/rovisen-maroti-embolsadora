@@ -42,6 +42,11 @@ const PE = {
   ReadingQrInError: 16, Paused: 17,
 };
 
+// ElevatorAccess.States
+const EA = {
+  WaitingRequest: 0, ReadingQr: 1, WaitingAuth: 2, WaitingLeave: 3, Delay: 4,
+};
+
 const CAR_POS_TEXT = {
   0: 'Posición desconocida',
   1: 'Hacia Bocedi 1',
