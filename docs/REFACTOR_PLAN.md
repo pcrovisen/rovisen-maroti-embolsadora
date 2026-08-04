@@ -15,7 +15,7 @@ reason: a step that doesn't compile must be trivially attributable.
 
 | # | Step | State |
 |---|---|---|
-| 1 | Harden the HMI `del` message parsing | todo |
+| 1 | Harden the HMI `del` message parsing | done |
 | 2 | Fix the `DeletePalletEmb1/2` start race (`needDel`) | todo |
 | 3 | `PrinterMachine.Print1` fall-through | todo |
 | 4 | Retry idiom helper + fix blind `.Result` reads | todo |

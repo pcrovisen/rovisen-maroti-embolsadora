@@ -84,17 +84,18 @@ namespace ModbusServer.StateMachine
                             }
                             else if(receiveTask.Result.StartsWith("del"))
                             {
-                                pallet = JsonSerializer.Deserialize<DeletePallet>(receiveTask.Result.Substring(3));
-                                if(pallet.Packager == 1)
+                                if (TryParseDelete(receiveTask.Result.Substring(3), out pallet))
                                 {
-                                    startDel = DeletePalletEmb1.Instance.StartDelete(pallet);
+                                    startDel = StartDelete(pallet);
+                                    NextState(States.WaitingDelStart);
                                 }
                                 else
                                 {
-                                    startDel = DeletePalletEmb2.Instance.StartDelete(pallet);
+                                    // A bad request must not take the connection (nor, through
+                                    // the blanket handler in AcceptHMIs, every other HMI) down.
+                                    NextState(States.Responding);
+                                    sendTask = tcpHMI.Send("NOK", Cts.Token);
                                 }
-                                NextState(States.WaitingDelStart);
-
                             }
                             else if(receiveTask.Result == "terminate")
                             {
@@ -119,26 +120,11 @@ namespace ModbusServer.StateMachine
                     {
                         if (startDel.Result)
                         {
-                            if(pallet.Packager == 1)
-                            {
-                                NextState(States.WaitingDeletion1);
-                            }
-                            else
-                            {
-                                NextState(States.WaitingDeletion2);
-                            }
-                            
+                            NextState(pallet.Packager == 1 ? States.WaitingDeletion1 : States.WaitingDeletion2);
                         }
                         else
                         {
-                            if (pallet.Packager == 1)
-                            {
-                                startDel = DeletePalletEmb1.Instance.StartDelete(pallet); 
-                            }
-                            else
-                            {
-                                startDel = DeletePalletEmb2.Instance.StartDelete(pallet);
-                            }
+                            startDel = StartDelete(pallet);
                             NextState(States.WaitingDelStart);
                         }
                     }
@@ -199,6 +185,56 @@ namespace ModbusServer.StateMachine
             Cts.Cancel();
             receiveTask?.Wait();
             sendTask?.Wait();
+        }
+
+        // Parses the payload of a `del…` request. Everything past the framing is
+        // attacker-controlled as far as this process is concerned (any host on the
+        // plant subnet can connect to :8153), so a bad request has to end as a NOK
+        // and never as an exception out of Step().
+        private bool TryParseDelete(string json, out DeletePallet result)
+        {
+            result = null;
+            DeletePallet parsed;
+            try
+            {
+                parsed = JsonSerializer.Deserialize<DeletePallet>(json);
+            }
+            catch (Exception ex)
+            {
+                Log.WarnFormat("HMI {0} sent a malformed deletion request: {1}", Name, ex.Message);
+                return false;
+            }
+
+            if (parsed?.Pallet == null || string.IsNullOrEmpty(parsed.Pallet.Qr))
+            {
+                Log.WarnFormat("HMI {0} sent a deletion request without a pallet", Name);
+                return false;
+            }
+
+            // Anything that is not packager 1 used to fall through to packager 2.
+            if (parsed.Packager != 1 && parsed.Packager != 2)
+            {
+                Log.WarnFormat("HMI {0} sent a deletion request for packager {1}", Name, parsed.Packager);
+                return false;
+            }
+
+            var queue = (parsed.Packager == 1 ? Status.Instance.Packager1 : Status.Instance.Packager2).Queue;
+            if (parsed.Position < 0 || queue == null || parsed.Position >= queue.Count)
+            {
+                Log.WarnFormat("HMI {0} sent a deletion request for position {1}, outside the queue of packager {2}",
+                    Name, parsed.Position, parsed.Packager);
+                return false;
+            }
+
+            result = parsed;
+            return true;
+        }
+
+        private static Task<bool> StartDelete(DeletePallet pallet)
+        {
+            return pallet.Packager == 1
+                ? DeletePalletEmb1.Instance.StartDelete(pallet)
+                : DeletePalletEmb2.Instance.StartDelete(pallet);
         }
 
         private string CreateMessage(bool force = false)

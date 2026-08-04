@@ -102,30 +102,32 @@ namespace ModbusServer.StateMachine
 
             }
 
-            try
+            // One misbehaving HMI must not take the others — nor the listener — with
+            // it. Step each connection in isolation and drop only the one that threw.
+            // (This used to be a single try around the whole loop whose handler did
+            // hmis.Clear() and restarted the listener, so any exception from any
+            // client disconnected every operator station.)
+            foreach (var ip in hmis.Keys.ToList())
             {
-                foreach(var hmi in hmis.Keys.Where(hmi =>
+                var hmi = hmis[ip];
+                bool drop;
+                try
                 {
-                    hmis[hmi].Step();
-                    if(hmis[hmi].Terminated)
-                    {
-                        Log.InfoFormat("HMI {0} removed", hmis[hmi].Name);
-                        hmis[hmi].Remove();
-                        return true;
-                    }
-                    return false;
-                }).ToList())
-                {
-                    hmis.Remove(hmi);
+                    hmi.Step();
+                    drop = hmi.Terminated;
                 }
-            }
-            catch (Exception ex)
-            {
-                hmis.Clear();
-                Log.Error(ex.Message);
-                listener.Stop();
-                listener = null;
-                NextState(States.Init);
+                catch (Exception ex)
+                {
+                    Log.ErrorFormat("HMI {0} failed and will be dropped. Error: {1}", hmi.Name, ex.Message);
+                    drop = true;
+                }
+
+                if (drop)
+                {
+                    Log.InfoFormat("HMI {0} removed", hmi.Name);
+                    hmi.Remove();
+                    hmis.Remove(ip);
+                }
             }
         }
 
