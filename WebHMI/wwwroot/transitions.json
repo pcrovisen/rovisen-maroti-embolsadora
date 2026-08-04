@@ -40,11 +40,6 @@
     [
      "⏱"
     ]
-   ],
-   [
-    "Pause",
-    "Init",
-    []
    ]
   ]
  },
@@ -157,7 +152,8 @@
     "ValidatingPLC",
     "Failed",
     [
-     "Del1Error"
+     "Del1Error",
+     "⏱"
     ]
    ],
    [
@@ -177,11 +173,6 @@
    [
     "SendingFIFO",
     "Completed",
-    []
-   ],
-   [
-    "Failed",
-    "Validating",
     []
    ]
   ]
@@ -217,7 +208,8 @@
     "ValidatingPLC",
     "Failed",
     [
-     "Del2Error"
+     "Del2Error",
+     "⏱"
     ]
    ],
    [
@@ -237,11 +229,6 @@
    [
     "SendingFIFO",
     "Completed",
-    []
-   ],
-   [
-    "Completed",
-    "Validating",
     []
    ]
   ]
@@ -336,9 +323,7 @@
    [
     "WaitingInit",
     "Working",
-    [
-     "⏱"
-    ]
+    []
    ],
    [
     "Working",
@@ -385,13 +370,10 @@
    ],
    [
     "WaitingDelStart",
-    "WaitingDeletion1",
-    []
-   ],
-   [
-    "WaitingDelStart",
-    "WaitingDeletion2",
-    []
+    "Responding",
+    [
+     "⏱"
+    ]
    ],
    [
     "Responding",
@@ -406,12 +388,16 @@
    [
     "WaitingDeletion1",
     "Responding",
-    []
+    [
+     "⏱"
+    ]
    ],
    [
     "WaitingDeletion2",
     "Responding",
-    []
+    [
+     "⏱"
+    ]
    ]
   ]
  },
@@ -588,9 +574,7 @@
    [
     "WaitUpdateFIFO1",
     "UpdateFIFO1",
-    [
-     "⏱"
-    ]
+    []
    ],
    [
     "UpdateFIFO1",
@@ -623,9 +607,7 @@
    [
     "WaitUpdateCar",
     "UpdateCar",
-    [
-     "⏱"
-    ]
+    []
    ],
    [
     "UpdateCar",
@@ -1010,6 +992,11 @@
    [
     "Reset2",
     "Print2",
+    []
+   ],
+   [
+    "Print1",
+    "WaitPLCConfirmation",
     []
    ],
    [

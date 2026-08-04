@@ -1,0 +1,62 @@
+<!--
+  Compile-only shadow project: type-checks ModbusServer/ on any machine with the
+  .NET SDK, including macOS and Linux, with nothing else installed.
+
+  It is NOT the build. ModbusServer.csproj (old-style, packages.config) remains
+  the thing that produces the deployable exe, and only MSBuild on Windows does
+  that. This project compiles exactly the same .cs files against the .NET
+  Framework 4.8 *reference* assemblies, which Microsoft ships as a NuGet package
+  precisely so that framework projects can be compiled off Windows. It catches
+  every syntax and type error; it produces nothing you should ever deploy.
+
+  Keep the package versions in step with ModbusServer/packages.config and the
+  <Reference> list in step with ModbusServer.csproj, or a real error can hide
+  here as a missing-reference error.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>ModbusServer.typecheck</AssemblyName>
+    <!-- AssemblyInfo.cs comes from the sources, so do not generate another. -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- Nothing here is run, so vulnerability advisories on the pinned
+         production versions are noise; they belong in the real project. -->
+    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
+    <Src>$(MSBuildThisFileDirectory)../../ModbusServer</Src>
+    <Deps>$(MSBuildThisFileDirectory)../../Dependencies</Deps>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(Src)/**/*.cs" Exclude="$(Src)/obj/**;$(Src)/bin/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <!-- Mirrors ModbusServer/packages.config (only the direct references). -->
+    <PackageReference Include="log4net" Version="2.0.15" />
+    <PackageReference Include="Spectre.Console" Version="0.45.0" />
+    <PackageReference Include="System.Text.Json" Version="7.0.0" />
+    <PackageReference Include="Topshelf" Version="4.3.0" />
+    <PackageReference Include="Topshelf.Log4Net" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Vendored managed assemblies, same HintPaths as ModbusServer.csproj. -->
+    <Reference Include="EasyModbus">
+      <HintPath>$(Deps)/EasyModbus.dll</HintPath>
+    </Reference>
+    <Reference Include="mc.Omron.v1.00">
+      <HintPath>$(Deps)/mc.Omron.v1.00.dll</HintPath>
+    </Reference>
+    <!-- Framework references the SDK does not add by default. -->
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Configuration.Install" />
+    <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+
+</Project>

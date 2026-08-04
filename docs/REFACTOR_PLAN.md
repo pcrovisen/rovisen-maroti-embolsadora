@@ -7,9 +7,11 @@ protocol and the SQL layer. Items are ordered so that each one is a small,
 self-contained commit that can be reviewed and, if needed, dropped without
 touching the rest.
 
-**No build or test runs on macOS** (see `CLAUDE.md`) — every step is verified by
-review here and compiled on the Windows dev PC. Keep the steps small for that
-reason: a step that doesn't compile must be trivially attributable.
+Verification available while doing this: `./build/typecheck.sh` compiles both
+projects on macOS against the .NET Framework reference assemblies, and the
+`windows` job in CI does the real MSBuild. Steps 1-4 and 10-12 were confirmed
+green by the former. There are still no tests — behaviour is verified against
+the plant hardware or a Modbus client simulating the PLC.
 
 ## Status
 

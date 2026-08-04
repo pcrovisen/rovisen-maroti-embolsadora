@@ -1,0 +1,64 @@
+name: build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # The authoritative build: the same MSBuild + packages.config toolchain used on
+  # the plant/dev PC. This is what decides whether a change compiles for real.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+      - uses: nuget/setup-nuget@v2
+
+      - name: Restore packages
+        run: nuget restore ModbusServer.sln
+
+      # secrets.config is gitignored and the csproj includes it conditionally,
+      # so nothing is needed here for it to be absent.
+      - name: Build
+        run: msbuild ModbusServer.sln /p:Configuration=Release /p:Platform="Any CPU" /nologo /verbosity:minimal
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: |
+            ModbusServer/bin/Release/
+            TcpHMIClient/bin/Release/
+          if-no-files-found: error
+
+  # Fast feedback for whoever is working off Windows: the same sources compiled
+  # against the .NET Framework reference assemblies. Catches syntax and type
+  # errors in seconds, and needs no Windows runner.
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: ./build/typecheck.sh
+
+  # WebHMI/wwwroot/transitions.json is generated from the C# state machines and
+  # must never be edited by hand. Changing a machine without regenerating it
+  # leaves the diagnostics page quietly wrong, so fail instead.
+  transitions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node WebHMI/devserver/generate_transitions.mjs
+      - name: transitions.json is up to date
+        run: |
+          if ! git diff --exit-code --stat WebHMI/wwwroot/transitions.json; then
+            echo "::error::transitions.json is stale. Run: node WebHMI/devserver/generate_transitions.mjs"
+            exit 1
+          fi
