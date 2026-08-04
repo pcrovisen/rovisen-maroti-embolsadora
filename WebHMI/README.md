@@ -145,9 +145,33 @@ the pages remotely (e.g. published as a private Claude artifact). The main-page
 demo shims `fetch`/`EventSource` so even PIN login and pallet deletion work
 against the in-browser sim.
 
-## Keeping the dummy honest
+## Generated from the C# sources
 
-If a DTO, enum order, or `FatekPLC.Signals` coil changes in ModbusServer, the
-mirrors at the top of `wwwroot/app.js` and `devserver/dummy_server.mjs` must
-change with it (same rule as the old hand-duplicated HMI DTOs — see
-`CLAUDE.md` rule 3).
+Two things are derived from `ModbusServer/` and must never be hand-edited:
+
+| file | contents |
+|---|---|
+| `wwwroot/enums.js`, `devserver/enums.mjs` | `SIGNAL_NAMES`, `PC_SIGNAL_NAMES`, `CAR_POSITION`, `STATES_BY_CLASS`, `PE`, `EA` |
+| `wwwroot/transitions.json` | the state-machine graphs, with per-state `flags` |
+
+Regenerate both with one command, and commit the result — CI fails if they
+are stale:
+
+```sh
+node WebHMI/devserver/generate.mjs
+```
+
+Two files with the same enum content because the consumers differ: the pages
+load `enums.js` as a classic script (and the single-file demos inline it), the
+Node dummy server imports `enums.mjs`.
+
+These mirrors used to be hand-copied in four places, which is `CLAUDE.md`
+rule 3 in a third language — the wire format is positional, so a member
+inserted or removed in C# silently shifts everything after it. `statesForMachine(name)`
+resolves a runtime machine name (`PalletLabel1`, `PrinterMachineWolrdjet2`,
+`OmronConnection192.168.6.124`) to its class's state list by longest prefix,
+the same way `diag.js` resolves declared graphs.
+
+Still hand-written, because they are operator-facing Spanish rather than a
+mirror: `CAR_POS_TEXT` and `CONN_LABELS` in `common.js` — but `CAR_POS_TEXT`
+is keyed off the generated ordinals.

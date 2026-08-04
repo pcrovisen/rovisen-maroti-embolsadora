@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Planta — Línea Embolsadora</title>
 <style>
 /*__CSS__*/
@@ -22,6 +23,7 @@
 <template id="plantFloorInline">/*__FLOOR__*/</template>
 
 <script>
+/*__ENUMS__*/
 /*__COMMON__*/
 
 const TRANSITIONS = /*__TRANSITIONS__*/;
@@ -30,18 +32,16 @@ const TRANSITIONS = /*__TRANSITIONS__*/;
 // Local line simulation (same code as devserver/dummy_server.mjs)
 // ---------------------------------------------------------------------------
 
-const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
+// Instance names as the real server produces them (class + identifier);
+// the state lists come from the generated enums.
 const MACHINE_STATES = Object.fromEntries([
-  // [instance name, class in transitions.json (when the name has an identifier)]
-  ['FatekPLCCommunication'], ['PalletEntry'], ['PalletLabel1'], ['PalletLabel2'],
-  ['CarMachine'], ['DeletePalletEmb1'], ['DeletePalletEmb2'], ['AcceptHMIs'], ['ElevatorAccess'],
-  ['PrinterMachineWolrdjet1', 'PrinterMachine'], ['PrinterMachineWolrdjet2', 'PrinterMachine'],
-  ['OmronConnection192.168.6.124', 'OmronConnection'], ['OmronConnection192.168.250.1', 'OmronConnection'],
-  ['NetworkPrinterConnection192.168.6.122', 'NetworkPrinterConnection'],
-  ['NetworkPrinterConnection192.168.6.163', 'NetworkPrinterConnection'],
-  ['QrReaderConnection192.168.6.236', 'QrReaderConnection'],
-  ['QrReaderConnection192.168.6.241', 'QrReaderConnection'],
-].map(([n, cls]) => [n, TRANSITIONS[cls || n].states]));
+  'FatekPLCCommunication', 'PalletEntry', 'PalletLabel1', 'PalletLabel2',
+  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs',
+  'ElevatorAccess', 'PrinterMachineWolrdjet1', 'PrinterMachineWolrdjet2',
+  'OmronConnection192.168.6.124', 'OmronConnection192.168.250.1',
+  'NetworkPrinterConnection192.168.6.122', 'NetworkPrinterConnection192.168.6.163',
+  'QrReaderConnection192.168.6.236', 'QrReaderConnection192.168.6.241',
+].map((n) => [n, statesForMachine(n)]));
 
 /*__SIM__*/
 

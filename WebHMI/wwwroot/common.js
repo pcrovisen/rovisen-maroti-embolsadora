@@ -1,30 +1,10 @@
-// Shared constants for the Web HMI pages (loaded before app.js / diag.js).
-// Enum mirrors: same order as ModbusServer / FatekPLC.Signals coils 21+.
+// Shared helpers for the Web HMI pages (loaded after enums.js, before
+// app.js / diag.js / plant.js).
+//
+// The enum mirrors themselves are GENERATED into enums.js from the C# sources
+// — see devserver/generate_enums.mjs. Do not re-declare them here.
 
 'use strict';
-
-const SIGNAL_NAMES = [
-  'ReadQR', 'Label1', 'Label2', 'SendingFIFOs', 'Ready',
-  'Del1Valid', 'Del1Error', 'Del2Valid', 'Del2Error',
-  'SendUpdate', 'SendUpdate2', 'CarWithPallet', 'CarInB1', 'CarInB2',
-  'bcd1Avaliable', 'bcd2Avaliable', 'Leave1', 'Leave2',
-  'WaitBocedi', 'WaitCar', 'SlaveConnected', 'WaitingPallet',
-  'PLCStarting', 'PLCLabeling1', 'PLCLabeling2',
-  'WaitCorrection1', 'WaitCorrection2', 'BCD2EntryError',
-  'CarEntryError', 'BCD1OK', 'BCD2OK', 'Pause', 'ElevatorRequest',
-  'LabelNull1', 'LabelNull2', 'WaitLabel1', 'WaitLabel2',
-];
-const SIG = Object.fromEntries(SIGNAL_NAMES.map((n, i) => [n, i]));
-
-// Coils 1-20, written by the PC, sent as PcSignals.
-const PC_SIGNAL_NAMES = [
-  'ReadingPallet', 'SendingQR', 'Labeling1', 'Labeling2',
-  'ToEmb1', 'ToEmb2', 'ReceivingFIFOs', 'Alive',
-  'DelEmb1', 'DelEmb2', 'ConfirmUpdate', 'ConfirmUpdate2',
-  'WeightOk1', 'WeightOk2', 'PalletLeave1', 'PalletLeave2',
-  'ErrorQr', 'Waiting', 'ElevatorAuth', 'ElevatorFailedQr',
-];
-const PSIG = Object.fromEntries(PC_SIGNAL_NAMES.map((n, i) => [n, i]));
 
 // Value of a coil by name, whichever side writes it; null if the name is
 // unknown or the server predates PcSignals.
@@ -34,25 +14,13 @@ function signalValue(st, name) {
   return null;
 }
 
-const PE = {
-  Waiting: 0, ReadingQR: 1, WaitingSetQr: 2, WaitingSetEntryPallet: 3,
-  WaitingAvailability: 4, DefaultBehavior: 5, AskingDB: 6, SendingID: 7,
-  WaitForBocedi1: 8, WaitEnterBocedi: 9, WaitUpdateFIFO1: 10, UpdateFIFO1: 11,
-  WaitForCar: 12, WaitEnterCar: 13, WaitUpdateCar: 14, UpdateCar: 15,
-  ReadingQrInError: 16, Paused: 17,
-};
-
-// ElevatorAccess.States
-const EA = {
-  WaitingRequest: 0, ReadingQr: 1, WaitingAuth: 2, WaitingLeave: 3, Delay: 4,
-};
-
+// Operator-facing, so hand-written — but keyed off the generated ordinals.
 const CAR_POS_TEXT = {
-  0: 'Posición desconocida',
-  1: 'Hacia Bocedi 1',
-  2: 'En Bocedi 1',
-  3: 'Hacia Bocedi 2',
-  4: 'En Bocedi 2',
+  [CAR_POSITION.Unknown]: 'Posición desconocida',
+  [CAR_POSITION.GoingToB1]: 'Hacia Bocedi 1',
+  [CAR_POSITION.InB1]: 'En Bocedi 1',
+  [CAR_POSITION.GoingToB2]: 'Hacia Bocedi 2',
+  [CAR_POSITION.InB2]: 'En Bocedi 2',
 };
 
 const CONN_LABELS = {

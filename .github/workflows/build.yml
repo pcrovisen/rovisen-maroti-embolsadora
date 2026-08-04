@@ -45,20 +45,23 @@ jobs:
           dotnet-version: '8.0.x'
       - run: ./build/typecheck.sh
 
-  # WebHMI/wwwroot/transitions.json is generated from the C# state machines and
-  # must never be edited by hand. Changing a machine without regenerating it
-  # leaves the diagnostics page quietly wrong, so fail instead.
-  transitions:
+  # The Web HMI derives its enum mirrors and state-machine graphs from the C#
+  # sources. Changing a machine without regenerating leaves the pages quietly
+  # wrong — a removed enum member shifts every ordinal after it — so fail.
+  generated:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node WebHMI/devserver/generate_transitions.mjs
-      - name: transitions.json is up to date
+      - run: node WebHMI/devserver/generate.mjs
+      - name: generated files are up to date
         run: |
-          if ! git diff --exit-code --stat WebHMI/wwwroot/transitions.json; then
-            echo "::error::transitions.json is stale. Run: node WebHMI/devserver/generate_transitions.mjs"
+          if ! git diff --exit-code --stat; then
+            echo "::error::Generated files are stale. Run: node WebHMI/devserver/generate.mjs"
             exit 1
           fi
+      # The single-file demos are not covered by anything else, and they inline
+      # these same sources.
+      - run: node WebHMI/devserver/build_demos.mjs "$RUNNER_TEMP/demos"

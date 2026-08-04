@@ -19,6 +19,7 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const read = (p) => fs.readFileSync(p, 'utf8');
 const css = read(path.join(www, 'style.css'));
+const enums = read(path.join(www, 'enums.js'));
 const common = read(path.join(www, 'common.js'));
 const transitions = read(path.join(www, 'transitions.json')).trim();
 const app = read(path.join(www, 'app.js'));
@@ -75,13 +76,13 @@ const fill = (template, parts) => {
 
 const outputs = {
   'diagnostico-demo.html': fill(read(path.join(here, 'demo', 'diag.template.html')), {
-    CSS: css, BODY: diagBody, COMMON: common, TRANSITIONS: transitions, DIAG: diag, SIM: sim,
+    CSS: css, BODY: diagBody, ENUMS: enums, COMMON: common, TRANSITIONS: transitions, DIAG: diag, SIM: sim,
   }),
   'hmi-demo.html': fill(read(path.join(here, 'demo', 'main.template.html')), {
-    CSS: css, BODY: body, COMMON: common, TRANSITIONS: transitions, SIM: sim, APP: app,
+    CSS: css, BODY: body, ENUMS: enums, COMMON: common, TRANSITIONS: transitions, SIM: sim, APP: app,
   }),
   'planta-demo.html': fill(read(path.join(here, 'demo', 'plant.template.html')), {
-    CSS: css, BODY: plantBody, COMMON: common, TRANSITIONS: transitions, SIM: sim, PLANT: plant,
+    CSS: css, BODY: plantBody, ENUMS: enums, COMMON: common, TRANSITIONS: transitions, SIM: sim, PLANT: plant,
     FLOOR: read(path.join(www, 'plant_floor.svg')),
   }),
 };

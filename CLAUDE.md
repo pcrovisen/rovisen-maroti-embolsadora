@@ -9,7 +9,7 @@ Read `README.md` for the plant/network overview and `docs/ARCHITECTURE.md` for s
 - .NET **Framework** (server 4.8, HMI 4.7.2), old-style csproj + `packages.config`. The deployable exe is produced only by Visual Studio/MSBuild on Windows (`nuget restore ModbusServer.sln` first), on the plant/dev PC or by the `windows` job in `.github/workflows/build.yml`.
 - **`./build/typecheck.sh` type-checks both projects on macOS/Linux** with only the .NET SDK installed — same sources, compiled against the .NET Framework reference assemblies (`build/typecheck/*.csproj`). Use it before claiming a change compiles; it also checks that the `<Compile Include>` lists in the real csproj match the files on disk, since those enumerate every source and the shadow projects glob. It does *not* cover resources, manifests or packages.config resolution, so a green typecheck is not a green build.
 - There are no automated tests. Real verification requires the plant hardware or a Modbus client simulating the PLC.
-- After changing any state machine, regenerate `WebHMI/wwwroot/transitions.json` (`node WebHMI/devserver/generate_transitions.mjs`); CI fails if it is stale.
+- After changing `FatekPLC.Signals`, `Car.Position` or any machine's `States`/`Step()`, run `node WebHMI/devserver/generate.mjs` — it regenerates the Web HMI's enum mirrors (`enums.js`/`enums.mjs`) and `transitions.json` from the C# sources. CI fails if they are stale.
 - Service (Topshelf): `ModbusServer.exe install|start|stop`, or run the exe directly for console mode. Logs: `Logs/info-*.log`, `Logs/error-*.log` next to the exe.
 
 ## Hard rules

@@ -18,79 +18,23 @@ const PORT = process.env.PORT || 8080;
 const PIN = '1234';
 const WWWROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'wwwroot');
 
-// ---------------------------------------------------------------------------
-// Enum mirrors (must match ModbusServer / TcpHMIClient definitions)
-// ---------------------------------------------------------------------------
+// Enum mirrors — GENERATED from the C# sources into enums.mjs.
+// Instance names below match what the real server produces: Machine.Name is
+// the class name plus an identifier (lane number, printer id, device IP).
+import {
+  SIGNAL_NAMES, SIG, PC_SIGNAL_NAMES, PSIG, CAR_POSITION, statesForMachine, PE,
+} from './enums.mjs';
 
-const SIGNAL_NAMES = [
-  'ReadQR', 'Label1', 'Label2', 'SendingFIFOs', 'Ready',
-  'Del1Valid', 'Del1Error', 'Del2Valid', 'Del2Error',
-  'SendUpdate', 'SendUpdate2', 'CarWithPallet', 'CarInB1', 'CarInB2',
-  'bcd1Avaliable', 'bcd2Avaliable', 'Leave1', 'Leave2',
-  'WaitBocedi', 'WaitCar', 'SlaveConnected', 'WaitingPallet',
-  'PLCStarting', 'PLCLabeling1', 'PLCLabeling2',
-  'WaitCorrection1', 'WaitCorrection2', 'BCD2EntryError',
-  'CarEntryError', 'BCD1OK', 'BCD2OK', 'Pause', 'ElevatorRequest',
-  'LabelNull1', 'LabelNull2', 'WaitLabel1', 'WaitLabel2',
+const MACHINE_NAMES = [
+  'FatekPLCCommunication', 'PalletEntry', 'PalletLabel1', 'PalletLabel2',
+  'CarMachine', 'DeletePalletEmb1', 'DeletePalletEmb2', 'AcceptHMIs',
+  'ElevatorAccess', 'PrinterMachineWolrdjet1', 'PrinterMachineWolrdjet2',
+  'OmronConnection192.168.6.124', 'OmronConnection192.168.250.1',
+  'NetworkPrinterConnection192.168.6.122', 'NetworkPrinterConnection192.168.6.163',
+  'QrReaderConnection192.168.6.236', 'QrReaderConnection192.168.6.241',
 ];
-const SIG = Object.fromEntries(SIGNAL_NAMES.map((n, i) => [n, i]));
-
-// Coils 1-20, written by the PC, sent as PcSignals.
-const PC_SIGNAL_NAMES = [
-  'ReadingPallet', 'SendingQR', 'Labeling1', 'Labeling2',
-  'ToEmb1', 'ToEmb2', 'ReceivingFIFOs', 'Alive',
-  'DelEmb1', 'DelEmb2', 'ConfirmUpdate', 'ConfirmUpdate2',
-  'WeightOk1', 'WeightOk2', 'PalletLeave1', 'PalletLeave2',
-  'ErrorQr', 'Waiting', 'ElevatorAuth', 'ElevatorFailedQr',
-];
-const PSIG = Object.fromEntries(PC_SIGNAL_NAMES.map((n, i) => [n, i]));
-
-const PALLET_ENTRY_STATES = [
-  'Waiting', 'ReadingQR', 'WaitingSetQr', 'WaitingSetEntryPallet',
-  'WaitingAvailability', 'DefaultBehavior', 'AskingDB', 'SendingID',
-  'WaitForBocedi1', 'WaitEnterBocedi', 'WaitUpdateFIFO1', 'UpdateFIFO1',
-  'WaitForCar', 'WaitEnterCar', 'WaitUpdateCar', 'UpdateCar',
-  'ReadingQrInError', 'Paused',
-];
-const PE = Object.fromEntries(PALLET_ENTRY_STATES.map((n, i) => [n, i]));
-
-const CAR_POSITION = { Unknown: 0, GoingToB1: 1, InB1: 2, GoingToB2: 3, InB2: 4 };
-
-// Sub-machines: PalletLabel1/2 each create their own PrinterMachine and
-// device connections; identifiers (name suffix) are the printer id or the
-// device IP, like the real server.
-const PRINTER_STATES = ['Init', 'RetreivingWeightLen', 'RetreivingWeight', 'SendWeightOk',
-  'WeightOk', 'RetreivingLabels', 'WaitPallet', 'WaitLabelInstruction', 'Print1', 'Print2',
-  'WaitPrinter', 'WaitPLCConfirmation', 'WaitLabelLost', 'WaitApplicatorReady',
-  'Reset1', 'Reset2', 'Skipped', 'Completed'];
-const DEV_CONN_STATES = ['Connect', 'Connecting', 'Connected'];
-const QR_CONN_STATES = ['Init', 'Disconnected', 'Connected', 'Wait'];
-
-const MACHINE_STATES = {
-  FatekPLCCommunication: ['Init', 'Starting', 'WaitingMemory', 'WaitingInit', 'Working'],
-  PalletEntry: PALLET_ENTRY_STATES,
-  PalletLabel1: ['WaitingPallet', 'WaitUpdate', 'WaitingCorrection', 'Labeling',
-    'WaitUpdate2', 'WaitAck', 'WaitLeaving', 'WaitLeaveNull', 'PalletNull'],
-  PalletLabel2: ['WaitingPallet', 'WaitUpdate', 'WaitingCorrection', 'Labeling',
-    'WaitUpdate2', 'WaitAck', 'WaitLeaving', 'WaitLeaveNull', 'PalletNull'],
-  CarMachine: ['UnknownPosition', 'WaitingCarInB1', 'WaitingCarWithPallet',
-    'WaitingCarInB2', 'WaitingCarEmpty', 'WaitingGetQr', 'WaitingGetPallet'],
-  DeletePalletEmb1: ['Waiting', 'Validating', 'ValidatingPLC', 'WaitingWrite',
-    'SendingFIFO', 'Completed', 'Failed'],
-  DeletePalletEmb2: ['Waiting', 'Validating', 'ValidatingPLC', 'WaitingWrite',
-    'SendingFIFO', 'Completed', 'Failed'],
-  AcceptHMIs: ['Init', 'Listening', 'Connecting', 'Adding', 'Pause'],
-  ElevatorAccess: ['WaitingRequest', 'ReadingQr', 'WaitingAuth',
-    'WaitingLeave', 'Delay'],
-  PrinterMachineWolrdjet1: PRINTER_STATES,
-  PrinterMachineWolrdjet2: PRINTER_STATES,
-  'OmronConnection192.168.6.124': DEV_CONN_STATES,
-  'OmronConnection192.168.250.1': DEV_CONN_STATES,
-  'NetworkPrinterConnection192.168.6.122': DEV_CONN_STATES,
-  'NetworkPrinterConnection192.168.6.163': DEV_CONN_STATES,
-  'QrReaderConnection192.168.6.236': QR_CONN_STATES,
-  'QrReaderConnection192.168.6.241': QR_CONN_STATES,
-};
+const MACHINE_STATES = Object.fromEntries(
+  MACHINE_NAMES.map((n) => [n, statesForMachine(n)]));
 
 // ---------------------------------------------------------------------------
 // Simulated plant state
