@@ -121,7 +121,7 @@
    ]
   ]
  },
- "DeletePalletEmb1": {
+ "DeletePalletEmb": {
   "init": "Waiting",
   "states": [
    "Waiting",
@@ -152,79 +152,18 @@
     "ValidatingPLC",
     "Failed",
     [
-     "Del1Error",
      "⏱"
     ]
    ],
    [
     "ValidatingPLC",
     "WaitingWrite",
-    [
-     "Del1Valid"
-    ]
+    []
    ],
    [
     "WaitingWrite",
     "SendingFIFO",
-    [
-     "⏱"
-    ]
-   ],
-   [
-    "SendingFIFO",
-    "Completed",
     []
-   ]
-  ]
- },
- "DeletePalletEmb2": {
-  "init": "Waiting",
-  "states": [
-   "Waiting",
-   "Validating",
-   "ValidatingPLC",
-   "WaitingWrite",
-   "SendingFIFO",
-   "Completed",
-   "Failed"
-  ],
-  "edges": [
-   [
-    "Waiting",
-    "Validating",
-    []
-   ],
-   [
-    "Validating",
-    "ValidatingPLC",
-    []
-   ],
-   [
-    "Validating",
-    "Failed",
-    []
-   ],
-   [
-    "ValidatingPLC",
-    "Failed",
-    [
-     "Del2Error",
-     "⏱"
-    ]
-   ],
-   [
-    "ValidatingPLC",
-    "WaitingWrite",
-    [
-     "Del2Valid"
-    ]
-   ],
-   [
-    "WaitingWrite",
-    "SendingFIFO",
-    [
-     "⏱"
-    ]
    ],
    [
     "SendingFIFO",
@@ -340,8 +279,7 @@
    "Init",
    "Waiting",
    "WaitingDelStart",
-   "WaitingDeletion1",
-   "WaitingDeletion2",
+   "WaitingDeletion",
    "Responding",
    "Terminated"
   ],
@@ -370,6 +308,11 @@
    ],
    [
     "WaitingDelStart",
+    "WaitingDeletion",
+    []
+   ],
+   [
+    "WaitingDelStart",
     "Responding",
     [
      "⏱"
@@ -386,14 +329,7 @@
     []
    ],
    [
-    "WaitingDeletion1",
-    "Responding",
-    [
-     "⏱"
-    ]
-   ],
-   [
-    "WaitingDeletion2",
+    "WaitingDeletion",
     "Responding",
     [
      "⏱"
@@ -642,7 +578,7 @@
    ]
   ]
  },
- "PalletLabel1": {
+ "PalletLabel": {
   "init": "WaitingPallet",
   "states": [
    "WaitingPallet",
@@ -659,9 +595,7 @@
    [
     "WaitingPallet",
     "WaitUpdate",
-    [
-     "Label1"
-    ]
+    []
    ],
    [
     "WaitingPallet",
@@ -671,16 +605,12 @@
    [
     "WaitingPallet",
     "WaitingCorrection",
-    [
-     "WaitCorrection1"
-    ]
+    []
    ],
    [
     "WaitingPallet",
     "WaitLeaveNull",
-    [
-     "LabelNull1"
-    ]
+    []
    ],
    [
     "WaitUpdate",
@@ -695,31 +625,24 @@
    [
     "WaitingCorrection",
     "WaitingPallet",
-    [
-     "!WaitCorrection1"
-    ]
+    []
    ],
    [
     "Labeling",
     "WaitUpdate2",
-    [
-     "Leave1"
-    ]
+    []
    ],
    [
     "Labeling",
     "WaitingPallet",
     [
-     "WaitLabel1",
      "⏱"
     ]
    ],
    [
     "WaitUpdate2",
     "WaitAck",
-    [
-     "⏱"
-    ]
+    []
    ],
    [
     "WaitAck",
@@ -729,130 +652,17 @@
    [
     "WaitLeaving",
     "WaitingPallet",
-    [
-     "!Leave1"
-    ]
+    []
    ],
    [
     "WaitLeaveNull",
     "WaitingPallet",
-    [
-     "!LabelNull1"
-    ]
+    []
    ],
    [
     "PalletNull",
     "WaitingPallet",
-    [
-     "WaitLabel1"
-    ]
-   ]
-  ]
- },
- "PalletLabel2": {
-  "init": "WaitingPallet",
-  "states": [
-   "WaitingPallet",
-   "WaitUpdate",
-   "WaitingCorrection",
-   "Labeling",
-   "WaitUpdate2",
-   "WaitLeaving",
-   "WaitAck",
-   "WaitLeaveNull",
-   "PalletNull"
-  ],
-  "edges": [
-   [
-    "WaitingPallet",
-    "WaitUpdate",
-    [
-     "Label2"
-    ]
-   ],
-   [
-    "WaitingPallet",
-    "Labeling",
     []
-   ],
-   [
-    "WaitingPallet",
-    "WaitingCorrection",
-    [
-     "WaitCorrection2"
-    ]
-   ],
-   [
-    "WaitingPallet",
-    "WaitLeaveNull",
-    [
-     "LabelNull2"
-    ]
-   ],
-   [
-    "WaitUpdate",
-    "Labeling",
-    []
-   ],
-   [
-    "WaitUpdate",
-    "PalletNull",
-    []
-   ],
-   [
-    "WaitingCorrection",
-    "WaitingPallet",
-    [
-     "!WaitCorrection2"
-    ]
-   ],
-   [
-    "Labeling",
-    "WaitUpdate2",
-    [
-     "Leave2"
-    ]
-   ],
-   [
-    "Labeling",
-    "WaitingPallet",
-    [
-     "WaitLabel2",
-     "⏱"
-    ]
-   ],
-   [
-    "WaitUpdate2",
-    "WaitAck",
-    [
-     "⏱"
-    ]
-   ],
-   [
-    "WaitAck",
-    "WaitLeaving",
-    []
-   ],
-   [
-    "WaitLeaving",
-    "WaitingPallet",
-    [
-     "!Leave2"
-    ]
-   ],
-   [
-    "WaitLeaveNull",
-    "WaitingPallet",
-    [
-     "!LabelNull2"
-    ]
-   ],
-   [
-    "PalletNull",
-    "WaitingPallet",
-    [
-     "WaitLabel2"
-    ]
    ]
   ]
  },

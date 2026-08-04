@@ -1,17 +1,25 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 using log4net;
 using ModbusServer.Devices;
 
 namespace ModbusServer.StateMachine
 {
-    internal class DeletePalletEmb1 : Machine
+    /// <summary>
+    /// HMI-requested removal of a pallet from one lane's FIFO queues, validated on
+    /// both sides: the PC checks the scratch registers against the queue contents
+    /// at that position, then the PLC is asked to agree.
+    ///
+    /// One instance per lane (see <see cref="PackagerBinding"/>); Name stays
+    /// DeletePalletEmb1 / DeletePalletEmb2, which the HMI and transitions.json
+    /// key on.
+    /// </summary>
+    internal class DeletePalletEmb : Machine
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         public enum States
         {
             Waiting,
@@ -27,9 +35,12 @@ namespace ModbusServer.StateMachine
         // later deletion — because only the requesting HMIConnection calls Reset().
         const int AbandonedResultMs = 10000;
 
-        // The PLC answers DelEmb1 with Del1Valid/Del1Error within a scan.
+        // The PLC answers DelEmb with DelValid/DelError within a scan.
         const int PlcAnswerTimeoutMs = 10000;
 
+        static readonly Dictionary<int, DeletePalletEmb> instances = new Dictionary<int, DeletePalletEmb>();
+
+        readonly PackagerBinding lane;
         Task queueWrite;
 
         // Set by StartDelete once every DEL* register is written, read by Step()
@@ -40,7 +51,11 @@ namespace ModbusServer.StateMachine
         // HMIs cannot both pass the "is it free?" check in the same cycle.
         bool requestInFlight = false;
 
-        public static DeletePalletEmb1 Instance { get; set; }
+        public static DeletePalletEmb Instance(int packager)
+        {
+            return instances[packager];
+        }
+
         public bool Completed
         {
             get { return (States)State == States.Completed; }
@@ -51,9 +66,10 @@ namespace ModbusServer.StateMachine
             get { return (States)State == States.Failed; }
         }
 
-        public DeletePalletEmb1() : base(States.Waiting)
+        public DeletePalletEmb(PackagerBinding lane) : base(States.Waiting, lane.Number.ToString())
         {
-            Instance = this;
+            this.lane = lane;
+            instances[lane.Number] = this;
         }
 
         public override void Step()
@@ -80,51 +96,38 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.ValidatingPLC:
-                    FatekPLC.SetBit(FatekPLC.Signals.DelEmb1);
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.Del1Error))
+                    FatekPLC.SetBit(lane.DelEmb);
+                    if (FatekPLC.ReadBit(lane.DelError))
                     {
                         Log.Info("Deletion failed in PLC");
                         NextState(States.Failed);
                         break;
                     }
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.Del1Valid))
+                    if (FatekPLC.ReadBit(lane.DelValid))
                     {
                         Log.Info("Valid in PLC side");
                         DeletePallet();
-                        queueWrite = Status.UpdateFIFO1();
+                        queueWrite = lane.UpdateFIFO();
                         NextState(States.WaitingWrite);
                         break;
                     }
                     if (StateTime.ElapsedMilliseconds > PlcAnswerTimeoutMs)
                     {
-                        // The PLC answers Del1Valid/Del1Error within a scan. Without
-                        // this the machine waits forever when the PLC is stopped or
-                        // the link drops mid-deletion.
+                        // Without this the machine waits forever when the PLC is
+                        // stopped or the link drops mid-deletion.
                         Log.Error("The PLC did not answer the deletion request");
                         NextState(States.Failed);
                     }
                     break;
                 case States.WaitingWrite:
-                    if (queueWrite.IsCompleted)
+                    if (TryComplete(ref queueWrite, lane.UpdateFIFO, "Re-reading the queue after deletion"))
                     {
-                        if (queueWrite.IsFaulted)
-                        {
-                            if(StateTime.ElapsedMilliseconds > 100)
-                            {
-                                queueWrite = Status.UpdateFIFO1();
-                                Log.Error("Could not write the queue 1");
-                                NextState(States.WaitingWrite);
-                            }
-                        }
-                        else
-                        {
-                            NextState(States.SendingFIFO);
-                            Log.Info("Queue writen");
-                        }
+                        NextState(States.SendingFIFO);
+                        Log.Info("Queue writen");
                     }
                     break;
                 case States.SendingFIFO:
-                    FatekPLC.ResetBit(FatekPLC.Signals.DelEmb1);
+                    FatekPLC.ResetBit(lane.DelEmb);
                     NextState(States.Completed);
                     Log.Info("Deletion success");
                     break;
@@ -132,7 +135,7 @@ namespace ModbusServer.StateMachine
                     ResetIfAbandoned();
                     break;
                 case States.Failed:
-                    FatekPLC.ResetBit(FatekPLC.Signals.DelEmb1);
+                    FatekPLC.ResetBit(lane.DelEmb);
                     ResetIfAbandoned();
                     break;
             }
@@ -157,55 +160,60 @@ namespace ModbusServer.StateMachine
             }
         }
 
+        // The pallet the HMI named must still be where it said it was: compare the
+        // scratch registers with the queue contents at that position.
         private bool Validate()
         {
-            int index = (int)FatekPLC.Memory.FIFO11a + FatekPLC.ReadMemory(FatekPLC.Memory.DEL1Pos1);
-            int index2 = (int)FatekPLC.Memory.FIFO21 + FatekPLC.ReadMemory(FatekPLC.Memory.DEL1Pos2);
+            int qrIndex = (int)lane.QrFifo + FatekPLC.ReadMemory(lane.DelQrPos);
+            int idIndex = (int)lane.IdFifo + FatekPLC.ReadMemory(lane.DelIdPos);
+
             Log.InfoFormat("Comparing Qrs: {0}{1} -> {2}{3}",
-                FatekPLC.ReadMemory(FatekPLC.Memory.DEL1b),
-                FatekPLC.ReadMemory(FatekPLC.Memory.DEL1a),
-                FatekPLC.ReadMemory((FatekPLC.Memory)(index + 1)),
-                FatekPLC.ReadMemory((FatekPLC.Memory)index));
+                FatekPLC.ReadMemory(lane.DelQr + 1),
+                FatekPLC.ReadMemory(lane.DelQr),
+                FatekPLC.ReadMemory((FatekPLC.Memory)(qrIndex + 1)),
+                FatekPLC.ReadMemory((FatekPLC.Memory)qrIndex));
             Log.InfoFormat("Comparing Ids: {0} -> {1}",
-                FatekPLC.ReadMemory(FatekPLC.Memory.DEL1ID),
-                FatekPLC.ReadMemory((FatekPLC.Memory)index2));
-            return FatekPLC.ReadMemory(FatekPLC.Memory.DEL1a) == FatekPLC.ReadMemory((FatekPLC.Memory)index) &&
-                FatekPLC.ReadMemory(FatekPLC.Memory.DEL1b) == FatekPLC.ReadMemory((FatekPLC.Memory)(index + 1)) &&
-                FatekPLC.ReadMemory(FatekPLC.Memory.DEL1ID) == FatekPLC.ReadMemory((FatekPLC.Memory)index2);
-                
+                FatekPLC.ReadMemory(lane.DelId),
+                FatekPLC.ReadMemory((FatekPLC.Memory)idIndex));
+
+            return FatekPLC.ReadMemory(lane.DelQr) == FatekPLC.ReadMemory((FatekPLC.Memory)qrIndex) &&
+                FatekPLC.ReadMemory(lane.DelQr + 1) == FatekPLC.ReadMemory((FatekPLC.Memory)(qrIndex + 1)) &&
+                FatekPLC.ReadMemory(lane.DelId) == FatekPLC.ReadMemory((FatekPLC.Memory)idIndex);
         }
 
+        // Compacts both FIFOs in place over the removed slot and shortens them.
+        // QRs occupy two registers per pallet, ids one.
         private void DeletePallet()
         {
-            int index1 = (int)FatekPLC.Memory.FIFO11a + FatekPLC.ReadMemory(FatekPLC.Memory.DEL1Pos1);
-            int len1 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO1Len);
-            int end1 = ((int)FatekPLC.Memory.FIFO11a - 2) + 2 * len1;
-            for (int i = index1; i < end1; i++)
+            int qrStart = (int)lane.QrFifo + FatekPLC.ReadMemory(lane.DelQrPos);
+            int qrLen = FatekPLC.ReadMemory(lane.QrFifoLen);
+            int qrEnd = ((int)lane.QrFifo - 2) + 2 * qrLen;
+            for (int i = qrStart; i < qrEnd; i++)
             {
                 FatekPLC.SetMemory((FatekPLC.Memory)i, FatekPLC.ReadMemory((FatekPLC.Memory)i + 2));
             }
 
-            for (int i = end1; i < (int)FatekPLC.Memory.FIFO11a + 2 * len1; i++)
+            for (int i = qrEnd; i < (int)lane.QrFifo + 2 * qrLen; i++)
             {
                 FatekPLC.SetMemory((FatekPLC.Memory)i, 0);
             }
 
-            FatekPLC.SetMemory(FatekPLC.Memory.FIFO1Len, (short)(len1 - 1)); 
+            FatekPLC.SetMemory(lane.QrFifoLen, (short)(qrLen - 1));
 
-            int index2 = (int)FatekPLC.Memory.FIFO21 + FatekPLC.ReadMemory(FatekPLC.Memory.DEL1Pos2);
-            int len2 = FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len);
-            int end2 = (int)FatekPLC.Memory.FIFO21 - 1 + len2;
-            for (int i = index2; i < end2; i++)
+            int idStart = (int)lane.IdFifo + FatekPLC.ReadMemory(lane.DelIdPos);
+            int idLen = FatekPLC.ReadMemory(lane.IdFifoLen);
+            int idEnd = (int)lane.IdFifo - 1 + idLen;
+            for (int i = idStart; i < idEnd; i++)
             {
                 FatekPLC.SetMemory((FatekPLC.Memory)i, FatekPLC.ReadMemory((FatekPLC.Memory)i + 1));
             }
 
-            for (int i = end2; i < (int)FatekPLC.Memory.FIFO21 + len2; i++)
+            for (int i = idEnd; i < (int)lane.IdFifo + idLen; i++)
             {
                 FatekPLC.SetMemory((FatekPLC.Memory)i, 0);
             }
 
-            FatekPLC.SetMemory(FatekPLC.Memory.FIFO2Len, (short)(len2 - 1));
+            FatekPLC.SetMemory(lane.IdFifoLen, (short)(idLen - 1));
         }
 
         // Called from HMIConnection.Step(). Only the part before the first await
@@ -226,10 +234,10 @@ namespace ModbusServer.StateMachine
             requestInFlight = true;
 
             Log.Info($"Start to delete pallet {pallet.Pallet.Qr}, in position {pallet.Position} from packager {pallet.Packager}");
-            FatekPLC.SetMemory(FatekPLC.Memory.DEL1Pos1, (short)(2 * pallet.Position));
-            FatekPLC.SetMemory(FatekPLC.Memory.DEL1Pos2, (short)pallet.Position);
+            FatekPLC.SetMemory(lane.DelQrPos, (short)(2 * pallet.Position));
+            FatekPLC.SetMemory(lane.DelIdPos, (short)pallet.Position);
 
-            if (!await FatekPLC.SetQrAndId(FatekPLC.Memory.DEL1a, FatekPLC.Memory.DEL1ID, pallet.Pallet))
+            if (!await FatekPLC.SetQrAndId(lane.DelQr, lane.DelId, pallet.Pallet))
             {
                 Log.Error("Could not write the pallet to delete");
                 requestInFlight = false;

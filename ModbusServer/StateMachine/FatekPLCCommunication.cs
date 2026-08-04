@@ -22,10 +22,10 @@ namespace ModbusServer.StateMachine
         }
 
         public PalletEntry palletEntry;
-        public DeletePalletEmb1 delletePalletEmb1;
-        public DeletePalletEmb2 delletePalletEmb2;
-        readonly PalletLabel1 palletLabelBocedi1;
-        readonly PalletLabel2 palletLabelBocedi2;
+        readonly DeletePalletEmb deletePalletBocedi1;
+        readonly DeletePalletEmb deletePalletBocedi2;
+        readonly PalletLabel palletLabelBocedi1;
+        readonly PalletLabel palletLabelBocedi2;
         readonly CarMachine carMachine;
         readonly ElevatorAccess elevatorMachine;
 
@@ -34,10 +34,10 @@ namespace ModbusServer.StateMachine
         public FatekPLCCommunication() : base(States.Init)
         {
             palletEntry = new PalletEntry();
-            delletePalletEmb1 = new DeletePalletEmb1();
-            delletePalletEmb2 = new DeletePalletEmb2();
-            palletLabelBocedi1 = new PalletLabel1();
-            palletLabelBocedi2 = new PalletLabel2();
+            deletePalletBocedi1 = new DeletePalletEmb(PackagerBinding.Bocedi1);
+            deletePalletBocedi2 = new DeletePalletEmb(PackagerBinding.Bocedi2);
+            palletLabelBocedi1 = new PalletLabel(PackagerBinding.Bocedi1);
+            palletLabelBocedi2 = new PalletLabel(PackagerBinding.Bocedi2);
             carMachine = new CarMachine();
             elevatorMachine = new ElevatorAccess();
         }
@@ -89,8 +89,8 @@ namespace ModbusServer.StateMachine
                     Status.Instance.Connections.Packager1 = FatekPLC.ReadBit(FatekPLC.Signals.BCD1OK);
                     Status.Instance.Connections.Packager2 = FatekPLC.ReadBit(FatekPLC.Signals.BCD2OK);
                     palletEntry.Step();
-                    delletePalletEmb1.Step();
-                    delletePalletEmb2.Step();
+                    deletePalletBocedi1.Step();
+                    deletePalletBocedi2.Step();
                     palletLabelBocedi1.Step();
                     palletLabelBocedi2.Step();
                     carMachine.Step();

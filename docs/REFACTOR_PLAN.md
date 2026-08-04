@@ -21,8 +21,8 @@ the plant hardware or a Modbus client simulating the PLC.
 | 2 | Fix the `DeletePalletEmb1/2` start race (`needDel`) | done |
 | 3 | `PrinterMachine.Print1` fall-through | done |
 | 4 | Retry idiom helper + fix blind `.Result` reads | done |
-| 5 | Merge `DeletePalletEmb1/2` into one parameterized machine | todo |
-| 6 | Merge `PalletLabel1/2` into one parameterized machine | todo |
+| 5 | Merge `DeletePalletEmb1/2` into one parameterized machine | done |
+| 6 | Merge `PalletLabel1/2` into one parameterized machine | done |
 | 7 | `Machine<TState>` — typed state, drop the reflection rule | todo |
 | 8 | Collapse `SqlDatabase` duplication | done |
 | 9 | Bit math instead of hex-string surgery in `FatekPLC` | done |

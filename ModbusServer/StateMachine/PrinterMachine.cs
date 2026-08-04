@@ -44,6 +44,7 @@ namespace ModbusServer.StateMachine
             LabelB,
         }
 
+        readonly PackagerBinding lane;
         readonly OmronPLC plc;
         readonly NetworkPrinter printer;
         Task<SqlDatabase.Labels> retreivingTask;
@@ -68,12 +69,16 @@ namespace ModbusServer.StateMachine
                 return (States)State >= States.WeightOk; 
             }
         }
-        public PrinterMachine(OmronPLC plc, NetworkPrinter printer, string identifier) : base(States.Init, identifier)
+        // Name stays PrinterMachineWolrdjet1 / ...2 — the "Wolrdjet" typo is
+        // load-bearing, it is also the registry key holding the cached weight.
+        public PrinterMachine(OmronPLC plc, NetworkPrinter printer, PackagerBinding lane)
+            : base(States.Init, lane.PrinterIdentifier)
         {
             this.plc = plc;
             this.printer = printer;
-            this.keyname =  @"SOFTWARE\WencoInfo\" + identifier;
-            this.packager = identifier == "Wolrdjet1" ? 1 : 2;
+            this.lane = lane;
+            this.keyname = @"SOFTWARE\WencoInfo\" + lane.PrinterIdentifier;
+            this.packager = lane.Number;
         }
 
         public override void Step()
@@ -247,7 +252,7 @@ namespace ModbusServer.StateMachine
                             {
                                 errorCount= 0;
                                 Log.Info("Receive order to print");
-                                SetPackagerError("");
+                                lane.SetError("");
                                 NextState(States.Print1);
                             }
                             else
@@ -289,7 +294,7 @@ namespace ModbusServer.StateMachine
                                 }
                                 else
                                 {
-                                    SetPackagerError("La etiquetadora no fue capaz de colocar la etiqueta. Imprimir una etiqueta manualmente con el botón FEED.");
+                                    lane.SetError("La etiquetadora no fue capaz de colocar la etiqueta. Imprimir una etiqueta manualmente con el botón FEED.");
                                     labeling = false;
                                     _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.timeout_etiquetado, code, packager);
                                     NextState(States.WaitLabelInstruction);
@@ -373,7 +378,7 @@ namespace ModbusServer.StateMachine
                     {
                         Log.ErrorFormat("Unexpected label selection in DM11: {0}. Skipping the label",
                             omronReadingDataTask.Result[1]);
-                        SetPackagerError("La máquina no indicó qué etiqueta imprimir. Imprimir una etiqueta manualmente con el botón FEED.");
+                        lane.SetError("La máquina no indicó qué etiqueta imprimir. Imprimir una etiqueta manualmente con el botón FEED.");
                         _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.timeout_etiquetado, code, packager);
                         // Acknowledge the instruction we cannot honour, so the PLC
                         // stops asking and the pallet can leave.
@@ -462,20 +467,6 @@ namespace ModbusServer.StateMachine
             this.shouldLabel = shouldLabel;
             this.weightReady = weightReady;
             this.labeling = false;
-        }
-
-        // Operator-facing message for this Bocedi (Spanish, like the rest of
-        // Status.ErrorMessages). Empty clears it.
-        private void SetPackagerError(string message)
-        {
-            if (packager == 1)
-            {
-                Status.Instance.ErrorMessages.BDC1Error = message;
-            }
-            else
-            {
-                Status.Instance.ErrorMessages.BDC2Error = message;
-            }
         }
 
         public int GetWeight(ushort[] values)
