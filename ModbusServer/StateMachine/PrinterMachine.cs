@@ -247,14 +247,7 @@ namespace ModbusServer.StateMachine
                             {
                                 errorCount= 0;
                                 Log.Info("Receive order to print");
-                                if (packager == 1)
-                                {
-                                    Status.Instance.ErrorMessages.BDC1Error = "";
-                                }
-                                else
-                                {
-                                    Status.Instance.ErrorMessages.BDC2Error = "";
-                                }
+                                SetPackagerError("");
                                 NextState(States.Print1);
                             }
                             else
@@ -296,14 +289,7 @@ namespace ModbusServer.StateMachine
                                 }
                                 else
                                 {
-                                    if(packager == 1)
-                                    {
-                                        Status.Instance.ErrorMessages.BDC1Error = "La etiquetadora no fue capaz de colocar la etiqueta. Imprimir una etiqueta manualmente con el botón FEED.";
-                                    }
-                                    else
-                                    {
-                                        Status.Instance.ErrorMessages.BDC2Error = "La etiquetadora no fue capaz de colocar la etiqueta. Imprimir una etiqueta manualmente con el botón FEED.";
-                                    }
+                                    SetPackagerError("La etiquetadora no fue capaz de colocar la etiqueta. Imprimir una etiqueta manualmente con el botón FEED.");
                                     labeling = false;
                                     _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.timeout_etiquetado, code, packager);
                                     NextState(States.WaitLabelInstruction);
@@ -370,22 +356,36 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.Print1:
-                    Log.Info("Labeling");
-                    omronWritingTask = plc.WriteCIOBit(161, 3, 1);
-                    labeling = true;
+                    // DM11 selects the label. Any other value is a fault in the
+                    // Omron program: the state used to neither transition nor stop,
+                    // so the block re-ran every 100 ms and kept pulsing the
+                    // applicator (CIO 161.3) at 10 Hz. Decide the label first, and
+                    // only start the applicator once there is one to apply.
                     if (omronReadingDataTask.Result[1] == 1)
                     {
                         currentLabel = Label.LabelB;
-                        NextState(States.Reset1);
+                    }
+                    else if (omronReadingDataTask.Result[1] == 2)
+                    {
+                        currentLabel = Label.LabelA;
+                    }
+                    else
+                    {
+                        Log.ErrorFormat("Unexpected label selection in DM11: {0}. Skipping the label",
+                            omronReadingDataTask.Result[1]);
+                        SetPackagerError("La máquina no indicó qué etiqueta imprimir. Imprimir una etiqueta manualmente con el botón FEED.");
+                        _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.timeout_etiquetado, code, packager);
+                        // Acknowledge the instruction we cannot honour, so the PLC
+                        // stops asking and the pallet can leave.
+                        omronWritingTask = plc.ClearDMs(10, 2);
+                        NextState(States.WaitPLCConfirmation);
                         break;
                     }
 
-                    if (omronReadingDataTask.Result[1] == 2)
-                    {
-                        currentLabel = Label.LabelA;
-                        NextState(States.Reset1);
-                        break;
-                    }
+                    Log.Info("Labeling");
+                    labeling = true;
+                    omronWritingTask = plc.WriteCIOBit(161, 3, 1);
+                    NextState(States.Reset1);
                     break;
                 case States.Print2:
                     switch (currentLabel)
@@ -462,6 +462,20 @@ namespace ModbusServer.StateMachine
             this.shouldLabel = shouldLabel;
             this.weightReady = weightReady;
             this.labeling = false;
+        }
+
+        // Operator-facing message for this Bocedi (Spanish, like the rest of
+        // Status.ErrorMessages). Empty clears it.
+        private void SetPackagerError(string message)
+        {
+            if (packager == 1)
+            {
+                Status.Instance.ErrorMessages.BDC1Error = message;
+            }
+            else
+            {
+                Status.Instance.ErrorMessages.BDC2Error = message;
+            }
         }
 
         public int GetWeight(ushort[] values)

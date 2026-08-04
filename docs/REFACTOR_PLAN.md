@@ -17,7 +17,7 @@ reason: a step that doesn't compile must be trivially attributable.
 |---|---|---|
 | 1 | Harden the HMI `del` message parsing | done |
 | 2 | Fix the `DeletePalletEmb1/2` start race (`needDel`) | done |
-| 3 | `PrinterMachine.Print1` fall-through | todo |
+| 3 | `PrinterMachine.Print1` fall-through | done |
 | 4 | Retry idiom helper + fix blind `.Result` reads | todo |
 | 5 | Merge `DeletePalletEmb1/2` into one parameterized machine | todo |
 | 6 | Merge `PalletLabel1/2` into one parameterized machine | todo |
