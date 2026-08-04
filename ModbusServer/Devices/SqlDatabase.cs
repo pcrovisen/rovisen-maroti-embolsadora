@@ -1,14 +1,9 @@
-﻿using log4net;
-using log4net.Core;
+using log4net;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Configuration;
+using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Net.NetworkInformation;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace ModbusServer.Devices
@@ -54,265 +49,127 @@ namespace ModbusServer.Devices
                 connectionString = ConfigurationManager.AppSettings["sqlConnectiongString"],
             };
         }
-        public static async Task<PackagerPreference> AskForPackager(string code)
+
+        // ------------------------------------------------------------------
+        // Calls
+        // ------------------------------------------------------------------
+        //
+        // Every one of these was 25 lines of the same open/read/catch, doubled by
+        // a `static Foo() => Instance._Foo()` wrapper. The stored-procedure text
+        // is a contract with the [maroti] schema and is unchanged; only the
+        // plumbing moved into Execute.
+
+        public static Task<PackagerPreference> AskForPackager(string code)
         {
-            return await Instance._AskForPackager(code);
+            return Execute(
+                c => PackageCommand(c, code),
+                r => new PackagerPreference()
+                {
+                    Packager = r[0].ToString() == "" ? 0 : r.GetInt32(0),
+                    Recipe = r[1].ToString() == "" ? 0 : r.GetInt32(1),
+                    Injector = r.GetString(2),
+                    Labeling = r.GetBoolean(3),
+                },
+                null, "sp_evento_lectura_codigo");
         }
-        private async Task<PackagerPreference> _AskForPackager(string code)
+
+        public static Task<Labels> AskForLabels(string code, int weight)
         {
-            using (var connection = new SqlConnection(connectionString))
+            return Execute(
+                c => LabelsCommand(c, code, weight),
+                r => new Labels() { ALabel = r.GetString(0), BLabel = r.GetString(1) },
+                null, "sp_evento_peso_embolsadora_y_datos_etiquetado");
+        }
+
+        public static Task<bool> NotifyPalletOut(string code)
+        {
+            return Execute(c => PalletOutCommand(c, code), r => true, false, "sp_evento_etiquetado");
+        }
+
+        public static Task<bool> NotifyPalletIn(string code, int packager)
+        {
+            return Execute(c => PalletInCommand(c, code, packager), r => true, false, "sp_evento_ingreso_embolsadora");
+        }
+
+        public static Task<bool> NotifyError(SystemErrors error, string code = "", int packager = 0)
+        {
+            return Execute(c => ErrorCommand(c, error.ToString(), code, packager), r => true, false, "sp_evento_alarma");
+        }
+
+        // Remote configuration. Not called yet — see docs/ARCHITECTURE.md — but it
+        // is the only record of the sp_get_parametros signature.
+        public static Task<bool> GetConfiguration()
+        {
+            return Execute(ConfigCommand, r => true, false, "sp_get_parametros");
+        }
+
+        public static Task<bool> GetAuthElevator(string code, string msg = null)
+        {
+            return Execute(c => ElevatorCommand(c, code, msg), r => r.GetBoolean(0), false,
+                "sp_solicitar_ingreso_por_elevador");
+        }
+
+        public static Task<string> GetStringFromID(int id)
+        {
+            return Execute(c => GetStringFromIDCommand(c, id), r => r[0].ToString(), "", "sp_get_codigo");
+        }
+
+        public static Task<int> GetIDFromString(string code)
+        {
+            return Execute(c => GetIDFromStringCommand(c, code), r => r.GetInt32(0), -1, "sp_get_id");
+        }
+
+        // ------------------------------------------------------------------
+        // Plumbing
+        // ------------------------------------------------------------------
+
+        // Opens a connection, runs `build`'s command, and projects the first row
+        // with `read`. Any failure — connection, execution, or an unusable row —
+        // is logged and reported as `onError`; these calls never throw at the
+        // caller, which polls them from a state machine step.
+        private static async Task<T> Execute<T>(
+            Func<SqlConnection, SqlCommand> build,
+            Func<SqlDataReader, T> read,
+            T onError,
+            string procedure)
+        {
+            using (var connection = new SqlConnection(Instance.connectionString))
             {
                 try
                 {
                     await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreatePackageCommand(connection, code).ExecuteReader())
+                    using (var command = build(connection))
+                    using (var reader = await command.ExecuteReaderAsync())
                     {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return new PackagerPreference()
+                        Status.Instance.Connections.WencoDB = connection.State == ConnectionState.Open;
+
+                        // The batches all end in a SELECT of the output parameters,
+                        // so a missing row means the procedure did not run.
+                        if (!await reader.ReadAsync())
                         {
-                            Packager = sqlDataReader[0].ToString() == "" ? 0 : sqlDataReader.GetInt32(0),
-                            Recipe = sqlDataReader[1].ToString() == "" ? 0 : sqlDataReader.GetInt32(1),
-                            Injector = sqlDataReader.GetString(2),
-                            Labeling = sqlDataReader.GetBoolean(3),
-                        };
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return null;
-                }
-            }
-        }
-        public static async Task<Labels> AskForLabels(string code, int weight)
-        {
-            return await Instance._AskForLabels(code, weight);
-        }
-        private async Task<Labels> _AskForLabels(string code, int weight)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreateLabelsCommand(connection, code, weight).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return new Labels()
-                        {
-                            ALabel = sqlDataReader.GetString(0),
-                            BLabel = sqlDataReader.GetString(1),
-                        };
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return null;
-                }
-            }
-        }
-        public static async Task<bool> NotifyPalletOut(string code)
-        {
-            return await Instance._NotifyPalletOut(code);
-        }
-        private async Task<bool> _NotifyPalletOut(string code)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreatePalletOutCommand(connection, code).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return true;
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return false;
-                }
-            }
-        }
-        public static async Task<bool> NotifyPalletIn(string code, int packager)
-        {
-            return await Instance._NotifyPalletIn(code, packager);
-        }
-        private async Task<bool> _NotifyPalletIn(string code, int packager)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreatePalletInCommand(connection, code, packager).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return true;
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return false;
-                }
-            }
-        }
-        public static async Task<bool> NotifyError(SystemErrors error, string code = "", int packager = 0)
-        {
-            return await Instance._NotifyError(error.ToString(), code, packager);
-        }
-        private async Task<bool> _NotifyError(string error, string code, int packager)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreateErrorCommand(connection, error, code, packager).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return true;
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return false;
-                }
-            }
-        }
-        public static async Task<bool> GetConfiguration()
-        {
-            return await Instance._GetConfiguration();
-        }
-        private async Task<bool> _GetConfiguration()
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreateConfigCommand(connection).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return true;
-                    }
-
-                }
-                catch (Exception ex) 
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return false;
-                }
-            }
-        }
-
-        public static async Task<bool> GetAuthElevator(string code, string msg = null)
-        {
-            return await Instance._GetAuthElevator(code, msg);
-        }
-
-        private async Task<bool> _GetAuthElevator(string code, string msg)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreateElevatorCommnad(connection, code, msg).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return sqlDataReader.GetBoolean(0);
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return false;
-                }
-            }
-        }
-
-        public static async Task<string> GetStringFromID(int id)
-        {
-            return await Instance._GetStringFromID(id);
-        }
-
-        private async Task<string> _GetStringFromID(int id)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreateGetStringFromIDCommnad(connection, id).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return sqlDataReader[0].ToString();
-                    }
-                }
-                catch(Exception ex)
-                {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
-                    Status.Instance.Connections.WencoDB = false;
-                    return "";
-                }
-            }
-        }
-
-        public static async Task<int> GetIDFromString(string code)
-        {
-            return await Instance._GetIDFromString(code);
-        }
-
-        private async Task<int> _GetIDFromString(string code)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    using (SqlDataReader sqlDataReader = CreateGetIDFromStringCommnad(connection, code).ExecuteReader())
-                    {
-                        await sqlDataReader.ReadAsync();
-                        Status.Instance.Connections.WencoDB = connection.State == System.Data.ConnectionState.Open;
-                        return sqlDataReader.GetInt32(0);
+                            Log.ErrorFormat("{0} returned no rows", procedure);
+                            return onError;
+                        }
+                        return read(reader);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"Could not send message to the sql database. Error: {ex.Message}");
+                    Log.Error($"Could not send message to the sql database ({procedure}). Error: {ex.Message}");
                     Status.Instance.Connections.WencoDB = false;
-                    return -1;
+                    return onError;
                 }
             }
         }
 
-        private SqlCommand CreatePackageCommand(SqlConnection connection, string code)
+        // ------------------------------------------------------------------
+        // Commands
+        // ------------------------------------------------------------------
+        //
+        // All inputs go in as SqlParameters — never interpolate scanned QR content
+        // into the SQL text.
+
+        private static SqlCommand PackageCommand(SqlConnection connection, string code)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_preferencia_embolsadora INT;\r\n" +
@@ -334,7 +191,7 @@ namespace ModbusServer.Devices
             return command;
         }
 
-        private SqlCommand CreateLabelsCommand(SqlConnection connection, string code, int weight)
+        private static SqlCommand LabelsCommand(SqlConnection connection, string code, int weight)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_comando_etiqueta_1 NVARCHAR(MAX);\r\n" +
@@ -350,7 +207,7 @@ namespace ModbusServer.Devices
             return command;
         }
 
-        private SqlCommand CreatePalletInCommand(SqlConnection connection, string code, int packager)
+        private static SqlCommand PalletInCommand(SqlConnection connection, string code, int packager)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_ack INT;\r\n" +
@@ -364,7 +221,7 @@ namespace ModbusServer.Devices
             return command;
         }
 
-        private SqlCommand CreatePalletOutCommand(SqlConnection connection, string code)
+        private static SqlCommand PalletOutCommand(SqlConnection connection, string code)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_ack INT;\r\n" +
@@ -376,7 +233,7 @@ namespace ModbusServer.Devices
             return command;
         }
 
-        private SqlCommand CreateErrorCommand(SqlConnection connection, string error, string code, int packager)
+        private static SqlCommand ErrorCommand(SqlConnection connection, string error, string code, int packager)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_ack INT;\r\n" +
@@ -391,7 +248,8 @@ namespace ModbusServer.Devices
             command.Parameters.AddWithValue("@codigo", string.IsNullOrEmpty(code) ? (object)DBNull.Value : code);
             return command;
         }
-        private SqlCommand CreateConfigCommand(SqlConnection connection)
+
+        private static SqlCommand ConfigCommand(SqlConnection connection)
         {
             return new SqlCommand(
                     "\r\n DECLARE @out_continuar_sin_lectura_codigo BIT;\r\n" +
@@ -404,7 +262,7 @@ namespace ModbusServer.Devices
                     "select @out_continuar_sin_lectura_codigo, @out_continuar_sin_respuesta_db, @out_receta_por_defecto;\r\n", connection);
         }
 
-        private SqlCommand CreateElevatorCommnad(SqlConnection connection, string code, string msg)
+        private static SqlCommand ElevatorCommand(SqlConnection connection, string code, string msg)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_autorizado BIT;\r\n" +
@@ -418,7 +276,7 @@ namespace ModbusServer.Devices
             return command;
         }
 
-        private SqlCommand CreateGetStringFromIDCommnad(SqlConnection connection, int id)
+        private static SqlCommand GetStringFromIDCommand(SqlConnection connection, int id)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_codigo NVARCHAR(200);\r\n" +
@@ -430,7 +288,7 @@ namespace ModbusServer.Devices
             return command;
         }
 
-        private SqlCommand CreateGetIDFromStringCommnad(SqlConnection connection, string code)
+        private static SqlCommand GetIDFromStringCommand(SqlConnection connection, string code)
         {
             var command = new SqlCommand(
                     "\r\n DECLARE @out_id INT;\r\n" +
