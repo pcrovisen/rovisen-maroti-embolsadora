@@ -79,9 +79,28 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
     return [...new Set(tokens)];
   };
 
+  // End of the `switch (State)` body. The last case block used to run to the
+  // end of the file, so it absorbed every NextState in the methods that follow
+  // — Reset(), helpers — and invented transitions the step logic never makes
+  // (PrinterMachine showed a Completed -> Init edge that only exists in
+  // Reset()). Braces are counted on a copy with strings and comments blanked
+  // out, so format placeholders like "{0}" cannot unbalance the scan.
+  const masked = src.replace(
+    /@"(?:[^"]|"")*"|\$?"(?:\\.|[^"\\])*"|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+    (m) => ' '.repeat(m.length));
+  const switchAt = masked.search(/switch\s*\(\s*State\s*\)/);
+  let switchEnd = src.length;
+  if (switchAt >= 0) {
+    let depth = 0;
+    for (let i = masked.indexOf('{', switchAt); i < masked.length; i++) {
+      if (masked[i] === '{') depth++;
+      else if (masked[i] === '}' && --depth === 0) { switchEnd = i; break; }
+    }
+  }
+
   const edges = new Map(); // "from>to" -> Set(gate tokens)
   groups.forEach((g, i) => {
-    const blockEnd = i + 1 < groups.length ? groups[i + 1].start : src.length;
+    const blockEnd = i + 1 < groups.length ? groups[i + 1].start : switchEnd;
     const block = src.slice(g.end, blockEnd);
     for (const m of block.matchAll(/NextState\s*\(\s*States\.(\w+)/g)) {
       const gates = gateFor(block, m.index);
