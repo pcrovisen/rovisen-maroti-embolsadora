@@ -22,6 +22,10 @@ namespace ModbusServer.Data
         public ushort LastId { get; set; }
         public uint LastQrId { get; set; }
 
+        // id -> name, the inverse of Data. Private, so it is not serialized: it is
+        // rebuilt from Data on load and kept in step by GetId.
+        private Dictionary<ushort, string> byId = new Dictionary<ushort, string>();
+
         public static void Init()
         {
             Load();
@@ -32,6 +36,12 @@ namespace ModbusServer.Data
             {
                 string text = File.ReadAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "visualIdData.json"));
                 Instance = JsonSerializer.Deserialize<VisualID>(text);
+                if (Instance?.Data == null)
+                {
+                    throw new InvalidDataException("visualIdData.json has no Data map");
+                }
+                Instance.Qrs = Instance.Qrs ?? new Dictionary<string, uint>();
+                Instance.BuildReverseIndex();
             }
             catch(Exception e)
             {
@@ -45,7 +55,16 @@ namespace ModbusServer.Data
                 };
                 Save();
             }
-            
+
+        }
+
+        private void BuildReverseIndex()
+        {
+            byId = new Dictionary<ushort, string>();
+            foreach (var entry in Data)
+            {
+                byId[entry.Value] = entry.Key;
+            }
         }
         public static void Save()
         {
@@ -62,21 +81,20 @@ namespace ModbusServer.Data
             else
             {
                 Instance.Data.Add(id, ++Instance.LastId);
+                Instance.byId[Instance.LastId] = id;
                 Save();
                 return Instance.LastId;
             }
         }
 
+        // Was `Data.Keys.ElementAt(id - 1)`: an O(n) scan that assumed the
+        // dictionary's enumeration order still matched the order ids were handed
+        // out, which is why visualIdData.json could not be reordered by hand. The
+        // inverse map makes the id the actual key, so the file's order stops
+        // mattering and an unknown id gives "" instead of throwing.
         public static string GetVisualId(ushort id)
         {
-            if(id <= Instance.Data.Count)
-            {
-                return Instance.Data.Keys.ElementAt(id - 1);
-            }
-            else
-            {
-                return "";
-            }
+            return Instance.byId.TryGetValue(id, out var name) ? name : "";
         }
 
         public static async Task<int> GetQrId(string qr)

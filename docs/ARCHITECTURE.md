@@ -47,9 +47,9 @@ The PC hosts a **Modbus TCP server** (EasyModbus); the Fatek master PLC is the c
 
 Registers are 16-bit, so:
 
-- **QR strings ↔ integers**: the DB assigns each QR string an int id (`sp_get_id` / `sp_get_codigo`, wrapped by `VisualID.GetQrId/GetQrString`). The int is stored little-endian across two registers (`SetQr`/`GetQr`). An id of 0 means "empty slot".
-- **Pallet ID word** (one register, read as hex digits): `[injector][recipe][labelAndId]` nibbles. `labelAndId > 8` means "will be labeled" and the queue id is `labelAndId - 8`; otherwise the queue id is `labelAndId` as-is. Queue ids cycle **1..7** (`(id+1) % 8`, 0 is skipped).
-- **Injector visual IDs**: `Data/VisualID.cs` maps injector names (strings from the DB) to small ushorts, persisted in `visualIdData.json` next to the exe. `GetVisualId` depends on dictionary insertion order — never reorder/edit that file by hand.
+- **QR strings ↔ integers**: the DB assigns each QR string an int id (`sp_get_id` / `sp_get_codigo`, wrapped by `VisualID.GetQrId/GetQrString`). The int is stored little-endian across two registers (`FatekPLC.ReadQrId`/`WriteQrId`, used by `SetQr`/`GetQr`). An id of 0 means "empty slot".
+- **Pallet ID word** (one register): bits 15–8 injector visual id, bits 7–4 recipe, bits 3–0 label flag + queue id. `labelAndId > 8` means "will be labeled" and the queue id is `labelAndId - 8`; otherwise the queue id is `labelAndId` as-is. Queue ids cycle **1..7** (`(id+1) % 8`, 0 is skipped), so 0 and 8 never appear as ids. Packed by `FatekPLC.PackId`, unpacked in `GetPalletInfo`.
+- **Injector visual IDs**: `Data/VisualID.cs` maps injector names (strings from the DB) to small ushorts, persisted in `visualIdData.json` next to the exe. Lookups go through an inverse map built on load, so the id is the real key and the file's key order no longer matters.
 
 ⚠ Naming trap: `SqlDatabase.PackagerPreference.Labeling` is filled from `@out_omitir_proceso_etiquetado` (**omit** labeling), while `Pallet.Labeling` means **do** label. That's why `PalletEntry.SetPackagerAndRecipe` computes `labelAndId = !result.Labeling ? 8 + id : id`. The double negation is correct — don't "fix" it.
 
@@ -112,7 +112,7 @@ All inputs are passed as `SqlParameter`s (`sp_evento_alarma` maps packager 0 / e
 | `secrets.config` (gitignored, next to the exe; see `secrets.config.example`) | SQL connection string — overrides the empty `App.config` placeholder via the `appSettings file=` attribute |
 | `HKCU\SOFTWARE\WencoSettings` | `QrRetries`, `ContinueIfNotQr`, `ContinueIfNoDB`, `DefaultRecipe` (read at startup by `Config`) |
 | `HKLM\SOFTWARE\WencoInfo\Wolrdjet{1,2}` | last weight per Bocedi (crash recovery) |
-| `visualIdData.json` (next to exe) | injector name → visual id map (order-sensitive) |
+| `visualIdData.json` (next to exe) | injector name → visual id map (the ids are what matter; key order is not) |
 | `TcpHMIClient/App.config` | `serverIp` of the service |
 
 ## Known quirks / things not to "fix" blindly

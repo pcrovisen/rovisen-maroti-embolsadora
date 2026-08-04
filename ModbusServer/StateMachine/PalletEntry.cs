@@ -342,24 +342,18 @@ namespace ModbusServer.StateMachine
 
         public void SetPackagerAndRecipe(SqlDatabase.PackagerPreference result)
         {
-            if (result.Packager == 1)
-            {
-                FatekPLC.SetBit(FatekPLC.Signals.ToEmb1);
-                FatekPLC.ResetBit(FatekPLC.Signals.ToEmb2);
-                var injector = VisualID.GetId(result.Injector);
-                var labelAndId = !result.Labeling ? 8 + currentIdEmb1 : currentIdEmb1;
-                var injRecipeId = string.Format("{0}{1}{2}",injector.ToString("X"), result.Recipe.ToString("X"), labelAndId.ToString("X"));
-                FatekPLC.SetMemory(FatekPLC.Memory.ID, Convert.ToInt16(injRecipeId, 16));
-            }
-            else
-            {
-                FatekPLC.SetBit(FatekPLC.Signals.ToEmb2);
-                FatekPLC.ResetBit(FatekPLC.Signals.ToEmb1);
-                var injector = VisualID.GetId(result.Injector);
-                var labelAndId = !result.Labeling ? 8 + currentIdEmb2 : currentIdEmb2;
-                var injRecipeId = string.Format("{0}{1}{2}", injector.ToString("X"), result.Recipe.ToString("X"), labelAndId.ToString("X"));
-                FatekPLC.SetMemory(FatekPLC.Memory.ID, Convert.ToInt16(injRecipeId, 16));
-            }
+            var toBocedi1 = result.Packager == 1;
+            FatekPLC.SetBit(toBocedi1 ? FatekPLC.Signals.ToEmb1 : FatekPLC.Signals.ToEmb2);
+            FatekPLC.ResetBit(toBocedi1 ? FatekPLC.Signals.ToEmb2 : FatekPLC.Signals.ToEmb1);
+
+            // PackagerPreference.Labeling comes from @out_omitir_proceso_etiquetado
+            // and means *omit* labeling, while the label flag in the ID word means
+            // *do* label. The negation is correct — see docs/ARCHITECTURE.md.
+            var queueId = toBocedi1 ? currentIdEmb1 : currentIdEmb2;
+            var labelAndId = !result.Labeling ? 8 + queueId : queueId;
+
+            FatekPLC.SetMemory(FatekPLC.Memory.ID,
+                FatekPLC.PackId(VisualID.GetId(result.Injector), result.Recipe, labelAndId));
         }
 
         public override void Reset()

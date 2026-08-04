@@ -25,7 +25,7 @@ the plant hardware or a Modbus client simulating the PLC.
 | 6 | Merge `PalletLabel1/2` into one parameterized machine | todo |
 | 7 | `Machine<TState>` — typed state, drop the reflection rule | todo |
 | 8 | Collapse `SqlDatabase` duplication | done |
-| 9 | Bit math instead of hex-string surgery in `FatekPLC` | todo |
+| 9 | Bit math instead of hex-string surgery in `FatekPLC` | done |
 | 10 | `Config.Load` must not overwrite settings on read failure | done |
 | 11 | Connection/resource cleanup (`IDisposable`, no finalizer `.Wait()`) | done |
 | 12 | Dead code removal | done |

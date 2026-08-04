@@ -240,6 +240,61 @@ namespace ModbusServer.Devices
             }
         }
 
+        // --------------------------------------------------------------------
+        // Register encoding
+        // --------------------------------------------------------------------
+        //
+        // Registers are 16-bit, so the two composite values the PLC exchanges with
+        // the PC are packed by hand. This used to be done by formatting to hex,
+        // slicing the string and parsing the pieces back, which threw
+        // FormatException on any word whose hex form was shorter than expected
+        // (an injector id of 0 produced a 2-character string and an empty slice)
+        // and silently shifted every field if a value overflowed its nibble.
+        //
+        // The ID word packs three fields:
+        //
+        //   bits 15-8  injector visual id (Data/VisualID.cs)
+        //   bits 7-4   recipe
+        //   bits 3-0   label flag + queue id
+        //
+        // Queue ids cycle 1..7. Bit 3 set (value > 8) means "will be labeled" and
+        // the id is the remaining low bits, so 0 and 8 never appear as ids — see
+        // "Known quirks" in docs/ARCHITECTURE.md.
+
+        const int IdQueueMask = 0xF;
+        const int IdLabelFlag = 8;
+        const int IdRecipeShift = 4;
+        const int IdRecipeMask = 0xF;
+        const int IdInjectorShift = 8;
+        const int IdInjectorMask = 0xFF;
+
+        public static short PackId(int injector, int recipe, int labelAndId)
+        {
+            // Out-of-range values used to shift the neighbouring fields instead of
+            // being noticed, because each was formatted independently.
+            if (injector > IdInjectorMask || recipe > IdRecipeMask || labelAndId > IdQueueMask
+                || injector < 0 || recipe < 0 || labelAndId < 0)
+            {
+                Log.ErrorFormat("ID word out of range: injector {0}, recipe {1}, labelAndId {2}. Truncating",
+                    injector, recipe, labelAndId);
+            }
+            return (short)(((injector & IdInjectorMask) << IdInjectorShift)
+                | ((recipe & IdRecipeMask) << IdRecipeShift)
+                | (labelAndId & IdQueueMask));
+        }
+
+        // The QR id is a plain 32-bit int spread little-endian over two registers.
+        public static int ReadQrId(Memory qrIndex)
+        {
+            return ((ushort)ReadMemory(qrIndex + 1) << 16) | (ushort)ReadMemory(qrIndex);
+        }
+
+        public static void WriteQrId(Memory qrIndex, int id)
+        {
+            SetMemory(qrIndex, (short)id);
+            SetMemory(qrIndex + 1, (short)(id >> 16));
+        }
+
         public static async Task<Pallet> GetPalletInfo(Memory qrIndex, Memory idIndex)
         {
             var qrString = await GetQr(qrIndex);
@@ -249,29 +304,31 @@ namespace ModbusServer.Devices
                 throw new Exception("Could not get the QR from the id");
             }
 
-            var plcId = ReadMemory(idIndex).ToString("X");
-            if (qrString != "" && plcId != "0")
-            {
-                var labelAndId = Convert.ToInt16(plcId.Substring(plcId.Length - 1), 16);
-                var labeling = labelAndId > 8;
-                var id = labeling ? (labelAndId - 8).ToString() : labelAndId.ToString();
-                var recipe = Convert.ToInt16(plcId.Substring(plcId.Length - 2, 1), 16).ToString();
-                var inj = VisualID.GetVisualId(Convert.ToUInt16(plcId.Substring(0, plcId.Length - 2), 16));
-                return new Pallet() { Qr = qrString, Id = id, Injector = inj, Recipe = recipe, Labeling = labeling };
-            }
-            else
+            var word = (ushort)ReadMemory(idIndex);
+            if (qrString == "" || word == 0)
             {
                 return null;
             }
+
+            var labelAndId = word & IdQueueMask;
+            var labeling = labelAndId > IdLabelFlag;
+            var id = labeling ? labelAndId - IdLabelFlag : labelAndId;
+            var recipe = (word >> IdRecipeShift) & IdRecipeMask;
+            var inj = VisualID.GetVisualId((ushort)((word >> IdInjectorShift) & IdInjectorMask));
+
+            return new Pallet()
+            {
+                Qr = qrString,
+                Id = id.ToString(),
+                Injector = inj,
+                Recipe = recipe.ToString(),
+                Labeling = labeling,
+            };
         }
 
         public static async Task<string> GetQr(Memory qrIndex)
         {
-            var idString =
-                    ReadMemory(qrIndex + 1).ToString("X") +
-                    ReadMemory(qrIndex).ToString("X4");
-
-            int id = Convert.ToInt32(idString, 16);
+            int id = ReadQrId(qrIndex);
 
             if(id != 0)
             {
@@ -285,33 +342,13 @@ namespace ModbusServer.Devices
 
         public static async Task<bool> SetQr(Memory qrIndex, string qrString)
         {
-            string firstHalf;
-            string secondHalf;
-
             var id = await VisualID.GetQrId(qrString);
             if(id < 0)
             {
                 return false;
             }
-            var stringId = id.ToString("X");
-            int len = stringId.Length;
 
-            if(len > 4)
-            {
-                firstHalf = stringId.Substring(len - 4);
-                secondHalf = stringId.Substring(0, len - 4);
-            }
-            else
-            {
-                firstHalf = stringId;
-                secondHalf = "0";
-            }
-
-            int value1 = Convert.ToInt32(firstHalf, 16);
-            int value2 = Convert.ToInt32(secondHalf, 16);
-            SetMemory(qrIndex, (short)value1);
-            SetMemory(qrIndex + 1, (short)value2);
-
+            WriteQrId(qrIndex, id);
             return true;
         }
 
@@ -320,9 +357,9 @@ namespace ModbusServer.Devices
             if(await SetQr(qrIndex, pallet.Qr))
             {
                 var injector = VisualID.GetId(pallet.Injector);
-                var labelAndId = pallet.Labeling ? 8 + Convert.ToInt16(pallet.Id) : Convert.ToInt16(pallet.Id);
-                var injRecipeId = string.Format("{0}{1}{2}", injector.ToString("X"), Convert.ToInt16(pallet.Recipe).ToString("X"), labelAndId.ToString("X"));
-                SetMemory(idIndex, Convert.ToInt16(injRecipeId, 16));
+                var queueId = Convert.ToInt16(pallet.Id);
+                var labelAndId = pallet.Labeling ? IdLabelFlag + queueId : queueId;
+                SetMemory(idIndex, PackId(injector, Convert.ToInt16(pallet.Recipe), labelAndId));
                 return true;
             }
 
