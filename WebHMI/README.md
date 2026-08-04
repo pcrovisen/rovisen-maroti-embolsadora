@@ -109,6 +109,19 @@ animates in blue, and an observed transition that the code does not declare
 shows in orange (a discrepancy detector). Machines missing from
 transitions.json fall back to a ring layout with observed edges only.
 
+States are distinguished too, from the `flags` in transitions.json:
+
+| flag | how it is decided | drawn as |
+|---|---|---|
+| `terminal` | derived: nothing leaves the state inside `Step()` | thick ring (automata notation for a final state) |
+| `fault` | `[FaultState]` on the C# enum member | red border |
+| `timeout` | the state's entry in the machine's `StateTimeouts` | dashed border, and pulsing orange once the machine has held it longer than that |
+
+The overdue clock is measured in the page, not on the wire — the snapshot
+carries the current state, not how long it has been there — so it restarts on
+reload. It mirrors the ceiling at which the service itself logs "not
+progressing".
+
 ## Server-side integration plan (ModbusServer)
 
 1. New `WebHmi` component started by `MainProcess`: `HttpListener` on `:8080`

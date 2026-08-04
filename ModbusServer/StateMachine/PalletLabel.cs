@@ -24,13 +24,13 @@ namespace ModbusServer.StateMachine
         {
             WaitingPallet,
             WaitUpdate,
-            WaitingCorrection,
+            [FaultState] WaitingCorrection,
             Labeling,
             WaitUpdate2,
             WaitAck,
             WaitLeaving,
             WaitLeaveNull,
-            PalletNull,
+            [FaultState] PalletNull,
         }
 
         readonly PackagerBinding lane;

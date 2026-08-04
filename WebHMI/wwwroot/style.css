@@ -418,6 +418,7 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
   flex: none;
 }
 .hint-warn { color: var(--warn); }
+.hint-bad { color: var(--bad); }
 
 .diag2 {
   flex: 1;
@@ -523,6 +524,31 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
   transition: fill 0.25s, stroke 0.25s;
 }
 .st-node.current { fill: var(--ok); stroke: var(--ok); }
+
+/* State kinds, from transitions.json. These are properties of the state, so
+   they stay visible while the machine is elsewhere; `current` still wins on
+   fill so the live state is never ambiguous. */
+
+/* Final: nothing leaves it inside Step(). Drawn as a ring, the usual
+   automata-theory notation for an accepting state. */
+.st-node.terminal { stroke-width: 4; stroke-dasharray: none; }
+
+/* Failure: something went wrong and usually an operator has to act. */
+.st-node.fault { stroke: var(--bad); stroke-width: 2.5; }
+.st-node.fault.current { fill: var(--bad); }
+
+/* Covered by a StateTimeouts ceiling in the C# machine. */
+.st-node.watched { stroke-dasharray: 3 2.5; }
+
+/* Held past that ceiling — what the service logs as "not progressing". */
+.st-node.overdue { stroke: var(--warn); fill: var(--warn); stroke-dasharray: none; }
+.st-node.overdue.current { fill: var(--warn); stroke: var(--warn); }
+@media (prefers-reduced-motion: no-preference) {
+  .st-node.overdue { animation: st-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes st-pulse { 50% { opacity: 0.45; } }
+
+.machine-item.overdue .mi-state { color: var(--warn); font-weight: 700; }
 
 .st-label { fill: var(--muted); font-size: 9.5px; }
 .st-label.current { fill: var(--text); font-weight: 700; }

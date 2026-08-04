@@ -33,7 +33,7 @@ namespace ModbusServer.StateMachine
             WaitEnterCar,
             WaitUpdateCar,
             UpdateCar,
-            ReadingQrInError,
+            [FaultState] ReadingQrInError,
             Paused,
         }
 

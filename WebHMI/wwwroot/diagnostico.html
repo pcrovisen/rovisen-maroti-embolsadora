@@ -54,6 +54,16 @@
       <span class="hint-warn">naranja</span>: transición observada que el
       código no declara.
     </p>
+    <p class="hint">
+      Los estados también se distinguen: <b>borde grueso</b> = estado final
+      (nada sale de él, la máquina espera a que algo externo la reinicie);
+      <span class="hint-bad">borde rojo</span> = estado de falla;
+      <b>borde punteado</b> = estado con watchdog, es decir con un tiempo
+      máximo declarado en el código;
+      <span class="hint-warn">naranja parpadeante</span> = lleva más de ese
+      tiempo, que es lo que el servicio registra como «no está avanzando».
+      El reloj se cuenta en esta página, así que se reinicia al recargarla.
+    </p>
     <div class="diag2">
       <aside class="panel machine-list" id="machineList"></aside>
       <section class="panel machine-view">

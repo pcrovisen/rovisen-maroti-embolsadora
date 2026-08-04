@@ -28,7 +28,7 @@ namespace ModbusServer.StateMachine
             WaitingWrite,
             SendingFIFO,
             Completed,
-            Failed,
+            [FaultState] Failed,
         }
 
         // A result nobody collects would wedge the machine — and with it every

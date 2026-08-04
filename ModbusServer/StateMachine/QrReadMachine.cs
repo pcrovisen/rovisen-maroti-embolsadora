@@ -19,7 +19,7 @@ namespace ModbusServer.StateMachine
             Reading,
             Retrying,
             Completed,
-            Failed,
+            [FaultState] Failed,
         }
         Task<string> reader;
         int retries;

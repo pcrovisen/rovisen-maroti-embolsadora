@@ -41,7 +41,8 @@
      "⏱"
     ]
    ]
-  ]
+  ],
+  "flags": {}
  },
  "CarMachine": {
   "init": "UnknownPosition",
@@ -119,7 +120,8 @@
     "WaitingCarInB1",
     []
    ]
-  ]
+  ],
+  "flags": {}
  },
  "DeletePalletEmb": {
   "init": "Waiting",
@@ -170,7 +172,16 @@
     "Completed",
     []
    ]
-  ]
+  ],
+  "flags": {
+   "Completed": {
+    "terminal": true
+   },
+   "Failed": {
+    "terminal": true,
+    "fault": true
+   }
+  }
  },
  "ElevatorAccess": {
   "init": "WaitingRequest",
@@ -226,7 +237,13 @@
      "⏱"
     ]
    ]
-  ]
+  ],
+  "flags": {
+   "FailedQr": {
+    "terminal": true,
+    "fault": true
+   }
+  }
  },
  "FatekPLCCommunication": {
   "init": "Init",
@@ -271,7 +288,18 @@
      "!Ready"
     ]
    ]
-  ]
+  ],
+  "flags": {
+   "Starting": {
+    "timeout": 30000
+   },
+   "WaitingMemory": {
+    "timeout": 30000
+   },
+   "WaitingInit": {
+    "timeout": 60000
+   }
+  }
  },
  "HMIConnection": {
   "init": "Init",
@@ -335,7 +363,12 @@
      "⏱"
     ]
    ]
-  ]
+  ],
+  "flags": {
+   "Terminated": {
+    "terminal": true
+   }
+  }
  },
  "NetworkPrinterConnection": {
   "init": "Connect",
@@ -365,7 +398,8 @@
     "Connect",
     []
    ]
-  ]
+  ],
+  "flags": {}
  },
  "OmronConnection": {
   "init": "Connect",
@@ -395,7 +429,8 @@
     "Connect",
     []
    ]
-  ]
+  ],
+  "flags": {}
  },
  "PalletEntry": {
   "init": "Waiting",
@@ -576,7 +611,36 @@
      "!Pause"
     ]
    ]
-  ]
+  ],
+  "flags": {
+   "WaitingSetQr": {
+    "timeout": 60000
+   },
+   "WaitingSetEntryPallet": {
+    "timeout": 60000
+   },
+   "AskingDB": {
+    "timeout": 120000
+   },
+   "SendingID": {
+    "timeout": 60000
+   },
+   "WaitUpdateFIFO1": {
+    "timeout": 60000
+   },
+   "UpdateFIFO1": {
+    "timeout": 60000
+   },
+   "WaitUpdateCar": {
+    "timeout": 60000
+   },
+   "UpdateCar": {
+    "timeout": 60000
+   },
+   "ReadingQrInError": {
+    "fault": true
+   }
+  }
  },
  "PalletLabel": {
   "init": "WaitingPallet",
@@ -664,7 +728,28 @@
     "WaitingPallet",
     []
    ]
-  ]
+  ],
+  "flags": {
+   "WaitUpdate": {
+    "timeout": 60000
+   },
+   "WaitingCorrection": {
+    "fault": true
+   },
+   "WaitUpdate2": {
+    "timeout": 60000
+   },
+   "WaitAck": {
+    "timeout": 60000
+   },
+   "WaitLeaving": {
+    "timeout": 120000
+   },
+   "PalletNull": {
+    "fault": true,
+    "timeout": 300000
+   }
+  }
  },
  "PrinterMachine": {
   "init": "Init",
@@ -839,7 +924,48 @@
     "Completed",
     []
    ]
-  ]
+  ],
+  "flags": {
+   "RetreivingWeightLen": {
+    "timeout": 60000
+   },
+   "RetreivingWeight": {
+    "timeout": 60000
+   },
+   "SendWeightOk": {
+    "timeout": 60000
+   },
+   "RetreivingLabels": {
+    "timeout": 60000
+   },
+   "WaitPallet": {
+    "timeout": 180000
+   },
+   "WaitLabelInstruction": {
+    "timeout": 180000
+   },
+   "WaitPrinter": {
+    "timeout": 60000
+   },
+   "WaitPLCConfirmation": {
+    "timeout": 60000
+   },
+   "WaitLabelLost": {
+    "timeout": 60000
+   },
+   "WaitApplicatorReady": {
+    "timeout": 60000
+   },
+   "Reset1": {
+    "timeout": 30000
+   },
+   "Reset2": {
+    "timeout": 30000
+   },
+   "Completed": {
+    "terminal": true
+   }
+  }
  },
  "QrReadMachine": {
   "init": "Init",
@@ -883,7 +1009,16 @@
      "⏱"
     ]
    ]
-  ]
+  ],
+  "flags": {
+   "Completed": {
+    "terminal": true
+   },
+   "Failed": {
+    "terminal": true,
+    "fault": true
+   }
+  }
  },
  "QrReaderConnection": {
   "init": "Init",
@@ -921,6 +1056,7 @@
      "⏱"
     ]
    ]
-  ]
+  ],
+  "flags": {}
  }
 }

@@ -31,11 +31,15 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
   const en = src.match(/enum\s+States\s*\{([\s\S]*?)\}/);
   if (!cls || !en) continue;
 
-  const states = en[1]
-    .replace(/\/\/[^\n]*/g, '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // Members may carry [FaultState] (see StateMachine/FaultStateAttribute.cs).
+  const states = [];
+  const fault = new Set();
+  for (const raw of en[1].replace(/\/\/[^\n]*/g, '').split(',')) {
+    const m = raw.trim().match(/^((?:\[\w+\]\s*)*)(\w+)$/);
+    if (!m) continue;
+    states.push(m[2]);
+    if (/\[FaultState\]/.test(m[1])) fault.add(m[2]);
+  }
 
   const init = src.match(/base\s*\(\s*States\.(\w+)/)?.[1] ?? states[0];
 
@@ -113,16 +117,39 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
     }
   });
 
-  result[cls[1]] = {
-    init,
-    states,
-    edges: [...edges].map(([e, gates]) => [...e.split('>'), [...gates]]),
-  };
+  const edgeList = [...edges].map(([e, gates]) => [...e.split('>'), [...gates]]);
+
+  // Liveness ceilings, from the machine's `StateTimeouts` table.
+  const timeouts = {};
+  for (const t of src.matchAll(/\{\s*States\.(\w+)\s*,\s*(\d+)\s*\}/g)) {
+    timeouts[t[1]] = Number(t[2]);
+  }
+
+  // Terminal states are derived, not declared: nothing leaves them inside
+  // Step(), so the machine rests there until something external resets it.
+  const sources = new Set(edgeList.map((e) => e[0]));
+
+  const flags = {};
+  for (const st of states) {
+    const f = {};
+    if (!sources.has(st)) f.terminal = true;
+    if (fault.has(st)) f.fault = true;
+    if (timeouts[st] !== undefined) f.timeout = timeouts[st];
+    if (Object.keys(f).length) flags[st] = f;
+  }
+
+  result[cls[1]] = { init, states, edges: edgeList, flags };
 }
 
 fs.writeFileSync(OUT, JSON.stringify(result, null, 1));
 
 for (const [name, m] of Object.entries(result)) {
-  console.log(`${name}: ${m.states.length} states, ${m.edges.length} transitions (init ${m.init})`);
+  const tag = (k) => Object.entries(m.flags).filter(([, f]) => f[k] !== undefined).map(([s]) => s);
+  const extra = [
+    tag('terminal').length ? `final: ${tag('terminal').join('/')}` : '',
+    tag('fault').length ? `falla: ${tag('fault').join('/')}` : '',
+    tag('timeout').length ? `${tag('timeout').length} con watchdog` : '',
+  ].filter(Boolean).join('; ');
+  console.log(`${name}: ${m.states.length} states, ${m.edges.length} transitions (init ${m.init})${extra ? ' — ' + extra : ''}`);
 }
 console.log(`\nWrote ${OUT}`);

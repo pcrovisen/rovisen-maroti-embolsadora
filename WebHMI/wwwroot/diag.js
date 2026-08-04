@@ -312,7 +312,15 @@ function selectMachine(name) {
 
   const nodes = meta.stateNames.map((sn, i) => {
     const p = layout.pos[i];
-    const circle = svgEl('circle', { cx: p.x, cy: p.y, r: DIMS.nodeR, class: 'st-node' });
+    // Kinds come from transitions.json: `terminal` is derived from the graph
+    // (nothing leaves the state inside Step()), `fault` from [FaultState] in
+    // the C# enum, `timeout` from the machine's StateTimeouts table.
+    const f = (meta.decl && meta.decl.flags && meta.decl.flags[sn]) || {};
+    const kinds = ['st-node'];
+    if (f.terminal) kinds.push('terminal');
+    if (f.fault) kinds.push('fault');
+    if (f.timeout !== undefined) kinds.push('watched');
+    const circle = svgEl('circle', { cx: p.x, cy: p.y, r: DIMS.nodeR, class: kinds.join(' ') });
     let lx;
     let ly;
     let anchor;
@@ -334,6 +342,16 @@ function selectMachine(name) {
       'dominant-baseline': 'middle', 'text-anchor': anchor,
     });
     label.textContent = sn;
+    const why = [
+      f.terminal ? 'estado final' : '',
+      f.fault ? 'estado de falla' : '',
+      f.timeout !== undefined ? `watchdog ${Math.round(f.timeout / 1000)} s` : '',
+    ].filter(Boolean).join(' · ');
+    if (why) {
+      const tip = svgEl('title', {});
+      tip.textContent = `${sn} — ${why}`;
+      circle.appendChild(tip);
+    }
     nodeLayer.append(circle, label);
     return { circle, label };
   });
@@ -462,9 +480,22 @@ function setMachineState(name, meta, idx) {
 function refreshStateTexts() {
   for (const [name, m] of metas) {
     if (m.current === null) continue;
-    const text = `${m.stateNames[m.current] ?? m.current} · ${Math.floor((Date.now() - m.since) / 1000)} s`;
-    m.itemState.textContent = text;
-    if (selected === name) $('mvState').textContent = text;
+    const held = Date.now() - m.since;
+    const text = `${m.stateNames[m.current] ?? m.current} · ${Math.floor(held / 1000)} s`;
+
+    // Overdue = held longer than the ceiling the C# machine would flag it at.
+    // Timed here rather than on the wire: the snapshot carries the state, not
+    // how long it has been in it, so this clock restarts when the page loads.
+    const limit = m.decl && m.decl.flags && m.decl.flags[m.stateNames[m.current]]
+      && m.decl.flags[m.stateNames[m.current]].timeout;
+    const overdue = limit !== undefined && limit !== null && held > limit;
+
+    m.item.classList.toggle('overdue', !!overdue);
+    m.itemState.textContent = overdue ? `${text} ⚠` : text;
+    if (selected === name) {
+      $('mvState').textContent = m.itemState.textContent;
+      view?.nodes[m.current]?.circle.classList.toggle('overdue', !!overdue);
+    }
   }
 }
 setInterval(refreshStateTexts, 1000);

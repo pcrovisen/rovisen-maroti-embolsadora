@@ -17,7 +17,7 @@ namespace ModbusServer.StateMachine
         {
             WaitingRequest,
             ReadingQr,
-            FailedQr,
+            [FaultState] FailedQr,
             WaitingAuth,
             WaitingLeave,
             Delay,
