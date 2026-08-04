@@ -55,7 +55,9 @@ namespace ModbusServer.StateMachine
                 case States.Reading:
                     if (reader.IsCompleted)
                     {
-                        if(reader.Result != string.Empty)
+                        // A faulted read counts as an empty one: it goes through the
+                        // same retry/failure path as a reader that saw no code.
+                        if(!reader.IsFaulted && reader.Result != string.Empty)
                         {
                             Result = reader.Result;
                             Log.Info($"Qr reader read {Result}");

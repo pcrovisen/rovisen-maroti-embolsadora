@@ -176,7 +176,7 @@ namespace ModbusServer.StateMachine
                         FatekPLC.ResetBit(FatekPLC.Signals.WeightOk2);
                         if (palletLeaveTask.IsCompleted)
                         {
-                            if (palletLeaveTask.Result)
+                            if (!palletLeaveTask.IsFaulted && palletLeaveTask.Result)
                             {
                                 Log.InfoFormat("Pallet #{0} leave", currentCode);
                                 FatekPLC.SetBit(FatekPLC.Signals.PalletLeave2);

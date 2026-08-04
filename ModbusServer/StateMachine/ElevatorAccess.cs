@@ -78,7 +78,7 @@ namespace ModbusServer.StateMachine
                 case States.WaitingAuth:
                     if(sqlRequest.IsCompleted)
                     {
-                        if (sqlRequest.Result)
+                        if (!sqlRequest.IsFaulted && sqlRequest.Result)
                         {
                             Log.Info("DB authorize");
                             FatekPLC.SetBit(FatekPLC.Signals.ElevatorAuth);

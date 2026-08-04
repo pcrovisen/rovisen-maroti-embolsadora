@@ -45,7 +45,7 @@ namespace ModbusServer.StateMachine
                 case States.Connecting:
                     if (connectingTask.IsCompleted)
                     {
-                        if (connectingTask.Result)
+                        if (!connectingTask.IsFaulted && connectingTask.Result)
                         {
                             NextState(States.Connected);
                         }

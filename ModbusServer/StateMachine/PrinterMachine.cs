@@ -405,7 +405,7 @@ namespace ModbusServer.StateMachine
                 case States.WaitPrinter:
                     if(printerPrintTask.IsCompleted)
                     {
-                        if (printerPrintTask.Result)
+                        if (!printerPrintTask.IsFaulted && printerPrintTask.Result)
                         {
                             Log.Info("Print successfully");
                             omronWritingTask = plc.ClearDMs(10, 2);

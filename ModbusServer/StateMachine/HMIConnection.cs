@@ -81,7 +81,7 @@ namespace ModbusServer.StateMachine
                     }
                     if (receiveTask.IsCompleted)
                     {
-                        if (receiveTask.Result != null)
+                        if (!receiveTask.IsFaulted && receiveTask.Result != null)
                         {
                             if(receiveTask.Result == "init")
                             {
@@ -145,7 +145,7 @@ namespace ModbusServer.StateMachine
                 case States.Responding:
                     if (sendTask.IsCompleted)
                     {
-                        if (sendTask.Result)
+                        if (!sendTask.IsFaulted && sendTask.Result)
                         {
                             NextState(States.Waiting);
                             receiveTask = tcpHMI.Receive(Cts.Token);

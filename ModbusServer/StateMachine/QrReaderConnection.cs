@@ -43,7 +43,7 @@ namespace ModbusServer.StateMachine
                 case States.Disconnected:
                     if (qrConnection.IsCompleted)
                     {
-                        if(qrConnection.Result)
+                        if(!qrConnection.IsFaulted && qrConnection.Result)
                         {
                             NextState(States.Connected);
                             Status.Instance.Connections.QrReader = true;

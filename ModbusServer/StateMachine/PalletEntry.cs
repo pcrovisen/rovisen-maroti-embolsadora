@@ -124,49 +124,37 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingSetQr:
-                    if (qrTask.IsCompleted)
+                    if (TryComplete(ref qrTask, () => SetReadedQR(qrReadCode.Result), "Writing the entry QR", out bool qrWritten))
                     {
-                        if (qrTask.Result)
+                        if (qrWritten)
                         {
-                            NextState(States.WaitingSetEntryPallet);
-                            qrTask = Status.SetEntryPallet();
                             Log.Info("Set entry QR");
+                            qrTask = Status.SetEntryPallet();
+                            NextState(States.WaitingSetEntryPallet);
                         }
-                        else
+                        else if (StateTime.ElapsedMilliseconds > RetryDelayMs)
                         {
+                            // The QR has no id in the database yet. Back off instead
+                            // of asking again on every step.
+                            Log.Error("Could not set the QR. Retrying");
                             qrTask = SetReadedQR(qrReadCode.Result);
-                            Log.Error("Could not set the QR");
+                            StateTime.Restart();
                         }
                     }
                     break;
                 case States.WaitingSetEntryPallet:
-                    if (qrTask.IsCompleted)
+                    if (TryComplete(ref qrTask, () => Status.SetEntryPallet(), "Reading back the entry pallet", out bool entrySet))
                     {
-                        if (qrTask.IsFaulted)
+                        if (entrySet)
                         {
-                            if(StateTime.ElapsedMilliseconds > 100)
-                            {
-                                qrTask = Status.SetEntryPallet();
-                                Log.ErrorFormat("Could not set entry pallet. Error: {0}", qrTask.Exception);
-                                NextState(States.WaitingSetEntryPallet);
-                            }
+                            Log.Info("Waiting availability");
+                            NextState(States.WaitingAvailability);
                         }
-                        else
+                        else if (StateTime.ElapsedMilliseconds > RetryDelayMs)
                         {
-                            if (qrTask.Result)
-                            {
-                                Log.Info("Waiting availability");
-                                NextState(States.WaitingAvailability);
-                            }
-                            else
-                            {
-                                if (StateTime.ElapsedMilliseconds > 100)
-                                {
-                                    qrTask = Status.SetEntryPallet();
-                                    Log.Error("Could not set entry pallet.");
-                                    NextState(States.WaitingSetEntryPallet);
-                                }
-                            }
+                            Log.Error("Could not set entry pallet. Retrying");
+                            qrTask = Status.SetEntryPallet();
+                            StateTime.Restart();
                         }
                     }
                     break;
@@ -180,11 +168,12 @@ namespace ModbusServer.StateMachine
                     break;
                 case States.AskingDB:
                     Status.Instance.ErrorMessages.EntryError = "";
-                    if (sqlRequest.IsCompleted)
+                    if (TryComplete(ref sqlRequest, () => SqlDatabase.AskForPackager(qrReadCode.Result),
+                            "Asking the database for the packager", out var preference))
                     {
-                        if (sqlRequest.Result != null)
+                        if (preference != null)
                         {
-                            if (sqlRequest.Result.Packager == 0)
+                            if (preference.Packager == 0)
                             {
                                 if(StateTime.ElapsedMilliseconds > 1000)
                                 {
@@ -195,8 +184,8 @@ namespace ModbusServer.StateMachine
                             }
                             else
                             {
-                                Log.InfoFormat("Received packager: {0}, recipe: {1}, injector:{2}", sqlRequest.Result.Packager, sqlRequest.Result.Recipe, sqlRequest.Result.Injector);
-                                SetPackagerAndRecipe(sqlRequest.Result);
+                                Log.InfoFormat("Received packager: {0}, recipe: {1}, injector:{2}", preference.Packager, preference.Recipe, preference.Injector);
+                                SetPackagerAndRecipe(preference);
                                 NextState(States.SendingID);
                             }
                         }
@@ -252,23 +241,10 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitUpdateFIFO1:
-                    if (writeTask.IsCompleted)
+                    if (TryComplete(ref writeTask, Status.UpdateFIFO1, "Re-reading FIFO 1"))
                     {
-                        if (writeTask.IsFaulted)
-                        {
-                            if(StateTime.ElapsedMilliseconds > 100)
-                            {
-                                Log.Error("Could not write fifo 1");
-                                writeTask = Status.UpdateFIFO1();
-                                NextState(States.WaitUpdateFIFO1);
-                            }
-                            
-                        }
-                        else
-                        {
-                            Log.Info("Fifo updated");
-                            NextState(States.UpdateFIFO1);
-                        }
+                        Log.Info("Fifo updated");
+                        NextState(States.UpdateFIFO1);
                     }
                     break;
                 case States.UpdateFIFO1:
@@ -302,26 +278,14 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitUpdateCar:
-                    if (writeTask.IsCompleted)
+                    if (TryComplete(ref writeTask, () => Status.SetCarPallet(true), "Writing the car pallet"))
                     {
-                        if (writeTask.IsFaulted)
+                        Log.Info("Fifo updated");
+                        NextState(States.UpdateCar);
+                        currentIdEmb2 = (currentIdEmb2 + 1) % 8;
+                        if (currentIdEmb2 == 0)
                         {
-                            if(StateTime.ElapsedMilliseconds > 100)
-                            {
-                                Log.Error("Could not write car");
-                                writeTask = Status.SetCarPallet(true);
-                                NextState(States.WaitUpdateCar);
-                            }
-                        }
-                        else
-                        {
-                            Log.Info("Fifo updated");
-                            NextState(States.UpdateCar);
-                            currentIdEmb2 = (currentIdEmb2 + 1) % 8;
-                            if (currentIdEmb2 == 0)
-                            {
-                                currentIdEmb2 = 1;
-                            }
+                            currentIdEmb2 = 1;
                         }
                     }
                     break;

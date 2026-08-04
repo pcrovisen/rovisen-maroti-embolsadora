@@ -125,36 +125,25 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingGetPallet:
-                    if (getPalletTask.IsCompleted)
+                    if (TryComplete(ref getPalletTask,
+                            () => FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID),
+                            "Reading the pallet on the car", out var pallet))
                     {
-                        if (getPalletTask.IsFaulted)
+                        if (pallet != null)
                         {
-                            if(StateTime.ElapsedMilliseconds> 100)
-                            {
-                                getPalletTask = FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
-                                NextState(States.WaitingGetPallet);
-                                Log.Error("Could not get the car info");
-                            }
+                            _ = SqlDatabase.NotifyPalletIn(pallet.Qr, 2);
+                            Log.InfoFormat("Pallet {0} enter Bocedi2 with ID {1}", pallet.Qr, pallet.Id);
+                            _ = Status.UpdateFIFO2();
                         }
                         else
                         {
-                            var pallet = getPalletTask.Result;
-                            if (pallet != null)
-                            {
-                                _ = SqlDatabase.NotifyPalletIn(pallet.Qr, 2);
-                                Log.InfoFormat("Pallet {0} enter Bocedi2 with ID {1}", pallet.Qr, pallet.Id);
-                                _ = Status.UpdateFIFO2();
-                            }
-                            else
-                            {
-                                Log.Warn("Get null from car machine.");
-                            }
-
-                            _ = Status.SetCarPallet(false);
-                            FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate2);
-                            NextState(States.WaitingCarInB1);
-                            Status.SetCarPosition(Car.Position.GoingToB1);
+                            Log.Warn("Get null from car machine.");
                         }
+
+                        _ = Status.SetCarPallet(false);
+                        FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate2);
+                        NextState(States.WaitingCarInB1);
+                        Status.SetCarPosition(Car.Position.GoingToB1);
                     }
                     break;
             }
