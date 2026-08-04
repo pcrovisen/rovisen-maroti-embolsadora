@@ -13,10 +13,10 @@ using System.CodeDom;
 
 namespace ModbusServer.StateMachine
 {
-    internal class PrinterMachine : Machine
+    internal class PrinterMachine : Machine<PrinterMachine.States>
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        enum States
+        public enum States
         {
             Init,
             RetreivingWeightLen,
@@ -66,7 +66,7 @@ namespace ModbusServer.StateMachine
         {
             get
             {
-                return (States)State >= States.WeightOk; 
+                return State >= States.WeightOk; 
             }
         }
         // Name stays PrinterMachineWolrdjet1 / ...2 — the "Wolrdjet" typo is

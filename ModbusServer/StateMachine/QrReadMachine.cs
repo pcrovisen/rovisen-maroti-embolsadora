@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace ModbusServer.StateMachine
 {
-    internal class QrReadMachine : Machine
+    internal class QrReadMachine : Machine<QrReadMachine.States>
     {
         static ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States
@@ -26,9 +26,9 @@ namespace ModbusServer.StateMachine
         readonly QrReader qrReader;
 
         public bool Completed
-            { get { return (States)State == States.Completed; } }
+            { get { return State == States.Completed; } }
         public bool Failed
-            { get { return (States)State == States.Failed; } }
+            { get { return State == States.Failed; } }
         public string Result
             { get; protected set; }
         public QrReadMachine(QrReader qrReader) : base(States.Init, qrReader.Ip)

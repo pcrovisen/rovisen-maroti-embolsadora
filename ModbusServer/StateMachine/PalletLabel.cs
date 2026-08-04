@@ -15,11 +15,11 @@ namespace ModbusServer.StateMachine
     /// One instance per lane (see <see cref="PackagerBinding"/>); Name stays
     /// PalletLabel1 / PalletLabel2, which the HMI and transitions.json key on.
     /// </summary>
-    internal class PalletLabel : Machine
+    internal class PalletLabel : Machine<PalletLabel.States>
     {
         static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        enum States
+        public enum States
         {
             WaitingPallet,
             WaitUpdate,

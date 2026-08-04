@@ -23,7 +23,7 @@ the plant hardware or a Modbus client simulating the PLC.
 | 4 | Retry idiom helper + fix blind `.Result` reads | done |
 | 5 | Merge `DeletePalletEmb1/2` into one parameterized machine | done |
 | 6 | Merge `PalletLabel1/2` into one parameterized machine | done |
-| 7 | `Machine<TState>` — typed state, drop the reflection rule | todo |
+| 7 | `Machine<TState>` — typed state, drop the reflection rule | done |
 | 8 | Collapse `SqlDatabase` duplication | done |
 | 9 | Bit math instead of hex-string surgery in `FatekPLC` | done |
 | 10 | `Config.Load` must not overwrite settings on read failure | done |

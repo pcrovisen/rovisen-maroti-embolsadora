@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace ModbusServer.StateMachine
 {
-    internal class AcceptHMIs : Machine
+    internal class AcceptHMIs : Machine<AcceptHMIs.States>
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States

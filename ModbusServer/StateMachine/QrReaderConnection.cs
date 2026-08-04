@@ -10,7 +10,7 @@ using ModbusServer.Devices;
 
 namespace ModbusServer.StateMachine
 {
-    internal class QrReaderConnection : Machine
+    internal class QrReaderConnection : Machine<QrReaderConnection.States>
     {
         static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States

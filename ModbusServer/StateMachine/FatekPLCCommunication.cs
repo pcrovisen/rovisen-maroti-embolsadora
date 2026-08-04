@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace ModbusServer.StateMachine
 {
-    internal class FatekPLCCommunication : Machine
+    internal class FatekPLCCommunication : Machine<FatekPLCCommunication.States>
     {
         static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States

@@ -4,9 +4,9 @@ using mcOMRON;
 
 namespace ModbusServer.StateMachine
 {
-    internal class OmronConnection : Machine
+    internal class OmronConnection : Machine<OmronConnection.States>
     {
-        enum States
+        public enum States
         {
             Connect,
             Connecting,
@@ -17,7 +17,7 @@ namespace ModbusServer.StateMachine
         {
             get
             {
-                return (States)State == States.Connected;
+                return State == States.Connected;
             }
         }
 

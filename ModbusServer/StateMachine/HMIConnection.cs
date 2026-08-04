@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace ModbusServer.StateMachine
 {
-    internal class HMIConnection : Machine, IDisposable
+    internal class HMIConnection : Machine<HMIConnection.States>, IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States
@@ -44,7 +44,7 @@ namespace ModbusServer.StateMachine
         bool UpdateMachineStates = false;
 
 
-        public bool Terminated => (States)State == States.Terminated;
+        public bool Terminated => State == States.Terminated;
 
         public CancellationTokenSource Cts { get => cts; set => cts = value; }
 

@@ -12,7 +12,7 @@ using ModbusServer.Devices;
 
 namespace ModbusServer.StateMachine
 {
-    internal class PalletEntry : Machine
+    internal class PalletEntry : Machine<PalletEntry.States>
     {
         static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States
@@ -64,9 +64,9 @@ namespace ModbusServer.StateMachine
 
             NotifyBocediStates();
             if (FatekPLC.ReadBit(FatekPLC.Signals.WaitingPallet) && 
-                (States)State != States.Waiting &&
-                (States)State != States.UpdateFIFO1 &&
-                (States)State != States.UpdateCar
+                State != States.Waiting &&
+                State != States.UpdateFIFO1 &&
+                State != States.UpdateCar
                 )
             {
                 Log.Info("Skip to waiting");

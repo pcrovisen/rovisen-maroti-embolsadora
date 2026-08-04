@@ -11,10 +11,10 @@ using System.Threading.Tasks;
 
 namespace ModbusServer.StateMachine
 {
-    internal class CarMachine : Machine
+    internal class CarMachine : Machine<CarMachine.States>
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        enum States
+        public enum States
         {
             UnknownPosition,
             WaitingCarInB1,

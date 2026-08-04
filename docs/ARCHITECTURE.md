@@ -6,9 +6,9 @@ This document describes how `ModbusServer` (the coordinator service) and `TcpHMI
 
 Everything in the service runs on **one worker thread** (`MainProcess.DoWork`) that calls `MainMachine.Step()` every 100 ms. There is no blocking inside `Step()`:
 
-- Every component is a `Machine` subclass (`ModbusServer/StateMachine/Machine.cs`) with a nested `enum States`, a `Step()` that switches on `State`, and `NextState()` to transition. `StateTime` (a stopwatch restarted on each transition) implements timeouts and retry back-off.
-- All I/O (SQL, Omron FINS, printers, QR readers, HMI sockets) is started as a `Task` and **polled** with `task.IsCompleted` / `IsFaulted` on subsequent steps. The usual retry idiom is: if faulted and `StateTime.ElapsedMilliseconds > 100`, re-launch the task and re-enter the same state.
-- Machine names and current states are published into `Status.Instance.StateMachine` so HMIs can display them (constructor of `Machine` registers the enum values via reflection — every machine **must** have a nested type literally named `States`).
+- Every component derives from `Machine<TState>` (`ModbusServer/StateMachine/Machine.cs`) as `class Foo : Machine<Foo.States>`, with a nested `public enum States`, a `Step()` that switches on `State`, and `NextState()` to transition. `StateTime` (a stopwatch restarted on each transition) implements timeouts and retry back-off.
+- All I/O (SQL, Omron FINS, printers, QR readers, HMI sockets) is started as a `Task` and **polled** on subsequent steps, through `Machine.TryComplete(ref task, restart, what)`: it returns true once the task succeeded, re-launches it after a `RetryDelayMs` back-off if it faulted, and returns false while it is still running.
+- Machine names and current states are published into `Status.Instance.StateMachine` so HMIs can display them: `Machines` is name → current state value, `MachinesStates` is name → value → state name, filled from `typeof(TState)` in the constructor.
 
 Machine tree (instantiated in constructors, stepped top-down):
 
@@ -18,8 +18,8 @@ MainMachine
 │   ├── PalletEntry                — entry station: QR read → DB routing → send to Bocedi1 or car
 │   │   ├── QrReaderConnection     — keeps entry ifm reader connected
 │   │   └── QrReadMachine          — one read attempt with Config.QrRetries retries
-│   ├── DeletePalletEmb1/2         — HMI-requested removal of a pallet from FIFO queues (PC+PLC two-phase validation)
-│   ├── PalletLabel1/2             — exit of each Bocedi: weight → labels from DB → print/apply → notify out
+│   ├── DeletePalletEmb x2         — HMI-requested removal of a pallet from FIFO queues (PC+PLC two-phase validation)
+│   ├── PalletLabel x2             — exit of each Bocedi: weight → labels from DB → print/apply → notify out
 │   │   ├── OmronConnection        — FINS/TCP connection to the Bocedi's Omron PLC
 │   │   ├── NetworkPrinterConnection
 │   │   └── PrinterMachine         — weight reading + the print/apply/label-lost retry protocol
@@ -62,7 +62,7 @@ Registers are 16-bit, so:
 
 A PLC-side `Pause` coil sends the machine to `Paused` (reported to DB as `sistema_detenido`). The PLC can also force-reset the whole entry cycle by raising `WaitingPallet` ("Skip to waiting"). `PalletEntry.NotifyBocediStates()` edge-detects `BCD1OK`/`BCD2OK` and reports embolsadora running/stopped events to the DB.
 
-## Labeling flow (`PalletLabel1/2` + `PrinterMachine`)
+## Labeling flow (`PalletLabel` + `PrinterMachine`)
 
 Per Bocedi, gated on Omron PLC + printer both connected:
 
@@ -77,7 +77,7 @@ When the Fatek raises `Leave1`, the FIFO is re-read, `sp_evento_etiquetado` (pal
 
 ## Queue deletion (HMI-initiated)
 
-HMI sends `del{json DeletePallet}` → `HMIConnection` calls `DeletePalletEmb{1,2}.StartDelete`: writes the pallet QR/ID and positions into the `DEL*` scratch registers, then validates PC-side (scratch matches FIFO contents at that position) and PLC-side (`DelEmb1` coil → PLC answers `Del1Valid`/`Del1Error`). If valid, the FIFO registers are compacted in place, lengths decremented, FIFO re-read, and the HMI gets `OK`/`NOK`.
+HMI sends `del{json DeletePallet}` → `HMIConnection` calls `DeletePalletEmb.Instance(n).StartDelete`: writes the pallet QR/ID and positions into the `DEL*` scratch registers, then validates PC-side (scratch matches FIFO contents at that position) and PLC-side (`DelEmb1` coil → PLC answers `Del1Valid`/`Del1Error`). If valid, the FIFO registers are compacted in place, lengths decremented, FIFO re-read, and the HMI gets `OK`/`NOK`.
 
 ## HMI protocol (TCP :8153)
 

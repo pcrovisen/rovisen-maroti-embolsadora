@@ -16,7 +16,7 @@ namespace ModbusServer.StateMachine
     /// DeletePalletEmb1 / DeletePalletEmb2, which the HMI and transitions.json
     /// key on.
     /// </summary>
-    internal class DeletePalletEmb : Machine
+    internal class DeletePalletEmb : Machine<DeletePalletEmb.States>
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -58,12 +58,12 @@ namespace ModbusServer.StateMachine
 
         public bool Completed
         {
-            get { return (States)State == States.Completed; }
+            get { return State == States.Completed; }
         }
 
         public bool Failed
         {
-            get { return (States)State == States.Failed; }
+            get { return State == States.Failed; }
         }
 
         public DeletePalletEmb(PackagerBinding lane) : base(States.Waiting, lane.Number.ToString())
@@ -227,7 +227,7 @@ namespace ModbusServer.StateMachine
         // whether to retry or to answer NOK.
         public async Task<bool> StartDelete(DeletePallet pallet)
         {
-            if (requestInFlight || (States)State != States.Waiting)
+            if (requestInFlight || State != States.Waiting)
             {
                 return false;
             }

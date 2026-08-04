@@ -1,41 +1,51 @@
-﻿using log4net;
+using log4net;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace ModbusServer.StateMachine
 {
-    internal abstract class Machine
+    /// <summary>
+    /// Base of every cooperative state machine in the service. Subclasses declare
+    /// their own state enum and pass it as <typeparamref name="TState"/>:
+    ///
+    /// <code>internal class PalletEntry : Machine&lt;PalletEntry.States&gt;</code>
+    ///
+    /// The state used to be typed `object`, which meant every read was a
+    /// `(States)State` cast, every transition boxed, and nothing checked that a
+    /// machine only ever moved to one of its own states. The enum was found by
+    /// reflecting for a nested type literally named `States`, so renaming it
+    /// crashed the service at startup — that was a documented hard rule purely
+    /// because the base class could not see the type. It can now.
+    /// </summary>
+    internal abstract class Machine<TState> where TState : struct, Enum
     {
         // How long to wait before re-launching a task that faulted, so a device
         // that is down is not hammered once per step.
         protected const int RetryDelayMs = 100;
 
         public string Name { get; protected set; }
-        public object State { get; protected set; }
+        public TState State { get; protected set; }
 
         protected Stopwatch StateTime = Stopwatch.StartNew();
 
-        private readonly object initState;
+        private readonly TState initState;
 
         // Deliberately not called `Log`: subclasses declare their own
         // `static readonly ILog Log` and an inherited member with the same name
         // would hide it (CS0108).
         private readonly ILog machineLog;
 
-        protected Machine(object initState, string identifier = "")
+        protected Machine(TState initState, string identifier = "")
         {
             this.initState = initState;
             Name = this.GetType().Name + identifier;
             machineLog = LogManager.GetLogger(this.GetType());
-            Status.Instance.StateMachine.Machines[Name] = initState;
+            Status.Instance.StateMachine.Machines[Name] = StateValue(initState);
             Status.Instance.StateMachine.MachinesStates[Name] = new Dictionary<int, string>();
             Reset();
-            GetStatesEnum();
+            PublishStateNames();
         }
 
         public virtual void Reset()
@@ -44,14 +54,14 @@ namespace ModbusServer.StateMachine
             StateTime.Restart();
             // Same publication as NextState: without it the HMIs kept showing the
             // state the machine was in before the reset until its next transition.
-            Status.Instance.StateMachine.Machines[Name] = State;
+            Status.Instance.StateMachine.Machines[Name] = StateValue(State);
         }
 
-        protected void NextState(object nextState)
+        protected void NextState(TState nextState)
         {
             State = nextState;
             StateTime.Restart();
-            Status.Instance.StateMachine.Machines[Name] = State;
+            Status.Instance.StateMachine.Machines[Name] = StateValue(State);
         }
 
         public void Remove()
@@ -61,6 +71,26 @@ namespace ModbusServer.StateMachine
         }
 
         public abstract void Step();
+
+        // Publishes value -> name so the HMIs can show "Waiting" instead of 0.
+        // Keyed by the enum's numeric value, which is how the HMI looks it up
+        // (States[machine][MachineState[machine]]); the previous version keyed by
+        // declaration position, identical only while every enum stays contiguous
+        // and zero-based.
+        private void PublishStateNames()
+        {
+            Status.Instance.StateMachine.Updated = true;
+            var names = Status.Instance.StateMachine.MachinesStates[Name];
+            foreach (TState value in Enum.GetValues(typeof(TState)))
+            {
+                names[StateValue(value)] = value.ToString();
+            }
+        }
+
+        private static int StateValue(TState state)
+        {
+            return Convert.ToInt32(state);
+        }
 
         // The retry idiom every machine uses to poll the I/O it started: returns
         // true once `task` has finished successfully, re-launches it through
@@ -120,18 +150,6 @@ namespace ModbusServer.StateMachine
                 what, faulted.Exception?.GetBaseException().Message ?? "cancelled");
             StateTime.Restart();
             return true;
-        }
-
-        public void GetStatesEnum()
-        {
-            Status.Instance.StateMachine.Updated = true;
-            var res = this.GetType().GetNestedType("States", BindingFlags.NonPublic | BindingFlags.Public);
-
-            int i = 0;
-            foreach (object val in Enum.GetValues(res))
-            {
-                Status.Instance.StateMachine.MachinesStates[Name][i++] = val.ToString();
-            }
         }
     }
 }

@@ -10,9 +10,9 @@ using ModbusServer.Devices;
 
 namespace ModbusServer.StateMachine
 {
-    internal class NetworkPrinterConnection : Machine
+    internal class NetworkPrinterConnection : Machine<NetworkPrinterConnection.States>
     {
-        enum States
+        public enum States
         {
             Connect,
             Connecting,
@@ -23,7 +23,7 @@ namespace ModbusServer.StateMachine
         {
             get
             {
-                return (States)State == States.Connected;
+                return State == States.Connected;
             }
         }
 

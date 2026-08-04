@@ -39,7 +39,7 @@ namespace ModbusServer
                 Packager2 = new Packager() { Queue = new List<Pallet>(), LabelPallet = null, ExitPallet = null, Updated = false},
                 Car = new Car() { CarPosition = Car.Position.Unknown, HasPallet = false, Pallet = null, Updated = false},
                 Connections = new Connections() { MasterPLC = false, SlavePLC = false, QrReader = false, Packager1 = false, Packager2 = false, WencoDB = false},
-                StateMachine = new StateMachineStatus() { Machines = new Dictionary<string, object>(), MachinesStates = new Dictionary<string, Dictionary<int, string>>() },
+                StateMachine = new StateMachineStatus() { Machines = new Dictionary<string, int>(), MachinesStates = new Dictionary<string, Dictionary<int, string>>() },
                 ErrorMessages = new ErrorMessages() { BDC1Error = "", BDC2Error = "", EntryError = "", CarError = "",}
             };
         }
@@ -220,7 +220,7 @@ namespace ModbusServer
 
     internal class StateMachineStatus
     {
-        public Dictionary<string, object> Machines { get; set; }
+        public Dictionary<string, int> Machines { get; set; }
         public Dictionary<string, Dictionary<int, string>> MachinesStates { get; set; }
         [JsonIgnore]
         public bool Updated { get; set; }
