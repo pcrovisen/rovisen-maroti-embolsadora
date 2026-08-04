@@ -140,16 +140,6 @@ namespace TcpHMIClient
             public int DefaultRecipe { get; set; }
         }
 
-        public class Status
-        {
-            public List<Pallet> emb1Queue { get; set; }
-            public List<Pallet> emb2Queue { get; set; }
-            public Car Car { get; set; }
-            public bool QrReaderConnected { get; set; }
-            public bool MasterPLCConnected { get; set; }
-            public bool SlavePLCConnected { get; set; }
-        }
-
         public class Packager
         {
             public List<Pallet> Queue { get; set; }

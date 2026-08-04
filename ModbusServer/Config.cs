@@ -24,9 +24,19 @@ namespace ModbusServer
         {
             Load();
         }
+        private static Config Defaults()
+        {
+            return new Config { QrRetries = 1, ContinueIfNoQr = false, ContinueIfNoDB = false, DefaultRecipe = 1 };
+        }
+
         public static void Load()
         {
             RegistryKey key = null;
+            // Only a first run (no key at all) may write the defaults back. Saving
+            // unconditionally meant that one wrongly-typed or missing value made the
+            // service overwrite the operator's whole configuration with defaults —
+            // silently, and permanently.
+            var firstRun = false;
             try
             {
                 key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\WencoSettings");
@@ -43,21 +53,26 @@ namespace ModbusServer
                 }
                 else
                 {
-                    Instance = new Config { QrRetries = 1, ContinueIfNoQr = false, ContinueIfNoDB = false, DefaultRecipe = 1 };
+                    Instance = Defaults();
+                    firstRun = true;
                 }
             }
             catch (Exception e)
             {
-                // A missing or wrongly-typed value must not stop the service.
-                Log.ErrorFormat("Could not read WencoSettings from the registry. Using defaults. Error: {0}", e.Message);
-                Instance = new Config { QrRetries = 1, ContinueIfNoQr = false, ContinueIfNoDB = false, DefaultRecipe = 1 };
+                // A missing or wrongly-typed value must not stop the service — but it
+                // must not destroy the other values either, so no Save() here.
+                Log.ErrorFormat("Could not read WencoSettings from the registry. Using defaults for this run, leaving the stored values alone. Error: {0}", e.Message);
+                Instance = Defaults();
             }
             finally
             {
                 key?.Close();
             }
 
-            Save();
+            if (firstRun)
+            {
+                Save();
+            }
         }
 
         public static void Save()

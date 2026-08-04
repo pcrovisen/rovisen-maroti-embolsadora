@@ -87,7 +87,12 @@ namespace ModbusServer.StateMachine
                     else
                     {
                         Log.ErrorFormat("HMI with ip {0} already exist. Replacing", iPEndPoint.Address.ToString());
-                        hmis[iPEndPoint.Address.ToString()].Remove();
+                        var replaced = hmis[iPEndPoint.Address.ToString()];
+                        replaced.Remove();
+                        // Remove() only deregisters from Status. Without this the old
+                        // socket and its pending receive stayed alive until the GC
+                        // ran the finalizer.
+                        replaced.Dispose();
                         hmis[iPEndPoint.Address.ToString()] = new HMIConnection(new TcpDevice(connectionTask.Result));
                     }
                     NextState(States.Pause);
@@ -126,6 +131,7 @@ namespace ModbusServer.StateMachine
                 {
                     Log.InfoFormat("HMI {0} removed", hmi.Name);
                     hmi.Remove();
+                    hmi.Dispose();
                     hmis.Remove(ip);
                 }
             }

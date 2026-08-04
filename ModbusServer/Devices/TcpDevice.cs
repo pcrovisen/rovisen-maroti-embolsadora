@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace ModbusServer.Devices
 {
-    internal class TcpDevice
+    internal class TcpDevice : IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         // Every message is prefixed with its byte length as a 4-byte little-endian
@@ -83,6 +83,14 @@ namespace ModbusServer.Devices
                 client = null;
                 return false;
             }
+        }
+
+        public void Dispose()
+        {
+            // Closing the socket is what makes a pending Receive finish; the two
+            // Send/Receive methods already treat a dead client as a null one.
+            client?.Close();
+            client = null;
         }
 
         static async Task<byte[]> ReadExactly(NetworkStream stream, int count, CancellationToken ctk)

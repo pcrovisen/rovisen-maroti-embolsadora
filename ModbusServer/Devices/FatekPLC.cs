@@ -288,16 +288,6 @@ namespace ModbusServer.Devices
             string firstHalf;
             string secondHalf;
 
-            /*
-            if (IsQrValid(qrString))
-            {
-                string hexID = qrString.Substring(1);
-                int len = hexID.Length;
-                firstHalf = hexID.Substring(len - 4);
-                secondHalf = hexID.Substring(0, len - 4);
-            }
-            else */
-            //{
             var id = await VisualID.GetQrId(qrString);
             if(id < 0)
             {
@@ -316,8 +306,6 @@ namespace ModbusServer.Devices
                 firstHalf = stringId;
                 secondHalf = "0";
             }
-            
-            //}
 
             int value1 = Convert.ToInt32(firstHalf, 16);
             int value2 = Convert.ToInt32(secondHalf, 16);
@@ -341,18 +329,5 @@ namespace ModbusServer.Devices
             return false;
         }
 
-        public static bool IsQrValid(string qrCode)
-        {
-            string hexa = qrCode.Substring(1);
-            try
-            {
-                int a = Convert.ToInt16(hexa, 16);
-            }
-            catch
-            {
-                return false;
-            }
-            return true;
-        }
     }
 }

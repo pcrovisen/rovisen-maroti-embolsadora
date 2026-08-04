@@ -38,13 +38,6 @@ namespace ModbusServer.Devices
             }
         }
 
-        public void Disconnect()
-        {
-            stream.Close();
-            client.Close();
-        }
-
-
         public async Task<bool> Print(string msg)
         {
             try

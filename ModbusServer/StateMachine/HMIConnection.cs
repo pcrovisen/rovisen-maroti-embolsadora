@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace ModbusServer.StateMachine
 {
-    internal class HMIConnection : Machine
+    internal class HMIConnection : Machine, IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public enum States
@@ -207,11 +207,17 @@ namespace ModbusServer.StateMachine
             }
         }
 
-        ~HMIConnection()
+        // Replaces a finalizer that cancelled the token and then blocked on
+        // receiveTask.Wait() / sendTask.Wait(): a blocking wait on the finalizer
+        // thread, which stalls every other finalizer in the process and deadlocks
+        // outright if cancelling does not unblock the read. Cancelling the token
+        // and closing the socket is enough to let both tasks finish on their own —
+        // their results are simply never read.
+        public void Dispose()
         {
             Cts.Cancel();
-            receiveTask?.Wait();
-            sendTask?.Wait();
+            tcpHMI.Dispose();
+            Cts.Dispose();
         }
 
         // Parses the payload of a `del…` request. Everything past the framing is

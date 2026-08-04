@@ -48,12 +48,6 @@ namespace ModbusServer.Devices
             }
         }
 
-        public void Disconnect()
-        {
-            stream.Close();
-            client.Close();
-        }
-
         public async Task<string> Read()
         {
             String result = await SendMessageO2I("T?");

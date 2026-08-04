@@ -24,9 +24,10 @@ reason: a step that doesn't compile must be trivially attributable.
 | 7 | `Machine<TState>` — typed state, drop the reflection rule | todo |
 | 8 | Collapse `SqlDatabase` duplication | todo |
 | 9 | Bit math instead of hex-string surgery in `FatekPLC` | todo |
-| 10 | `Config.Load` must not overwrite settings on read failure | todo |
-| 11 | Connection/resource cleanup (`IDisposable`, no finalizer `.Wait()`) | todo |
-| 12 | Dead code removal | todo |
+| 10 | `Config.Load` must not overwrite settings on read failure | done |
+| 11 | Connection/resource cleanup (`IDisposable`, no finalizer `.Wait()`) | done |
+| 12 | Dead code removal | done |
+| 13 | Liveness watchdogs on waiting states *(added during the work)* | todo |
 
 Update this table in the same commit as the step, so a fresh session can pick
 up from here without re-reading the whole diff.
@@ -156,7 +157,39 @@ permanent config loss.
 
 ## 12. Dead code
 
-`needDel` (after step 2 it is live again — recheck), `IsQrValid` + the
-commented-out branch in `SetQr`, `HMIClient.Status`, `SqlDatabase.GetConfiguration`
-(never called), `Config.ContinueIfNoDB` (never read). Remove or wire up, and
-say which in the commit message.
+Removed: `IsQrValid` and the commented-out branch in `SetQr` that was its only
+caller; `QrReader.Disconnect` / `NetworkPrinter.Disconnect` (unreferenced, and
+both dereference a `stream` that is null until the first send);
+`HMIClient.Status`.
+
+Deliberately kept:
+
+- `SqlDatabase.GetConfiguration` / `Config.ContinueIfNoDB` — remote config is
+  planned, and the method is the only record of the `sp_get_parametros`
+  signature. `ContinueIfNoDB` is also part of the `Config` DTO on the wire, so
+  dropping it would mean touching `HMIClient` and both WebHMI mirrors.
+- `FatekPLC.PrintFIFOs` / `SetVerbose` — console-mode debugging aids.
+- `needDel` — live again after step 2.
+
+## 13. Liveness watchdogs on waiting states  *(added during the work)*
+
+Steps 2 and 3 each turned out to be an instance of the same larger gap: a state
+that waits on a PLC bit or a device with no ceiling on how long it may wait. An
+exception restarts the service and the PLC re-syncs it; a *hang* has nothing to
+trip, so the machine sits there until somebody notices.
+
+Known candidates, none of which currently time out:
+
+- `PrinterMachine`: `WaitPallet`, `WaitLabelInstruction`, `WaitApplicatorReady`,
+  `WaitLabelLost` — re-issue the read on fault but never give up.
+- `PrinterMachine.Completed` / `Skipped`, `PalletLabel*.PalletNull` — terminal
+  states waiting for a bit that may never come.
+- `PalletEntry.WaitForBocedi1` / `WaitEnterBocedi` / `WaitForCar` /
+  `WaitEnterCar` — gated on PLC handshakes.
+
+Wanted: a small helper on `Machine` (`Stuck(ms)`) plus, per state, a decision —
+alarm through `sp_evento_alarma`, operator message in Spanish, and either a
+retry or a drop back to a safe state. The mechanism already exists (`StateTime`
+is in the base class); it is simply never used as a watchdog.
+
+Do this **before** steps 5–9: those are maintainability, this is uptime.
