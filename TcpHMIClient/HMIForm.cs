@@ -6,6 +6,7 @@ using System.Threading;
 using System.Windows.Forms;
 using TcpHMIClient;
 using static TcpHMIClient.HMIClient;
+using Wenco.Contracts;
 
 namespace InterfaceHMI
 {
@@ -14,7 +15,7 @@ namespace InterfaceHMI
         HMIClient hmiClient;
         List<Label> emb1HMIQueue;
         List<Label> emb2HMIQueue;
-        HMIClient.SystemStatus currentStatus;
+        SystemStatus currentStatus;
         private AutoResetEvent _resetEvent = new AutoResetEvent(false);
 
         public HMIForm()
@@ -147,10 +148,10 @@ namespace InterfaceHMI
         {
             if (machineState.ContainsKey("PalletEntry"))
             {
-                var state = (PalletEntryStates)machineState["PalletEntry"];
+                var state = (PalletEntryState)machineState["PalletEntry"];
                 switch (state)
                 {
-                    case PalletEntryStates.Waiting:
+                    case PalletEntryState.Waiting:
                         entryPalletLabel.Visible = false;
                         enterEmb1.Visible = false;
                         fCameraQrGood.Visible = true;
@@ -161,7 +162,7 @@ namespace InterfaceHMI
                         fCameraQrBad.TurnOff();
                         fCameraQrGood.TurnOff();
                         break;
-                    case PalletEntryStates.ReadingQR:
+                    case PalletEntryState.ReadingQR:
                         fLToBCDArrow.TurnOff();
                         fLToCarArrow.TurnOff();
                         fCameraQrGood.Blink();
@@ -169,14 +170,14 @@ namespace InterfaceHMI
                         entryPalletLabel.Visible = true;
                         enterEmb1.Visible = true;
                         break;
-                    case PalletEntryStates.AskingDB:
+                    case PalletEntryState.AskingDB:
                         fCameraQrGood.TurnOn();
                         fLToBCDArrow.TurnOff();
                         fLToCarArrow.TurnOff();
                         fCameraQrBad.TurnOff();
                         fLabelEnter2.TurnOff();
                         break;
-                    case PalletEntryStates.WaitForBocedi1:
+                    case PalletEntryState.WaitForBocedi1:
                         entryPalletLabel.Visible = true;
                         enterEmb1.Visible = true;
                         fCameraQrBad.TurnOff();
@@ -185,7 +186,7 @@ namespace InterfaceHMI
                         fLToBCDArrow.TurnOff();
                         fLabelEnter2.TurnOff();
                         break;
-                    case PalletEntryStates.WaitEnterBocedi:
+                    case PalletEntryState.WaitEnterBocedi:
                         entryPalletLabel.Visible = true;
                         fCameraQrBad.TurnOff();
                         fCameraQrGood.TurnOn();
@@ -193,7 +194,7 @@ namespace InterfaceHMI
                         fLToBCDArrow.TurnOn();
                         fLabelEnter2.Blink();
                         break;
-                    case PalletEntryStates.WaitForCar:
+                    case PalletEntryState.WaitForCar:
                         entryPalletLabel.Visible = true;
                         enterEmb1.Visible = true;
                         fCameraQrBad.TurnOff();
@@ -201,7 +202,7 @@ namespace InterfaceHMI
                         fLToCarArrow.Blink();
                         fLabelEnter2.TurnOff();
                         break;
-                    case PalletEntryStates.WaitEnterCar:
+                    case PalletEntryState.WaitEnterCar:
                         entryPalletLabel.Visible = true;
                         enterEmb1.Visible = true;
                         fCameraQrBad.TurnOff();
@@ -209,7 +210,7 @@ namespace InterfaceHMI
                         fLToCarArrow.TurnOn();
                         fLabelEnter2.TurnOff();
                         break;
-                    case PalletEntryStates.ReadingQrInError:
+                    case PalletEntryState.ReadingQrInError:
                         entryPalletLabel.Visible = true;
                         enterEmb1.Visible = true;
                         fCameraQrGood.Visible = false;
@@ -217,7 +218,7 @@ namespace InterfaceHMI
                         fCameraQrBad.Blink();
                         fLabelEnter2.TurnOff();
                         break;
-                    case PalletEntryStates.UpdateCar:
+                    case PalletEntryState.UpdateCar:
                         entryPalletLabel.Visible = false;
                         enterEmb1.Visible = false;
                         fCameraQrBad.TurnOff();
@@ -226,7 +227,7 @@ namespace InterfaceHMI
                         fLToCarArrow.TurnOff();
                         fLToBCDArrow.TurnOff();
                         break;
-                    case PalletEntryStates.Paused:
+                    case PalletEntryState.Paused:
                         entryPalletLabel.Visible = false;
                         enterEmb1.Visible = false;
                         fCameraQrBad.TurnOff();
@@ -369,7 +370,7 @@ namespace InterfaceHMI
 
                 if (i == packager.Queue.Count - 1)
                 {
-                    if (signals[(int)SignalsNames.WaitCorrection1])
+                    if (signals[SignalIndex.Plc(Signals.WaitCorrection1)])
                     {
                         emb1HMIQueue[i].BackColor = Color.LightCoral;
                     }
@@ -413,7 +414,7 @@ namespace InterfaceHMI
 
                 if (i == packager.Queue.Count - 1)
                 {
-                    if (signals[(int)SignalsNames.WaitCorrection2])
+                    if (signals[SignalIndex.Plc(Signals.WaitCorrection2)])
                     {
                         emb2HMIQueue[i].BackColor = Color.LightCoral;
                     }
@@ -437,7 +438,7 @@ namespace InterfaceHMI
             }
         }
 
-        private void UpdateConnections(HMIClient.Connections connections)
+        private void UpdateConnections(Connections connections)
         {
             pcIndustStatus1.BackColor = pcIndustStatus2.BackColor = Color.Green;
             masterPLCStatus1.BackColor = masterPLCStatus2.BackColor = connections.MasterPLC ? Color.Green : Color.Red;

@@ -18,37 +18,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseEnum, machineEnum, machineSources, contracts, SERVER } from './csharp.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SERVER = path.join(here, '..', '..', 'ModbusServer');
-
 const read = (...p) => fs.readFileSync(path.join(SERVER, ...p), 'utf8');
-
-// Members of a C# enum in declaration order, honouring explicit `= n` values
-// and the auto-increment between them. Attributes ([FaultState]) are ignored.
-function parseEnum(src, name, optional = false) {
-  const m = src.match(new RegExp(`enum\\s+${name}\\s*\\{([\\s\\S]*?)\\}`));
-  if (!m) {
-    if (optional) return null;
-    throw new Error(`enum ${name} not found`);
-  }
-  const out = [];
-  let next = 0;
-  for (const raw of m[1].replace(/\/\/[^\n]*/g, '').split(',')) {
-    const e = raw.trim().match(/^(?:\[\w+\]\s*)*(\w+)\s*(?:=\s*(\d+))?$/);
-    if (!e) continue;
-    const value = e[2] !== undefined ? Number(e[2]) : next;
-    out.push({ name: e[1], value });
-    next = value + 1;
-  }
-  return out;
-}
 
 // --- FatekPLC.Signals -------------------------------------------------------
 // Coils 1-20 are written by the PC and sent as PcSignals; 21+ are written by
 // the PLC and sent as Signals. Both arrays are indexed from their own base, as
 // HMIConnection.CreateMessage slices them.
-const signals = parseEnum(read('Devices', 'FatekPLC.cs'), 'Signals');
+// Signals moved into the shared contract assembly when rule 3 was retired.
+const signals = parseEnum(contracts, 'Signals');
 const PC_BASE = 1;
 const PLC_BASE = 21;
 
@@ -65,23 +45,16 @@ const pcSignalNames = slice(PC_BASE);
 const signalNames = slice(PLC_BASE);
 
 // --- Car.Position -----------------------------------------------------------
-const carPositions = parseEnum(read('Status.cs'), 'Position');
+const carPositions = parseEnum(contracts, 'Position');
 
 // --- Machine states ---------------------------------------------------------
 // Keyed by class. Runtime names carry an identifier (PalletLabel + "1",
 // PrinterMachine + "Wolrdjet1", OmronConnection + an IP), so consumers resolve
 // them by longest matching prefix — see statesForMachine below.
-const smDir = path.join(SERVER, 'StateMachine');
 const statesByClass = {};
-for (const file of fs.readdirSync(smDir).filter((f) => f.endsWith('.cs'))) {
-  const src = fs.readFileSync(path.join(smDir, file), 'utf8');
-  // Machine.cs itself matches the class pattern inside a doc-comment example,
-  // and has no States of its own — same reason generate_transitions.mjs
-  // requires both before accepting a file.
-  const cls = src.match(/class\s+(\w+)\s*:\s*Machine\b/);
-  const states = cls && parseEnum(src, 'States', true);
-  if (!states) continue;
-  statesByClass[cls[1]] = states.map((s) => s.name);
+for (const src of machineSources()) {
+  const m = machineEnum(src);
+  if (m) statesByClass[m.className] = m.members.map((s) => s.name);
 }
 
 // --- Emit -------------------------------------------------------------------

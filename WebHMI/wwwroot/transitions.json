@@ -59,37 +59,27 @@
    [
     "UnknownPosition",
     "WaitingCarWithPallet",
-    [
-     "CarInB1"
-    ]
+    []
    ],
    [
     "UnknownPosition",
     "WaitingCarEmpty",
-    [
-     "CarInB2"
-    ]
+    []
    ],
    [
     "WaitingCarInB1",
     "WaitingCarWithPallet",
-    [
-     "CarInB1"
-    ]
+    []
    ],
    [
     "WaitingCarWithPallet",
     "WaitingCarInB2",
-    [
-     "CarWithPallet"
-    ]
+    []
    ],
    [
     "WaitingCarInB2",
     "WaitingCarEmpty",
-    [
-     "CarInB2"
-    ]
+    []
    ],
    [
     "WaitingCarEmpty",
@@ -99,16 +89,12 @@
    [
     "WaitingCarEmpty",
     "WaitingGetPallet",
-    [
-     "SendUpdate2"
-    ]
+    []
    ],
    [
     "WaitingCarEmpty",
     "WaitingCarWithPallet",
-    [
-     "CarInB1"
-    ]
+    []
    ],
    [
     "WaitingGetQr",
@@ -196,16 +182,12 @@
    [
     "WaitingRequest",
     "ReadingQr",
-    [
-     "ElevatorRequest"
-    ]
+    []
    ],
    [
     "ReadingQr",
     "WaitingRequest",
-    [
-     "!ElevatorRequest"
-    ]
+    []
    ],
    [
     "ReadingQr",
@@ -225,9 +207,7 @@
    [
     "WaitingLeave",
     "WaitingRequest",
-    [
-     "!ElevatorRequest"
-    ]
+    []
    ],
    [
     "Delay",
@@ -252,23 +232,17 @@
    [
     "Init",
     "Starting",
-    [
-     "PLCStarting"
-    ]
+    []
    ],
    [
     "Starting",
     "WaitingMemory",
-    [
-     "SendingFIFOs"
-    ]
+    []
    ],
    [
     "WaitingMemory",
     "WaitingInit",
-    [
-     "Ready"
-    ]
+    []
    ],
    [
     "WaitingInit",
@@ -278,9 +252,7 @@
    [
     "Working",
     "Init",
-    [
-     "!Ready"
-    ]
+    []
    ]
   ],
   "flags": {
@@ -452,16 +424,12 @@
    [
     "Waiting",
     "Paused",
-    [
-     "Pause"
-    ]
+    []
    ],
    [
     "Waiting",
     "ReadingQR",
-    [
-     "ReadQR"
-    ]
+    []
    ],
    [
     "ReadingQR",
@@ -491,10 +459,7 @@
    [
     "WaitingAvailability",
     "AskingDB",
-    [
-     "bcd1Avaliable",
-     "bcd2Avaliable"
-    ]
+    []
    ],
    [
     "AskingDB",
@@ -513,23 +478,17 @@
    [
     "SendingID",
     "WaitForBocedi1",
-    [
-     "ToEmb1"
-    ]
+    []
    ],
    [
     "SendingID",
     "WaitForCar",
-    [
-     "ToEmb1"
-    ]
+    []
    ],
    [
     "WaitForBocedi1",
     "WaitEnterBocedi",
-    [
-     "WaitBocedi"
-    ]
+    []
    ],
    [
     "WaitEnterBocedi",
@@ -544,30 +503,22 @@
    [
     "UpdateFIFO1",
     "Waiting",
-    [
-     "!SendUpdate"
-    ]
+    []
    ],
    [
     "WaitForCar",
     "WaitEnterCar",
-    [
-     "WaitCar"
-    ]
+    []
    ],
    [
     "WaitEnterCar",
     "WaitUpdateCar",
-    [
-     "SendUpdate"
-    ]
+    []
    ],
    [
     "WaitEnterCar",
     "Paused",
-    [
-     "CarEntryError"
-    ]
+    []
    ],
    [
     "WaitUpdateCar",
@@ -577,9 +528,7 @@
    [
     "UpdateCar",
     "Waiting",
-    [
-     "!SendUpdate"
-    ]
+    []
    ],
    [
     "DefaultBehavior",
@@ -594,16 +543,12 @@
    [
     "ReadingQrInError",
     "Waiting",
-    [
-     "!ReadQR"
-    ]
+    []
    ],
    [
     "Paused",
     "Waiting",
-    [
-     "!Pause"
-    ]
+    []
    ]
   ],
   "flags": {

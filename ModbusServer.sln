@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModbusServer", "ModbusServe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpHMIClient", "TcpHMIClient\TcpHMIClient.csproj", "{9B7F177B-3549-4492-8F7B-507B7C7BBADA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts", "Contracts\Contracts.csproj", "{7F3B2C14-9E5A-4D8B-A6C3-1B0E5D9F4A72}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{9B7F177B-3549-4492-8F7B-507B7C7BBADA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9B7F177B-3549-4492-8F7B-507B7C7BBADA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9B7F177B-3549-4492-8F7B-507B7C7BBADA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F3B2C14-9E5A-4D8B-A6C3-1B0E5D9F4A72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F3B2C14-9E5A-4D8B-A6C3-1B0E5D9F4A72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F3B2C14-9E5A-4D8B-A6C3-1B0E5D9F4A72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F3B2C14-9E5A-4D8B-A6C3-1B0E5D9F4A72}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

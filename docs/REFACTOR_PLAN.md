@@ -37,12 +37,11 @@ hardware — see "What still needs the plant" below.
 
 Follow-ups deliberately left out of this branch:
 
-- Generate the WebHMI enum mirrors (`SIGNAL_NAMES`, `PC_SIGNAL_NAMES`, `PE`, and
-  the copies in `devserver/dummy_server.mjs`) from the C# sources the way
-  `transitions.json` already is. Same hand-mirroring problem as CLAUDE.md rule 3,
-  now in a third language.
-- A shared `.Contracts` assembly referenced by both `ModbusServer` and
-  `TcpHMIClient`, to delete the hand-duplicated DTOs and rule 3 with them.
+- ~~Generate the WebHMI enum mirrors from the C# sources~~ — done,
+  `WebHMI/devserver/generate_enums.mjs`.
+- ~~A shared contract assembly to delete the hand-duplicated DTOs and rule 3~~ —
+  done, `Contracts/` (`Wenco.Contracts`). Rule 3 now describes a shared
+  assembly instead of a manual mirroring duty.
 - `Status` still publishes `Queue` and then `LabelPallet`/`ExitPallet` in
   separate assignments, so an HMI snapshot can catch a new queue with a stale
   label pallet. The list-swap in `UpdateQueue` fixed the enumeration crash, not

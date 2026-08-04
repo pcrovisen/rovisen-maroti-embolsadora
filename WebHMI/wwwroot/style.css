@@ -289,6 +289,12 @@ body.stage-page, body:has(.plant-page), body:has(.diag-page) {
 
 .slots { display: flex; gap: 0.45rem; flex-wrap: wrap; }
 
+/* Bocedi 2's lane runs the other way on the floor (exit on the left), so its
+   queue has to grow the other way too: the head of the queue sits at the outer
+   edge, which is the right. Reversing the flow rather than the indices keeps
+   slot order — and so the delete Position sent to the server — untouched. */
+.slots.reverse { flex-direction: row-reverse; }
+
 .slot {
   /* Fixed size (QR wraps to 2 lines + Id + Maq) so filling/emptying a
      slot never reflows the page: empty dashed slots and filled pallet

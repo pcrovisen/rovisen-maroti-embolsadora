@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Reflection;
 using System.Threading.Tasks;
+using Wenco.Contracts;
 
 namespace ModbusServer.Devices
 {
@@ -186,8 +187,8 @@ namespace ModbusServer.Devices
                     ",@out_omitir_proceso_etiquetado = @out_omitir_proceso_etiquetado OUTPUT;\r\n\r\n" +
                     "select @out_preferencia_embolsadora, @out_receta, @out_identificador_visual, @out_omitir_proceso_etiquetado;\r\n", connection);
             command.Parameters.AddWithValue("@codigo", code);
-            command.Parameters.AddWithValue("@disponibilidad1", FatekPLC.ReadBit(FatekPLC.Signals.bcd1Avaliable) ? 1 : 0);
-            command.Parameters.AddWithValue("@disponibilidad2", FatekPLC.ReadBit(FatekPLC.Signals.bcd2Avaliable) ? 1 : 0);
+            command.Parameters.AddWithValue("@disponibilidad1", FatekPLC.ReadBit(Signals.bcd1Avaliable) ? 1 : 0);
+            command.Parameters.AddWithValue("@disponibilidad2", FatekPLC.ReadBit(Signals.bcd2Avaliable) ? 1 : 0);
             return command;
         }
 

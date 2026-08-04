@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Wenco.Contracts;
 
 namespace ModbusServer.StateMachine
 {
@@ -40,13 +41,13 @@ namespace ModbusServer.StateMachine
                 case States.UnknownPosition:
                     Status.Instance.ErrorMessages.CarError = "";
                     Status.SetCarPosition(Car.Position.Unknown);
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.CarInB1))
+                    if (FatekPLC.ReadBit(Signals.CarInB1))
                     {
                         Log.Info("Car waiting for pallet");
                         NextState(States.WaitingCarWithPallet);
                         Status.SetCarPosition(Car.Position.InB1);
                     }
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.CarInB2))
+                    if (FatekPLC.ReadBit(Signals.CarInB2))
                     {
                         Log.Info("Car waiting to leave pallet");
                         NextState(States.WaitingCarEmpty);
@@ -54,16 +55,16 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingCarInB1:
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.CarInB1))
+                    if (FatekPLC.ReadBit(Signals.CarInB1))
                     {
                         Log.Info("Car waiting for pallet");
-                        FatekPLC.ResetBit(FatekPLC.Signals.ConfirmUpdate2);
+                        FatekPLC.ResetBit(Signals.ConfirmUpdate2);
                         NextState(States.WaitingCarWithPallet);
                         Status.SetCarPosition(Car.Position.InB1);
                     }
                     break;
                 case States.WaitingCarWithPallet:
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.CarWithPallet))
+                    if (FatekPLC.ReadBit(Signals.CarWithPallet))
                     {
                         Log.Info("Car going to B2");
                         NextState(States.WaitingCarInB2);
@@ -71,7 +72,7 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingCarInB2:
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.CarInB2))
+                    if (FatekPLC.ReadBit(Signals.CarInB2))
                     {
                         Log.Info("Car waiting to leave pallet");
                         NextState(States.WaitingCarEmpty);
@@ -79,7 +80,7 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.WaitingCarEmpty:
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.BCD2EntryError))
+                    if (FatekPLC.ReadBit(Signals.BCD2EntryError))
                     {
                         if (!errorSend)
                         {
@@ -94,14 +95,14 @@ namespace ModbusServer.StateMachine
                         errorSend = false;
                         Status.Instance.ErrorMessages.CarError = "";
                     }
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.SendUpdate2))
+                    if (FatekPLC.ReadBit(Signals.SendUpdate2))
                     {
                         Log.Info("Car going to B1");
                         Status.Instance.ErrorMessages.CarError = "";
                         getPalletTask = FatekPLC.GetPalletInfo(FatekPLC.Memory.CARQRa, FatekPLC.Memory.CARID);
                         NextState(States.WaitingGetPallet);
                     }
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.CarInB1))
+                    if (FatekPLC.ReadBit(Signals.CarInB1))
                     {
                         Log.Info("Car waiting for pallet");
                         NextState(States.WaitingCarWithPallet);
@@ -141,7 +142,7 @@ namespace ModbusServer.StateMachine
                         }
 
                         _ = Status.SetCarPallet(false);
-                        FatekPLC.SetBit(FatekPLC.Signals.ConfirmUpdate2);
+                        FatekPLC.SetBit(Signals.ConfirmUpdate2);
                         NextState(States.WaitingCarInB1);
                         Status.SetCarPosition(Car.Position.GoingToB1);
                     }

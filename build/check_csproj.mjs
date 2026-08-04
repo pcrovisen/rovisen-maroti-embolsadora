@@ -14,6 +14,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projects = [
   ['ModbusServer', 'ModbusServer/ModbusServer.csproj'],
   ['TcpHMIClient', 'TcpHMIClient/TcpHMIClient.csproj'],
+  ['Contracts', 'Contracts/Contracts.csproj'],
 ];
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {

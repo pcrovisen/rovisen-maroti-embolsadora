@@ -7,21 +7,22 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Wenco.Contracts;
 
 namespace TcpHMIClient
 {
     public partial class PalletDetail : Form
     {
         HMIClient client;
-        HMIClient.DeletePallet pallet;
+        DeletePallet pallet;
         public PalletDetail()
         {
             InitializeComponent();
         }
 
-        public void Init(int packager, int position, HMIClient.Pallet pallet, HMIClient client)
+        public void Init(int packager, int position, Pallet pallet, HMIClient client)
         {
-            this.pallet = new HMIClient.DeletePallet() { Packager = packager, Position = position, Pallet = pallet};
+            this.pallet = new DeletePallet() { Packager = packager, Position = position, Pallet = pallet};
             this.client = client;
             listView.Items[0].SubItems.Add(pallet.Qr);
             listView.Items[1].SubItems.Add(pallet.Id);

@@ -1,5 +1,6 @@
 ﻿using log4net;
 using ModbusServer.Data;
+using Wenco.Contracts;
 using System;
 using System.Data.SqlTypes;
 using System.Diagnostics;
@@ -92,66 +93,6 @@ namespace ModbusServer.Devices
             DEL2Pos2,
         }
 
-        public enum Signals
-        {
-            ReadingPallet = 1,
-            SendingQR,
-            Labeling1,
-            Labeling2,
-            ToEmb1,
-            ToEmb2,
-            ReceivingFIFOs,
-            Alive,
-            DelEmb1,
-            DelEmb2,
-            ConfirmUpdate,
-            ConfirmUpdate2,
-            WeightOk1,
-            WeightOk2,
-            PalletLeave1,
-            PalletLeave2,
-            ErrorQr,
-            Waiting,
-            ElevatorAuth,
-            ElevatorFailedQr,
-            ReadQR = 21,
-            Label1,
-            Label2,
-            SendingFIFOs,
-            Ready,
-            Del1Valid,
-            Del1Error,
-            Del2Valid,
-            Del2Error,
-            SendUpdate,
-            SendUpdate2,
-            CarWithPallet,
-            CarInB1,
-            CarInB2,
-            bcd1Avaliable,
-            bcd2Avaliable,
-            Leave1,
-            Leave2,
-            WaitBocedi,
-            WaitCar,
-            SlaveConnected,
-            WaitingPallet,
-            PLCStarting,
-            PLCLabeling1,
-            PLCLabeling2,
-            WaitCorrection1,
-            WaitCorrection2,
-            BCD2EntryError,
-            CarEntryError,
-            BCD1OK,
-            BCD2OK,
-            Pause,
-            ElevatorRequest,
-            LabelNull1,
-            LabelNull2,
-            WaitLabel1,
-            WaitLabel2,
-        }
 
         public static void Init()
         {

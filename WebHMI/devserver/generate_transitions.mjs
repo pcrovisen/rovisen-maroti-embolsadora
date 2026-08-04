@@ -17,9 +17,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { machineEnum, SERVER } from './csharp.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SRC_DIR = path.join(here, '..', '..', 'ModbusServer', 'StateMachine');
+const SRC_DIR = path.join(SERVER, 'StateMachine');
 const OUT = path.join(here, '..', 'wwwroot', 'transitions.json');
 
 const result = {};
@@ -27,25 +28,19 @@ const result = {};
 for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
   const src = fs.readFileSync(path.join(SRC_DIR, file), 'utf8');
 
-  const cls = src.match(/class\s+(\w+)\s*:\s*Machine\b/);
-  const en = src.match(/enum\s+States\s*\{([\s\S]*?)\}/);
-  if (!cls || !en) continue;
+  // The state enum may be nested here or, when the HMIs key on its ordinals,
+  // shared in Contracts — machineEnum finds it either way.
+  const machine = machineEnum(src);
+  if (!machine) continue;
+  const states = machine.members.map((m) => m.name);
+  const fault = new Set(machine.members.filter((m) => m.fault).map((m) => m.name));
 
-  // Members may carry [FaultState] (see StateMachine/FaultStateAttribute.cs).
-  const states = [];
-  const fault = new Set();
-  for (const raw of en[1].replace(/\/\/[^\n]*/g, '').split(',')) {
-    const m = raw.trim().match(/^((?:\[\w+\]\s*)*)(\w+)$/);
-    if (!m) continue;
-    states.push(m[2]);
-    if (/\[FaultState\]/.test(m[1])) fault.add(m[2]);
-  }
-
-  const init = src.match(/base\s*\(\s*States\.(\w+)/)?.[1] ?? states[0];
+  const init = src.match(/base\s*\(\s*(?:States|\w+State)\.(\w+)/)?.[1] ?? states[0];
 
   // Locate case labels; consecutive labels (only whitespace between them)
   // share the same block.
-  const labels = [...src.matchAll(/case\s+States\.(\w+)\s*:/g)]
+  const caseRe = new RegExp(`case\\s+${machine.enumName}\\.(\\w+)\\s*:`, 'g');
+  const labels = [...src.matchAll(caseRe)]
     .map((m) => ({ state: m[1], start: m.index, end: m.index + m[0].length }));
 
   const groups = [];
@@ -106,7 +101,7 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
   groups.forEach((g, i) => {
     const blockEnd = i + 1 < groups.length ? groups[i + 1].start : switchEnd;
     const block = src.slice(g.end, blockEnd);
-    for (const m of block.matchAll(/NextState\s*\(\s*States\.(\w+)/g)) {
+    for (const m of block.matchAll(new RegExp(`NextState\\s*\\(\\s*${machine.enumName}\\.(\\w+)`, 'g'))) {
       const gates = gateFor(block, m.index);
       for (const from of g.states) {
         if (from === m[1]) continue;
@@ -121,7 +116,7 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
 
   // Liveness ceilings, from the machine's `StateTimeouts` table.
   const timeouts = {};
-  for (const t of src.matchAll(/\{\s*States\.(\w+)\s*,\s*(\d+)\s*\}/g)) {
+  for (const t of src.matchAll(new RegExp(`\\{\\s*${machine.enumName}\\.(\\w+)\\s*,\\s*(\\d+)\\s*\\}`, 'g'))) {
     timeouts[t[1]] = Number(t[2]);
   }
 
@@ -138,7 +133,7 @@ for (const file of fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.cs'))) {
     if (Object.keys(f).length) flags[st] = f;
   }
 
-  result[cls[1]] = { init, states, edges: edgeList, flags };
+  result[machine.className] = { init, states, edges: edgeList, flags };
 }
 
 fs.writeFileSync(OUT, JSON.stringify(result, null, 1));

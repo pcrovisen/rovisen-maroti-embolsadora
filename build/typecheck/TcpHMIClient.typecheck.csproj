@@ -21,6 +21,9 @@
 
   <ItemGroup>
     <Compile Include="$(Src)/**/*.cs" Exclude="$(Src)/obj/**;$(Src)/bin/**" />
+    <!-- The shared wire contract. Top level only — its Properties/AssemblyInfo.cs
+         would duplicate the assembly attributes of the project under test. -->
+    <Compile Include="$(MSBuildThisFileDirectory)../../Contracts/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

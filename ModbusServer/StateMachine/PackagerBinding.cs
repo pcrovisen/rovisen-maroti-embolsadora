@@ -1,5 +1,6 @@
 using ModbusServer.Devices;
 using System.Threading.Tasks;
+using Wenco.Contracts;
 
 namespace ModbusServer.StateMachine
 {
@@ -20,20 +21,20 @@ namespace ModbusServer.StateMachine
             Number = 1,
 
             // Labeling handshake (PalletLabel).
-            Label = FatekPLC.Signals.Label1,
-            Labeling = FatekPLC.Signals.Labeling1,
-            PLCLabeling = FatekPLC.Signals.PLCLabeling1,
-            WaitCorrection = FatekPLC.Signals.WaitCorrection1,
-            LabelNull = FatekPLC.Signals.LabelNull1,
-            WeightOk = FatekPLC.Signals.WeightOk1,
-            Leave = FatekPLC.Signals.Leave1,
-            WaitLabel = FatekPLC.Signals.WaitLabel1,
-            PalletLeave = FatekPLC.Signals.PalletLeave1,
+            Label = Signals.Label1,
+            Labeling = Signals.Labeling1,
+            PLCLabeling = Signals.PLCLabeling1,
+            WaitCorrection = Signals.WaitCorrection1,
+            LabelNull = Signals.LabelNull1,
+            WeightOk = Signals.WeightOk1,
+            Leave = Signals.Leave1,
+            WaitLabel = Signals.WaitLabel1,
+            PalletLeave = Signals.PalletLeave1,
 
             // Deletion handshake (DeletePalletEmb).
-            DelEmb = FatekPLC.Signals.DelEmb1,
-            DelValid = FatekPLC.Signals.Del1Valid,
-            DelError = FatekPLC.Signals.Del1Error,
+            DelEmb = Signals.DelEmb1,
+            DelValid = Signals.Del1Valid,
+            DelError = Signals.Del1Error,
 
             // Deletion scratch registers. DelQr is the low word; the high word is
             // always the next register (DEL1b).
@@ -60,19 +61,19 @@ namespace ModbusServer.StateMachine
         {
             Number = 2,
 
-            Label = FatekPLC.Signals.Label2,
-            Labeling = FatekPLC.Signals.Labeling2,
-            PLCLabeling = FatekPLC.Signals.PLCLabeling2,
-            WaitCorrection = FatekPLC.Signals.WaitCorrection2,
-            LabelNull = FatekPLC.Signals.LabelNull2,
-            WeightOk = FatekPLC.Signals.WeightOk2,
-            Leave = FatekPLC.Signals.Leave2,
-            WaitLabel = FatekPLC.Signals.WaitLabel2,
-            PalletLeave = FatekPLC.Signals.PalletLeave2,
+            Label = Signals.Label2,
+            Labeling = Signals.Labeling2,
+            PLCLabeling = Signals.PLCLabeling2,
+            WaitCorrection = Signals.WaitCorrection2,
+            LabelNull = Signals.LabelNull2,
+            WeightOk = Signals.WeightOk2,
+            Leave = Signals.Leave2,
+            WaitLabel = Signals.WaitLabel2,
+            PalletLeave = Signals.PalletLeave2,
 
-            DelEmb = FatekPLC.Signals.DelEmb2,
-            DelValid = FatekPLC.Signals.Del2Valid,
-            DelError = FatekPLC.Signals.Del2Error,
+            DelEmb = Signals.DelEmb2,
+            DelValid = Signals.Del2Valid,
+            DelError = Signals.Del2Error,
 
             DelQr = FatekPLC.Memory.DEL2a,
             DelId = FatekPLC.Memory.DEL2ID,
@@ -93,19 +94,19 @@ namespace ModbusServer.StateMachine
 
         public int Number { get; private set; }
 
-        public FatekPLC.Signals Label { get; private set; }
-        public FatekPLC.Signals Labeling { get; private set; }
-        public FatekPLC.Signals PLCLabeling { get; private set; }
-        public FatekPLC.Signals WaitCorrection { get; private set; }
-        public FatekPLC.Signals LabelNull { get; private set; }
-        public FatekPLC.Signals WeightOk { get; private set; }
-        public FatekPLC.Signals Leave { get; private set; }
-        public FatekPLC.Signals WaitLabel { get; private set; }
-        public FatekPLC.Signals PalletLeave { get; private set; }
+        public Signals Label { get; private set; }
+        public Signals Labeling { get; private set; }
+        public Signals PLCLabeling { get; private set; }
+        public Signals WaitCorrection { get; private set; }
+        public Signals LabelNull { get; private set; }
+        public Signals WeightOk { get; private set; }
+        public Signals Leave { get; private set; }
+        public Signals WaitLabel { get; private set; }
+        public Signals PalletLeave { get; private set; }
 
-        public FatekPLC.Signals DelEmb { get; private set; }
-        public FatekPLC.Signals DelValid { get; private set; }
-        public FatekPLC.Signals DelError { get; private set; }
+        public Signals DelEmb { get; private set; }
+        public Signals DelValid { get; private set; }
+        public Signals DelError { get; private set; }
 
         public FatekPLC.Memory DelQr { get; private set; }
         public FatekPLC.Memory DelId { get; private set; }

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Reflection;
 using System.Threading.Tasks;
+using Wenco.Contracts;
 
 namespace ModbusServer.StateMachine
 {

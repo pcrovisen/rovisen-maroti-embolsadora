@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Wenco.Contracts;
 
 namespace ModbusServer.StateMachine
 {
@@ -69,21 +70,21 @@ namespace ModbusServer.StateMachine
             switch (State)
             {
                 case States.Init:
-                    if (FatekPLC.IsConnected && FatekPLC.ReadBit(FatekPLC.Signals.PLCStarting))
+                    if (FatekPLC.IsConnected && FatekPLC.ReadBit(Signals.PLCStarting))
                     {
                         NextState(States.Starting);
                     }
                     break;
                 case States.Starting:
-                    FatekPLC.SetBit(FatekPLC.Signals.Alive);
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.SendingFIFOs))
+                    FatekPLC.SetBit(Signals.Alive);
+                    if (FatekPLC.ReadBit(Signals.SendingFIFOs))
                     {
                         NextState(States.WaitingMemory);
                     }
                     break;
                 case States.WaitingMemory:
-                    FatekPLC.SetBit(FatekPLC.Signals.ReceivingFIFOs);
-                    if (FatekPLC.ReadBit(FatekPLC.Signals.Ready))
+                    FatekPLC.SetBit(Signals.ReceivingFIFOs);
+                    if (FatekPLC.ReadBit(Signals.Ready))
                     {
                         NextState(States.WaitingInit);
                         Log.Info("Master PLC connected");
@@ -99,11 +100,11 @@ namespace ModbusServer.StateMachine
                     }
                     break;
                 case States.Working:
-                    FatekPLC.ResetBit(FatekPLC.Signals.ReceivingFIFOs);
+                    FatekPLC.ResetBit(Signals.ReceivingFIFOs);
                     Status.Instance.Connections.MasterPLC = true;
-                    Status.Instance.Connections.SlavePLC = FatekPLC.ReadBit(FatekPLC.Signals.SlaveConnected);
-                    Status.Instance.Connections.Packager1 = FatekPLC.ReadBit(FatekPLC.Signals.BCD1OK);
-                    Status.Instance.Connections.Packager2 = FatekPLC.ReadBit(FatekPLC.Signals.BCD2OK);
+                    Status.Instance.Connections.SlavePLC = FatekPLC.ReadBit(Signals.SlaveConnected);
+                    Status.Instance.Connections.Packager1 = FatekPLC.ReadBit(Signals.BCD1OK);
+                    Status.Instance.Connections.Packager2 = FatekPLC.ReadBit(Signals.BCD2OK);
                     palletEntry.Step();
                     deletePalletBocedi1.Step();
                     deletePalletBocedi2.Step();
@@ -111,11 +112,11 @@ namespace ModbusServer.StateMachine
                     palletLabelBocedi2.Step();
                     carMachine.Step();
                     elevatorMachine.Step();
-                    if (!FatekPLC.ReadBit(FatekPLC.Signals.Ready))
+                    if (!FatekPLC.ReadBit(Signals.Ready))
                     {
                         NextState(States.Init);
                         Log.Info("Master PLC disconnected");
-                        FatekPLC.ResetBit(FatekPLC.Signals.Alive);
+                        FatekPLC.ResetBit(Signals.Alive);
                         break;
                     }
                     break;

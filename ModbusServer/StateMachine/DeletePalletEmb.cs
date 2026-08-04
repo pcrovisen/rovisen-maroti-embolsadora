@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using log4net;
 using ModbusServer.Devices;
+using Wenco.Contracts;
 
 namespace ModbusServer.StateMachine
 {

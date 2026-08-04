@@ -1,6 +1,6 @@
 using System;
 
-namespace ModbusServer.StateMachine
+namespace Wenco.Contracts
 {
     /// <summary>
     /// Marks a state that means something has gone wrong and, usually, that an
@@ -10,6 +10,9 @@ namespace ModbusServer.StateMachine
     /// flag in <c>transitions.json</c> so the diagnostics page can draw those
     /// states differently. Terminal states need no marker: the generator derives
     /// them from the graph (no outgoing transition).
+    ///
+    /// Public and in the contract assembly because the enums it marks may be
+    /// shared (PalletEntryState) as well as private to the server.
     ///
     /// Applied to the enum member, not the class:
     /// <code>
@@ -21,7 +24,7 @@ namespace ModbusServer.StateMachine
     /// </code>
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    internal sealed class FaultStateAttribute : Attribute
+    public sealed class FaultStateAttribute : Attribute
     {
     }
 }

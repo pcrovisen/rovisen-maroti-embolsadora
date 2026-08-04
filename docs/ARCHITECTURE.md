@@ -33,7 +33,7 @@ A legacy direct TCP link to the car (`CarConnection`/`CarCommunication`, port 51
 
 ## Shared state: `Status`
 
-`Status.Instance` (`ModbusServer/Status.cs`) is the single in-memory model: entry pallet, `Packager1/2` (FIFO queue + label-position pallet + exit pallet), `Car`, `Connections`, error messages (operator-facing, in Spanish), and the machine-state registry. `Updated` flags are reset at the top of every `MainMachine.Step()` and set by whoever mutates a section; `HMIConnection` uses them to send queue data only when it changed. FIFO re-reads from PLC memory are serialized with two `SemaphoreSlim`s (`UpdateFIFO1/2`).
+`Status.Instance` (`ModbusServer/Status.cs`) is the single in-memory model, built from the shared DTOs in `Contracts/`: entry pallet, `Packager1/2` (FIFO queue + label-position pallet + exit pallet), `Car`, `Connections`, error messages (operator-facing, in Spanish), and the machine-state registry. The `…Updated` flags on `Status` are reset at the top of every `MainMachine.Step()` and set by whoever mutates a section; `HMIConnection` uses them to send queue data only when it changed. They live on `Status`, not on the DTOs, so the contract assembly needs no serializer attributes. FIFO re-reads from PLC memory are serialized with two `SemaphoreSlim`s (`UpdateFIFO1/2`).
 
 ## Fatek master PLC link (Modbus TCP)
 
@@ -86,7 +86,7 @@ HMI sends `del{json DeletePallet}` → `HMIConnection` calls `DeletePalletEmb.In
 
 - `init` → full JSON snapshot; `update` (or anything else) → snapshot where `Packager1/2`, `Car`, `States` are `null` unless changed since that client's last message; `del…` → deletion (answer `OK`/`NOK`); `terminate` → close.
 - Snapshot keys: `Config`, `Signals` (coils 21+ as bool[37], indexed by the client's `SignalsNames` enum which starts at `ReadQR`), `PcSignals` (coils 1–20 as bool[20], indexed by `PcSignalsNames`), `Connections`, `EntryPallet`, `ErrorMessages`, `Packager1`, `Packager2`, `Car`, `MachineState` (name → state ordinal), `States` (name → ordinal → state name).
-- A client silent for 10 s is dropped. The client (`TcpHMIClient/HMIClient.cs`) polls every 100 ms from a `BackgroundWorker` and mirrors the server's DTOs/enums by hand — **if you touch `Status` DTOs, `Signals` order, or any `States` enum used by the HMI, update `HMIClient.cs` to match** (`PalletEntryStates`, `SignalsNames`, DTO classes).
+- A client silent for 10 s is dropped. The client (`TcpHMIClient/HMIClient.cs`) polls every 100 ms from a `BackgroundWorker`. Both sides use the **same** types, from `Contracts/` (`Wenco.Contracts`): `SystemStatus` and its members, the `Signals` enum with `SignalIndex` for array positions, and `PalletEntryState`. There is nothing left to keep in step by hand on the C# side; the Web HMI's JavaScript mirrors are generated from these same sources.
 
 ## Database (SQL Server, schema `[maroti]`)
 

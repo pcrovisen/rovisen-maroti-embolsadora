@@ -141,7 +141,7 @@ namespace ModbusServer.StateMachine
         // and zero-based.
         private void PublishStateNames()
         {
-            Status.Instance.StateMachine.Updated = true;
+            Status.Instance.StatesUpdated = true;
             var names = Status.Instance.StateMachine.MachinesStates[Name];
             foreach (TState value in Enum.GetValues(typeof(TState)))
             {

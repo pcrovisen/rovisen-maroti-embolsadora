@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Security.AntiXss;
 using static Topshelf.Runtime.Windows.NativeMethods;
+using Wenco.Contracts;
 
 namespace ModbusServer
 {
@@ -26,6 +27,14 @@ namespace ModbusServer
         public StateMachineStatus StateMachine { get; set; }
         public ErrorMessages ErrorMessages { get; set; }
 
+        // Set by whoever mutates a section, cleared at the top of every
+        // MainMachine.Step(); HMIConnection uses them to send the big collections
+        // only when they changed. Server bookkeeping, not part of the contract.
+        public bool Packager1Updated { get; set; }
+        public bool Packager2Updated { get; set; }
+        public bool CarUpdated { get; set; }
+        public bool StatesUpdated { get; set; }
+
         static SemaphoreSlim semph1 = new SemaphoreSlim(1, 1);
         static SemaphoreSlim semph2 = new SemaphoreSlim(1, 1);
 
@@ -35,9 +44,9 @@ namespace ModbusServer
             Instance = new Status()
             {
                 EntryPallet = null,
-                Packager1 = new Packager() { Queue = new List<Pallet>(), LabelPallet = null, ExitPallet = null, Updated = false},
-                Packager2 = new Packager() { Queue = new List<Pallet>(), LabelPallet = null, ExitPallet = null, Updated = false},
-                Car = new Car() { CarPosition = Car.Position.Unknown, HasPallet = false, Pallet = null, Updated = false},
+                Packager1 = new Packager() { Queue = new List<Pallet>(), LabelPallet = null, ExitPallet = null },
+                Packager2 = new Packager() { Queue = new List<Pallet>(), LabelPallet = null, ExitPallet = null },
+                Car = new Car() { CarPosition = Car.Position.Unknown, HasPallet = false, Pallet = null },
                 Connections = new Connections() { MasterPLC = false, SlavePLC = false, QrReader = false, Packager1 = false, Packager2 = false, WencoDB = false},
                 StateMachine = new StateMachineStatus() { Machines = new Dictionary<string, int>(), MachinesStates = new Dictionary<string, Dictionary<int, string>>() },
                 ErrorMessages = new ErrorMessages() { BDC1Error = "", BDC2Error = "", EntryError = "", CarError = "",}
@@ -46,16 +55,45 @@ namespace ModbusServer
 
         public static void Reset()
         {
-            Instance.Car.Updated = false;
-            Instance.Packager1.Reset();
-            Instance.Packager2.Reset();
-            Instance.StateMachine.Updated = false;
+            Instance.CarUpdated = false;
+            Instance.Packager1Updated = false;
+            Instance.Packager2Updated = false;
+            Instance.StatesUpdated = false;
         }
 
         public static async Task InitQueues()
         {
-            await Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
-            await Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+            await UpdateQueue(Instance.Packager1, FatekPLC.Memory.FIFO2Len, FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
+            Instance.Packager1Updated = true;
+            await UpdateQueue(Instance.Packager2, FatekPLC.Memory.FIFO4Len, FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+            Instance.Packager2Updated = true;
+        }
+
+        /// <summary>
+        /// Re-reads one lane's queue from PLC memory.
+        ///
+        /// Runs on a thread-pool task while HMIConnection may be serializing the
+        /// current list on the step thread, so it builds a new list and swaps the
+        /// reference instead of mutating the live one.
+        /// </summary>
+        private static async Task UpdateQueue(Packager packager, FatekPLC.Memory lengthAt,
+            FatekPLC.Memory startFIFO, FatekPLC.Memory startId)
+        {
+            int lenght = FatekPLC.ReadMemory(lengthAt);
+            var newQueue = new List<Pallet>();
+
+            for (ushort i = 0; i < lenght; i++)
+            {
+                newQueue.Add(await FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
+            }
+
+            packager.Queue = newQueue;
+
+            FatekPLC.Memory aux = startFIFO + 20;
+            packager.LabelPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
+
+            aux += 3;
+            packager.ExitPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
         }
 
         internal static async Task UpdateFIFO1()
@@ -63,7 +101,8 @@ namespace ModbusServer
             await semph1.WaitAsync();
             try
             {
-                await Instance.Packager1.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO2Len), FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
+                await UpdateQueue(Instance.Packager1, FatekPLC.Memory.FIFO2Len, FatekPLC.Memory.FIFO11a, FatekPLC.Memory.FIFO21);
+                Instance.Packager1Updated = true;
             }
             finally
             {
@@ -77,7 +116,8 @@ namespace ModbusServer
             await semph2.WaitAsync();
             try
             {
-                await Instance.Packager2.UpdateQueue(FatekPLC.ReadMemory(FatekPLC.Memory.FIFO4Len), FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+                await UpdateQueue(Instance.Packager2, FatekPLC.Memory.FIFO4Len, FatekPLC.Memory.FIFO31a, FatekPLC.Memory.FIFO41);
+                Instance.Packager2Updated = true;
             }
             finally
             {
@@ -88,7 +128,7 @@ namespace ModbusServer
 
         internal static async Task SetCarPallet(bool hasPallet)
         {
-            Instance.Car.Updated = true;
+            Instance.CarUpdated = true;
             Instance.Car.HasPallet = hasPallet;
             if (Instance.Car.HasPallet)
             {
@@ -101,7 +141,7 @@ namespace ModbusServer
         }
         internal static void SetCarPosition(Car.Position position)
         {
-            Instance.Car.Updated = true;
+            Instance.CarUpdated = true;
             Instance.Car.CarPosition = position;
         }
 
@@ -134,103 +174,9 @@ namespace ModbusServer
         }
     }
 
-    internal class Packager
-    {
-        public List<Pallet> Queue { get; set; }
-        public Pallet LabelPallet { get; set; }
-        public Pallet ExitPallet { get; set; }
-        [JsonIgnore]
-        public bool Updated { get; set; }
-
-        public void Reset()
-        {
-            Updated = false;
-        }
-
-        public async Task UpdateQueue(int lenght, FatekPLC.Memory startFIFO, FatekPLC.Memory startId)
-        {
-            // This runs on a thread-pool task while HMIConnection may be serializing
-            // the current list on the main thread: build a new list and swap the
-            // reference instead of mutating the live one.
-            var newQueue = new List<Pallet>();
-
-            for (ushort i = 0; i < lenght; i++)
-            {
-                newQueue.Add(await FatekPLC.GetPalletInfo(2 * i + startFIFO, i + startId));
-            }
-
-            Queue = newQueue;
-
-            // Label Pallet
-            FatekPLC.Memory aux = startFIFO + 20;
-            LabelPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
-
-            // Exit Pallet
-            aux += 3;
-            ExitPallet = await FatekPLC.GetPalletInfo(aux, aux + 2);
-
-            Updated = true;
-        }
-    }
-
-    public class Pallet
-    {
-        public string Qr { get; set; }
-        public string Id { get; set; }
-        public string Recipe { get; set; }
-        public string Injector { get; set; }
-        public bool Labeling { get; set; }
-    }
-
-    internal class DeletePallet
-    {
-        public Pallet Pallet { get; set; }
-        public int Packager { get; set; }
-        public int Position { get; set; }
-    }
-
-    internal class Car
-    {
-        public enum Position
-        {
-            Unknown,
-            GoingToB1,
-            InB1,
-            GoingToB2,
-            InB2,
-        }
-        public Position CarPosition { get; set; }
-        public bool HasPallet { get; set; }
-        public Pallet Pallet { get; set; }
-        [JsonIgnore]
-        public bool Updated { get; set; }
-    }
-
-    internal class Connections
-    {
-        public bool QrReader { get; set; }
-        public bool MasterPLC { get; set; }
-        public bool SlavePLC { get; set; }
-        public bool WencoDB { get; set; }
-        public bool Packager1 { get; set; }
-        public bool Packager2 { get; set; }
-        public bool Labeler1 { get; set; }
-        public bool Labeler2 { get; set; }
-    }
-
     internal class StateMachineStatus
     {
         public Dictionary<string, int> Machines { get; set; }
         public Dictionary<string, Dictionary<int, string>> MachinesStates { get; set; }
-        [JsonIgnore]
-        public bool Updated { get; set; }
-    }
-
-    public class ErrorMessages
-    {
-        public string BDC1Error { get; set; }
-        public string BDC2Error { get; set; }
-        public string EntryError { get; set; }
-        public string CarError { get; set; }
     }
 }

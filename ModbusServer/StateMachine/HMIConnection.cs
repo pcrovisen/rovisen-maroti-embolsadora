@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Wenco.Contracts;
 
 namespace ModbusServer.StateMachine
 {
@@ -56,13 +57,13 @@ namespace ModbusServer.StateMachine
 
         protected override void OnStep()
         {
-            if(Status.Instance.Packager1.Updated)
+            if (Status.Instance.Packager1Updated)
                 UpdateQueueEmb1 = true;
-            if (Status.Instance.Packager2.Updated)
+            if (Status.Instance.Packager2Updated)
                 UpdateQueueEmb2 = true;
-            if (Status.Instance.Car.Updated)
+            if (Status.Instance.CarUpdated)
                 UpdatedCar = true;
-            if(Status.Instance.StateMachine.Updated)
+            if (Status.Instance.StatesUpdated)
                 UpdateMachineStates = true;
 
             switch (State)
@@ -239,60 +240,56 @@ namespace ModbusServer.StateMachine
             return DeletePalletEmb.Instance(pallet.Packager).StartDelete(pallet);
         }
 
+        // Builds the snapshot every HMI receives. SystemStatus lives in
+        // Wenco.Contracts, so this and the clients cannot drift: it is the same
+        // type on both sides of the socket.
         private string CreateMessage(bool force = false)
         {
-            var message = new Dictionary<string, object>
+            var message = new SystemStatus
             {
-                ["Config"] = Config.Instance,
-                ["Signals"] = FatekPLC.ReadSignals(FatekPLC.Signals.ReadQR, FatekPLC.Signals.WaitLabel2 - FatekPLC.Signals.ReadQR + 1),
-                ["PcSignals"] = FatekPLC.ReadSignals(FatekPLC.Signals.ReadingPallet, FatekPLC.Signals.ElevatorFailedQr - FatekPLC.Signals.ReadingPallet + 1),
-                ["Connections"] = Status.Instance.Connections,
-                ["EntryPallet"] = Status.Instance.EntryPallet,
-                ["ErrorMessages"] = Status.Instance.ErrorMessages,
-        };
+                Config = new HmiConfig
+                {
+                    QrRetries = Config.Instance.QrRetries,
+                    ContinueIfNoQr = Config.Instance.ContinueIfNoQr,
+                    ContinueIfNoDB = Config.Instance.ContinueIfNoDB,
+                    DefaultRecipe = Config.Instance.DefaultRecipe,
+                },
+                Signals = FatekPLC.ReadSignals(Signals.ReadQR, SignalIndex.PlcCount),
+                PcSignals = FatekPLC.ReadSignals(Signals.ReadingPallet, SignalIndex.PcCount),
+                Connections = Status.Instance.Connections,
+                EntryPallet = Status.Instance.EntryPallet,
+                ErrorMessages = Status.Instance.ErrorMessages,
+                MachineState = Status.Instance.StateMachine.Machines,
+            };
 
+            // The big collections go only when they changed since this client's
+            // last message; null means "unchanged, keep what you have".
             if (UpdateQueueEmb1 || force)
             {
                 UpdateQueueEmb1 = false;
-                message["Packager1"] = Status.Instance.Packager1;
-            }
-            else
-            {
-                message["Packager1"] = null;
+                message.Packager1 = Status.Instance.Packager1;
             }
 
             if (UpdateQueueEmb2 || force)
             {
                 UpdateQueueEmb2 = false;
-                message["Packager2"] = Status.Instance.Packager2;
-            }
-            else
-            {
-                message["Packager2"] = null;
+                message.Packager2 = Status.Instance.Packager2;
             }
 
             if (UpdatedCar || force)
             {
                 UpdatedCar = false;
-                message["Car"] = Status.Instance.Car;
-            }
-            else
-            {
-                message["Car"] = null;
+                message.Car = Status.Instance.Car;
             }
 
-            message["MachineState"] = Status.Instance.StateMachine.Machines;
             if (UpdateMachineStates || force)
             {
                 UpdateMachineStates = false;
-                message["States"] = Status.Instance.StateMachine.MachinesStates;
-            }
-            else
-            {
-                message["States"] = null;
+                message.States = Status.Instance.StateMachine.MachinesStates;
             }
 
             return JsonSerializer.Serialize(message);
         }
+
     }
 }
