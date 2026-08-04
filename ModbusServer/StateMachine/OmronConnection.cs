@@ -30,7 +30,7 @@ namespace ModbusServer.StateMachine
             command.SetTCPParams(IPAddress.Parse(ip), 9600);
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             switch (State)
             {

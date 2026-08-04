@@ -32,6 +32,10 @@ namespace ModbusServer.StateMachine
 
         private readonly TState initState;
 
+        // Set once per visit to a state, so a stall is reported once and not ten
+        // times a second.
+        private bool stuckReported;
+
         // Deliberately not called `Log`: subclasses declare their own
         // `static readonly ILog Log` and an inherited member with the same name
         // would hide it (CS0108).
@@ -52,6 +56,7 @@ namespace ModbusServer.StateMachine
         {
             State = initState;
             StateTime.Restart();
+            stuckReported = false;
             // Same publication as NextState: without it the HMIs kept showing the
             // state the machine was in before the reset until its next transition.
             Status.Instance.StateMachine.Machines[Name] = StateValue(State);
@@ -61,6 +66,7 @@ namespace ModbusServer.StateMachine
         {
             State = nextState;
             StateTime.Restart();
+            stuckReported = false;
             Status.Instance.StateMachine.Machines[Name] = StateValue(State);
         }
 
@@ -70,7 +76,63 @@ namespace ModbusServer.StateMachine
             Status.Instance.StateMachine.MachinesStates.Remove(Name);
         }
 
-        public abstract void Step();
+        public void Step()
+        {
+            CheckLiveness();
+            OnStep();
+        }
+
+        protected abstract void OnStep();
+
+        // ------------------------------------------------------------------
+        // Liveness
+        // ------------------------------------------------------------------
+        //
+        // An exception restarts the service and the PLC re-syncs it on the next
+        // handshake — that path is designed for. A *hang* has nothing to trip:
+        // a machine waiting on a bit that never arrives sits there silently until
+        // somebody notices the line has stopped.
+        //
+        // Machines list the states that are supposed to make progress and how long
+        // they may take. States left out wait indefinitely on purpose: idle states
+        // (PalletEntry.Waiting between pallets), states waiting for an operator
+        // (WaitingCorrection, Paused), and waits on physical movement whose
+        // duration depends on how the line is running.
+        //
+        // Reporting only — nothing is forced. When a pallet is halfway through an
+        // applicator, the safe move is to tell the operator what is stuck, not to
+        // guess a transition.
+
+        protected virtual IReadOnlyDictionary<TState, int> StateTimeouts
+        {
+            get { return null; }
+        }
+
+        private void CheckLiveness()
+        {
+            if (stuckReported)
+            {
+                return;
+            }
+            var timeouts = StateTimeouts;
+            int limit;
+            if (timeouts == null || !timeouts.TryGetValue(State, out limit)
+                || StateTime.ElapsedMilliseconds <= limit)
+            {
+                return;
+            }
+            stuckReported = true;
+            machineLog.ErrorFormat("{0} has been in {1} for over {2} ms and is not progressing",
+                Name, State, limit);
+            OnStuck(State);
+        }
+
+        /// <summary>
+        /// Called once when a state overruns its <see cref="StateTimeouts"/> entry.
+        /// Override to add an operator-facing message or a database alarm; the
+        /// stall is already logged.
+        /// </summary>
+        protected virtual void OnStuck(TState state) { }
 
         // Publishes value -> name so the HMIs can show "Waiting" instead of 0.
         // Keyed by the enum's numeric value, which is how the HMI looks it up

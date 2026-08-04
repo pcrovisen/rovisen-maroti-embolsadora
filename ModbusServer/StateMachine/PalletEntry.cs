@@ -49,6 +49,33 @@ namespace ModbusServer.StateMachine
         int currentIdEmb1 = 0;
         int currentIdEmb2 = 0;
 
+        // Absent on purpose: Waiting (idle between pallets), WaitingAvailability
+        // (both Bocedis legitimately full), Paused and ReadingQrInError (waiting
+        // for an operator), and the four WaitFor*/WaitEnter* handshakes, whose
+        // duration is conveyor movement and depends on how the line is running.
+        static readonly IReadOnlyDictionary<States, int> Timeouts = new Dictionary<States, int>
+        {
+            { States.WaitingSetQr, 60000 },
+            { States.WaitingSetEntryPallet, 60000 },
+            { States.AskingDB, 120000 },
+            { States.SendingID, 60000 },
+            { States.WaitUpdateFIFO1, 60000 },
+            { States.UpdateFIFO1, 60000 },
+            { States.WaitUpdateCar, 60000 },
+            { States.UpdateCar, 60000 },
+        };
+
+        protected override IReadOnlyDictionary<States, int> StateTimeouts
+        {
+            get { return Timeouts; }
+        }
+
+        protected override void OnStuck(States state)
+        {
+            Status.Instance.ErrorMessages.EntryError =
+                $"El ingreso de pallets se detuvo en la etapa {state}. Revisar la conexión con el PLC y con la base de datos.";
+        }
+
         public PalletEntry() : base(States.Waiting)
         {
             qrReader = new QrReader(ConfigurationManager.AppSettings["ipQrReader"]);
@@ -58,7 +85,7 @@ namespace ModbusServer.StateMachine
             bocedi2Working = false;
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             qrReaderConnection.Step();
 

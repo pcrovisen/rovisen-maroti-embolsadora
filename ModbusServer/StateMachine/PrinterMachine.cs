@@ -62,11 +62,42 @@ namespace ModbusServer.StateMachine
         Label currentLabel;
         int errorCount;
 
+        // Generous: these are all "the Omron, the printer or the database answered
+        // but the cycle never moved on" limits, not cycle-time targets. States that
+        // wait on the operator or on a pallet that may legitimately not be coming
+        // (Completed, Skipped) are deliberately absent.
+        static readonly IReadOnlyDictionary<States, int> Timeouts = new Dictionary<States, int>
+        {
+            { States.RetreivingWeightLen, 60000 },
+            { States.RetreivingWeight, 60000 },
+            { States.SendWeightOk, 60000 },
+            { States.RetreivingLabels, 60000 },
+            { States.WaitPallet, 180000 },
+            { States.WaitLabelInstruction, 180000 },
+            { States.WaitPrinter, 60000 },
+            { States.WaitPLCConfirmation, 60000 },
+            { States.WaitLabelLost, 60000 },
+            { States.WaitApplicatorReady, 60000 },
+            { States.Reset1, 30000 },
+            { States.Reset2, 30000 },
+        };
+
+        protected override IReadOnlyDictionary<States, int> StateTimeouts
+        {
+            get { return Timeouts; }
+        }
+
+        protected override void OnStuck(States state)
+        {
+            lane.SetError($"El proceso de etiquetado se detuvo en la etapa {state}. Revisar la etiquetadora y la impresora.");
+            _ = SqlDatabase.NotifyError(SqlDatabase.SystemErrors.timeout_etiquetado, code, packager);
+        }
+
         public bool WeightOk
         {
             get
             {
-                return State >= States.WeightOk; 
+                return State >= States.WeightOk;
             }
         }
         // Name stays PrinterMachineWolrdjet1 / ...2 — the "Wolrdjet" typo is
@@ -81,7 +112,7 @@ namespace ModbusServer.StateMachine
             this.packager = lane.Number;
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             switch (State)
             {

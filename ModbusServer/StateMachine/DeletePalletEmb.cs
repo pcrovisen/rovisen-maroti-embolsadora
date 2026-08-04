@@ -72,7 +72,7 @@ namespace ModbusServer.StateMachine
             instances[lane.Number] = this;
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             switch (State)
             {

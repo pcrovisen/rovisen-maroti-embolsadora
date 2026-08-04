@@ -31,6 +31,22 @@ namespace ModbusServer.StateMachine
 
         Task initQueues;
 
+        // Init has no ceiling: with the PLC off, sitting there is the correct
+        // behaviour and the connection flags already say so. The three handshake
+        // steps in between should take milliseconds, so a stall there means the
+        // PLC program raised PLCStarting and then stopped talking.
+        static readonly IReadOnlyDictionary<States, int> Timeouts = new Dictionary<States, int>
+        {
+            { States.Starting, 30000 },
+            { States.WaitingMemory, 30000 },
+            { States.WaitingInit, 60000 },
+        };
+
+        protected override IReadOnlyDictionary<States, int> StateTimeouts
+        {
+            get { return Timeouts; }
+        }
+
         public FatekPLCCommunication() : base(States.Init)
         {
             palletEntry = new PalletEntry();
@@ -42,7 +58,7 @@ namespace ModbusServer.StateMachine
             elevatorMachine = new ElevatorAccess();
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             if (!FatekPLC.IsConnected)
             {

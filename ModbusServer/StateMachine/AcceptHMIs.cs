@@ -35,7 +35,7 @@ namespace ModbusServer.StateMachine
             hmis = new Dictionary<string, HMIConnection>();
         }   
 
-        public override void Step()
+        protected override void OnStep()
         {
             switch (State)
             {

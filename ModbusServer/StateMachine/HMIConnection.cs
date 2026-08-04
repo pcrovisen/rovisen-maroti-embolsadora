@@ -54,7 +54,7 @@ namespace ModbusServer.StateMachine
             Cts = new CancellationTokenSource();
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             if(Status.Instance.Packager1.Updated)
                 UpdateQueueEmb1 = true;

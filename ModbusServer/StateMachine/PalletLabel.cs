@@ -1,6 +1,7 @@
 using log4net;
 using mcOMRON;
 using ModbusServer.Devices;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -43,6 +44,28 @@ namespace ModbusServer.StateMachine
         Task<bool> palletLeaveTask;
         Task writeTask;
 
+        // WaitingPallet is idle between pallets and WaitingCorrection waits for an
+        // operator, so neither has a ceiling. The rest are handshakes with the
+        // Fatek or the database that should complete in well under a second.
+        static readonly IReadOnlyDictionary<States, int> Timeouts = new Dictionary<States, int>
+        {
+            { States.WaitUpdate, 60000 },
+            { States.WaitUpdate2, 60000 },
+            { States.WaitAck, 60000 },
+            { States.WaitLeaving, 120000 },
+            { States.PalletNull, 300000 },
+        };
+
+        protected override IReadOnlyDictionary<States, int> StateTimeouts
+        {
+            get { return Timeouts; }
+        }
+
+        protected override void OnStuck(States state)
+        {
+            lane.SetError($"La salida de la embolsadora {lane.Number} se detuvo en la etapa {state}. Revisar el PLC y la conexión con la base de datos.");
+        }
+
         public PalletLabel(PackagerBinding lane) : base(States.WaitingPallet, lane.Number.ToString())
         {
             this.lane = lane;
@@ -53,7 +76,7 @@ namespace ModbusServer.StateMachine
             printerMachine = new PrinterMachine(plc, printer, lane);
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             omronConnection.Step();
             printerConnection.Step();

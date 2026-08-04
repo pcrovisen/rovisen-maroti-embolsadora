@@ -32,7 +32,7 @@ namespace ModbusServer.StateMachine
             retries = 0;
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             switch (State)
             {

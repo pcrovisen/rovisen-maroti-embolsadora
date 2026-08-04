@@ -35,7 +35,7 @@ namespace ModbusServer.StateMachine
             qrReadMachine = new QrReadMachine(qrReader);
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             qrReaderConnection.Step();
 

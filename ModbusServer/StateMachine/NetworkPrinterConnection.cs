@@ -34,7 +34,7 @@ namespace ModbusServer.StateMachine
             this.printer = printer;
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             switch (State)
             {

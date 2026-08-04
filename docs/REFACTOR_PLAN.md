@@ -29,14 +29,26 @@ the plant hardware or a Modbus client simulating the PLC.
 | 10 | `Config.Load` must not overwrite settings on read failure | done |
 | 11 | Connection/resource cleanup (`IDisposable`, no finalizer `.Wait()`) | done |
 | 12 | Dead code removal | done |
-| 13 | Liveness watchdogs on waiting states *(added during the work)* | todo |
+| 13 | Liveness watchdogs on waiting states *(added during the work)* | done |
 
-Update this table in the same commit as the step, so a fresh session can pick
-up from here without re-reading the whole diff.
+**All thirteen steps are done.** Every commit is green on `./build/typecheck.sh`
+and on the `windows` MSBuild job in CI. Nothing here has run against the plant
+hardware — see "What still needs the plant" below.
 
-Post-merge follow-ups (not in this branch): generate the WebHMI enum mirrors
-from the C# sources the way `transitions.json` already is; shared `.Contracts`
-assembly to kill the hand-mirrored DTOs in `TcpHMIClient`.
+Follow-ups deliberately left out of this branch:
+
+- Generate the WebHMI enum mirrors (`SIGNAL_NAMES`, `PC_SIGNAL_NAMES`, `PE`, and
+  the copies in `devserver/dummy_server.mjs`) from the C# sources the way
+  `transitions.json` already is. Same hand-mirroring problem as CLAUDE.md rule 3,
+  now in a third language.
+- A shared `.Contracts` assembly referenced by both `ModbusServer` and
+  `TcpHMIClient`, to delete the hand-duplicated DTOs and rule 3 with them.
+- `Status` still publishes `Queue` and then `LabelPallet`/`ExitPallet` in
+  separate assignments, so an HMI snapshot can catch a new queue with a stale
+  label pallet. The list-swap in `UpdateQueue` fixed the enumeration crash, not
+  this.
+- A `sistema_bloqueado` (or similar) alarm type in `sp_evento_alarma`, so step 13
+  can report a stall to the database instead of only the log and the HMI.
 
 ---
 
@@ -177,21 +189,53 @@ Deliberately kept:
 
 Steps 2 and 3 each turned out to be an instance of the same larger gap: a state
 that waits on a PLC bit or a device with no ceiling on how long it may wait. An
-exception restarts the service and the PLC re-syncs it; a *hang* has nothing to
-trip, so the machine sits there until somebody notices.
+exception restarts the service and the PLC re-syncs it on the next handshake —
+that path is designed for. A *hang* has nothing to trip, so the machine sits
+there until somebody notices the line has stopped.
 
-Known candidates, none of which currently time out:
+`Machine<TState>.Step()` is now a sealed wrapper that runs a liveness check and
+then calls the machine's `OnStep()`. Machines declare `StateTimeouts` — the
+states that are supposed to make progress and how long they may take — and
+override `OnStuck(state)` to add an operator message or an alarm. A stall is
+reported **once per visit** to the state, not ten times a second.
 
-- `PrinterMachine`: `WaitPallet`, `WaitLabelInstruction`, `WaitApplicatorReady`,
-  `WaitLabelLost` — re-issue the read on fault but never give up.
-- `PrinterMachine.Completed` / `Skipped`, `PalletLabel*.PalletNull` — terminal
-  states waiting for a bit that may never come.
+Reporting only. Nothing is forced: when a pallet is halfway through an
+applicator, the safe move is to tell the operator exactly which machine and
+state are stuck, not to guess a transition.
+
+Covered: `PrinterMachine` (the whole weigh/print/apply cycle), `PalletLabel`
+(the Fatek and database handshakes), `PalletEntry` (QR write, DB routing, FIFO
+updates), `FatekPLCCommunication` (the startup handshake).
+
+Deliberately **not** covered, because a long wait there is normal and a false
+alarm is worse than none:
+
+- idle states — `PalletEntry.Waiting`, `PalletLabel.WaitingPallet`
+- waits on an operator — `WaitingCorrection`, `Paused`, `ReadingQrInError`
+- `PalletEntry.WaitingAvailability` — both Bocedis can legitimately be full
 - `PalletEntry.WaitForBocedi1` / `WaitEnterBocedi` / `WaitForCar` /
-  `WaitEnterCar` — gated on PLC handshakes.
+  `WaitEnterCar`, and all of `CarMachine` — conveyor and car movement, whose
+  duration depends on how the line is running
+- the three connection machines — reconnecting forever is the intended
+  behaviour, and the HMI connection chips already show it
+- `FatekPLCCommunication.Init` — with the PLC off, sitting there is correct
 
-Wanted: a small helper on `Machine` (`Stuck(ms)`) plus, per state, a decision —
-alarm through `sp_evento_alarma`, operator message in Spanish, and either a
-retry or a drop back to a safe state. The mechanism already exists (`StateTime`
-is in the base class); it is simply never used as a watchdog.
+The timeouts are deliberately generous (30 s – 5 min): they are "this cycle is
+not moving at all" limits, not cycle-time targets. They are the numbers most
+likely to need tuning against the real line.
 
-Do this **before** steps 5–9: those are maintainability, this is uptime.
+---
+
+## What still needs the plant
+
+Nothing in this branch has run against hardware. In rough order of risk:
+
+1. **`FatekPLC` word packing** (step 9). Verified exhaustively equivalent to the
+   old algorithm by simulation, but it is the PLC wire contract.
+2. **`SqlDatabase.Execute`** (step 8). Every stored-procedure call now goes
+   through one path, and `ExecuteReaderAsync` replaced a synchronous read.
+3. **The merged lanes** (steps 5-6). Bocedi 2 now runs code that was only ever
+   exercised as Bocedi 1's copy. Diffing showed no behavioural difference, but
+   only the line proves it.
+4. **Step 13's timeouts.** Watch the logs for `has been in ... and is not
+   progressing` on a healthy line; any that appear are too tight.

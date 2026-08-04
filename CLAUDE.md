@@ -14,7 +14,7 @@ Read `README.md` for the plant/network overview and `docs/ARCHITECTURE.md` for s
 
 ## Hard rules
 
-1. **Single-threaded step model.** All logic runs in `MainProcess` → `MainMachine.Step()` every 100 ms. Never block inside a `Step()`; start a `Task` and poll `IsCompleted`/`IsFaulted` on later steps (see any machine for the retry idiom with `StateTime`).
+1. **Single-threaded step model.** All logic runs in `MainProcess` → `MainMachine.Step()` every 100 ms. Machines implement `OnStep()` (the base's `Step()` wraps it with the liveness check). Never block inside it; start a `Task` and poll it with `TryComplete(ref task, restart, what)` on later steps. A state that waits on something that may never arrive belongs in that machine's `StateTimeouts`.
 2. Machines are `Machine<TState>`: `internal class Foo : Machine<Foo.States>` with a nested `public enum States`. The enum must be `public`/`internal` (a private nested type cannot be the base's type argument) and the machine's `Name` — `class name + identifier` — is what the HMI and `WebHMI/wwwroot/transitions.json` key on, so `PalletLabel` instantiated with identifier `"1"` must stay `PalletLabel1`.
 3. **Server and HMI DTOs are duplicated by hand.** Any change to `Status.cs` DTOs, `FatekPLC.Signals` order (coils 21+), or state enums shown on the HMI must be mirrored in `TcpHMIClient/HMIClient.cs` (`SystemStatus`, `SignalsNames`, `PalletEntryStates`). The HMI protocol is length-prefixed (4-byte LE int) on both sides — a change to the framing means deploying server and HMIs together.
 4. **Coil/register maps are contracts with the PLC programs** in `PLCs/*.pdw`. Don't renumber `FatekPLC.Signals`/`Memory` values unless the PLC program changes too. Convention: coils 1–20 written by the PC, 21+ by the PLC.

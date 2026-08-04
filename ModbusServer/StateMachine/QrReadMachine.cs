@@ -37,7 +37,7 @@ namespace ModbusServer.StateMachine
             this.qrReader = qrReader;
         }
 
-        public override void Step()
+        protected override void OnStep()
         {
             switch(State)
             {
